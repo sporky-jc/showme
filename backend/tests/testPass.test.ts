@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import request from "supertest";
 import app from "../app.js";
 import {
@@ -46,13 +51,27 @@ describe("isValidTestPass", () => {
     }
   );
 
-  // The deploy workflows build passes with openssl, not this code. This is
-  // the pass openssl gives for this key and expiry:
-  //   printf 'v1.4102444800' | openssl dgst -sha256 -hmac "$KEY" -hex
-  it("matches what the workflows' openssl command produces", () => {
-    expect(mintTestPass(KEY, 4102444800)).toBe(
-      "v1.4102444800.3019b6ded75415c650d47d09918cd92d73ab0abd0bc8d6249adaf9d87429b541"
+  it("refuses a second spelling of a pass (a leading zero in the expiry)", () => {
+    const pass = mintTestPass(KEY, inAnHour());
+    expect(isValidTestPass(pass.replace("v1.", "v1.0"), KEY)).toBe(false);
+  });
+
+  // The passes QA Wolf gets are made by .github/scripts/test-login-pass.mjs,
+  // not by this code: run it, and check its pass is one the backend takes
+  it("accepts the passes the workflows' script makes", () => {
+    const dir = mkdtempSync(join(tmpdir(), "test-pass-"));
+    const output = join(dir, "github_output");
+    writeFileSync(output, "");
+    execFileSync(
+      process.execPath,
+      [fileURLToPath(new URL("../../.github/scripts/test-login-pass.mjs", import.meta.url)), "output"],
+      { env: { PATH: process.env.PATH, TEST_LOGIN_KEY: KEY, GITHUB_OUTPUT: output } }
     );
+    const line = readFileSync(output, "utf8").trim();
+    const pass = JSON.parse(line.slice("variables=".length)).TEST_LOGIN_SECRET;
+
+    expect(isValidTestPass(pass, KEY)).toBe(true);
+    expect(isValidTestPass(pass, OTHER_KEY)).toBe(false);
   });
 });
 

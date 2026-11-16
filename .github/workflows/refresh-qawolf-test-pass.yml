@@ -8,9 +8,12 @@ name: Refresh QA Wolf's test-login pass
 # one, and a pass that leaks stops working within hours. See
 # .github/scripts/test-login-pass.mjs.
 #
-# GitHub runs schedules from the default branch (staging), at most about
-# hourly here, and sometimes late. "Run workflow" refreshes it at once, for
-# example after QA Wolf's sign-in flows fail with "Invalid test login secret".
+# GitHub runs schedules from the default branch (staging), sometimes late,
+# and turns them off in a public repository after 60 days without activity
+# (the Actions tab then offers to turn this one back on). Runs a deployment
+# starts are unaffected; the others need a saved pass. "Run workflow"
+# refreshes it at once, for example after QA Wolf's sign-in flows fail with
+# "Invalid test login secret".
 on:
   schedule:
     - cron: "23 * * * *" # every hour, off the busy top of the hour

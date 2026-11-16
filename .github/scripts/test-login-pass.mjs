@@ -83,7 +83,8 @@ const saveToQaWolf = async (pass) => {
       value: pass,
     },
   });
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  const attempts = 3;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       const response = await fetch(
         `${QAWOLF_HOST}/api/trpc/public.environment.setVariable`,
@@ -94,7 +95,7 @@ const saveToQaWolf = async (pass) => {
             "Content-Type": "application/json",
           },
           body,
-          signal: AbortSignal.timeout(30_000),
+          signal: AbortSignal.timeout(15_000),
         }
       );
       if (response.ok) return;
@@ -104,7 +105,9 @@ const saveToQaWolf = async (pass) => {
     } catch (error) {
       console.log(`::warning::Could not reach QA Wolf: ${error.message} (attempt ${attempt})`);
     }
-    await new Promise((resolve) => setTimeout(resolve, attempt * 5_000));
+    if (attempt < attempts) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 5_000));
+    }
   }
   fail("Could not save the test-login pass in QA Wolf");
 };
