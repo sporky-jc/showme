@@ -6,6 +6,7 @@ import type {
   ReviewBody,
   ReviewDecision,
   Sentence,
+  SentenceLikes,
   SentenceWithAuthor,
   TellSentence,
   User,
@@ -49,6 +50,15 @@ export const updatePendingApprovalSentences = (
     status,
     sentence,
   } satisfies ReviewBody);
+
+// Likes on the Collections page, for signed-in users only: every approved
+// sentence's likes, and liking or unliking one (each answers with that
+// sentence's likes after the change)
+export const fetchLikes = () => API.get<SentenceLikes[]>("/Collections/likes");
+export const likeSentence = (id: string) =>
+  API.put<SentenceLikes>(`/Collections/${encodeURIComponent(id)}/like`);
+export const unlikeSentence = (id: string) =>
+  API.delete<SentenceLikes>(`/Collections/${encodeURIComponent(id)}/like`);
 
 // On a fresh load of some pages, index.html starts a request before the app's
 // code has even downloaded (see vite.config.ts). Each one is handed over once:

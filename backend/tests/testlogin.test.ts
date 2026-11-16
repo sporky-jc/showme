@@ -184,6 +184,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
         ["student-sort", "test-student-sort"],
         ["student-double-submit", "test-student-double-submit"],
         ["student-mobile", "test-student-mobile"],
+        ["student-likes", "test-student-likes"],
       ]) {
         const res = await request(app).post("/auth/test").send({ secret: SECRET, role });
 
@@ -197,6 +198,34 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
           isAdmin: false,
         });
       }
+    });
+
+    it("with fresh: true, takes back the account's likes, and only its likes", async () => {
+      await request(app).post("/auth/test").send({ secret: SECRET, role: "student-likes" });
+      const tester = await Profile.findOne({ id: "test-student-likes" }).orFail();
+      const ada = await createUser();
+      const alan = await createUser({ id: "google-user-2", email: "alan@example.com" });
+      const sentence = await createSentence(ada, {
+        approved: true,
+        likedBy: [tester._id, alan._id],
+      });
+
+      const res = await request(app)
+        .post("/auth/test")
+        .send({ secret: SECRET, role: "student-likes", fresh: true });
+
+      expect(res.status).toBe(200);
+      const after = await Sentence.findById(sentence._id).orFail();
+      expect(after.likedBy.map(String)).toEqual([String(alan._id)]);
+    });
+
+    it("with fresh: true on a first login, starts the account with nothing", async () => {
+      const res = await request(app)
+        .post("/auth/test")
+        .send({ secret: SECRET, role: "student-likes", fresh: true });
+
+      expect(res.status).toBe(200);
+      expect(await Profile.countDocuments({ id: "test-student-likes" })).toBe(1);
     });
 
     it("with fresh: true, only wipes the sentences of the student role that asked", async () => {

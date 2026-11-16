@@ -33,12 +33,6 @@ const profileSchema = new mongoose.Schema({
       ref: "Sentence",
     },
   ],
-  likedSentences: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Sentence",
-    },
-  ],
   isAdmin: {
     type: Boolean,
     default: false,

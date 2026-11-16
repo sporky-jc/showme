@@ -12,6 +12,11 @@ import {
 } from "../controllers/routes.js";
 import { googleAuth } from "../controllers/auth.js";
 import { testLogin } from "../controllers/testLogin.js";
+import {
+  getLikes,
+  likeSentence,
+  unlikeSentence,
+} from "../controllers/likes.js";
 import auth from "../middlewares/auth.js";
 import admin from "../middlewares/admin.js";
 
@@ -50,5 +55,10 @@ router.patch("/Admin", auth, admin, updatePendingApprovalSentences);
 
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);
+
+// Likes on approved sentences: signed-in users only (see controllers/likes.ts)
+router.get("/Collections/likes", auth, getLikes);
+router.put("/Collections/:id/like", auth, likeSentence);
+router.delete("/Collections/:id/like", auth, unlikeSentence);
 
 export default router;

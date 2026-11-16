@@ -9,6 +9,8 @@ import Typography from "@mui/material/Typography";
 import Skeleton from "@mui/material/Skeleton";
 import { useSelector } from "react-redux";
 import * as config from "../../src/config";
+import LikeButton from "./LikeButton";
+import type { LikesById } from "./useLikes";
 import type { SentenceWithAuthor, TellSentence } from "../api/types";
 import type { RootState } from "../reducers/types";
 
@@ -19,9 +21,13 @@ import type { RootState } from "../reducers/types";
 function CardGrid({
   sentences,
   tellSentences,
+  likes,
+  onToggleLike,
 }: {
   sentences: SentenceWithAuthor[];
   tellSentences: TellSentence[];
+  likes: LikesById | null;
+  onToggleLike: (id: string) => void;
 }) {
   const [loadingState, setLoadingState] = useState(() =>
     Array(config.DisplayCollectionSentences).fill(true)
@@ -116,6 +122,14 @@ function CardGrid({
                 <Button hidden={true} size="small">
                   Learn More
                 </Button>
+                {/* Signed-in users only: with nobody signed in there are
+                    no likes to show (see useLikes) */}
+                {likes?.[sentence._id] && (
+                  <LikeButton
+                    likes={likes[sentence._id]}
+                    onToggle={() => onToggleLike(sentence._id)}
+                  />
+                )}
               </CardActions>
             </Card>
           </Grid>
@@ -125,7 +139,15 @@ function CardGrid({
   );
 }
 
-function Cards(props: { displaySentences?: SentenceWithAuthor[] }) {
+// Nothing to do when there are no likes to press
+const noLikes = () => {};
+
+function Cards(props: {
+  displaySentences?: SentenceWithAuthor[];
+  // The signed-in user's view of each sentence's likes, or null for none
+  likes?: LikesById | null;
+  onToggleLike?: (id: string) => void;
+}) {
   // tell sentences from global redux state
   const tellSentences = useSelector(
     (state: RootState) => state.tellsentences
@@ -147,6 +169,8 @@ function Cards(props: { displaySentences?: SentenceWithAuthor[] }) {
         key={listKey}
         sentences={sentences}
         tellSentences={tellSentences}
+        likes={props.likes ?? null}
+        onToggleLike={props.onToggleLike ?? noLikes}
       />
     );
   }

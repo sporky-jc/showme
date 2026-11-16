@@ -26,10 +26,16 @@ const sentenceSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  likeCount: {
-    type: Number,
-    default: 0,
-  },
+  // The profiles of the students who liked it, each at most once (see
+  // controllers/likes.ts). Its like count is worked out from this, never
+  // stored: 1 for passing review, plus one per entry. (Older sentences may
+  // also hold a likeCount of 0 from before likes existed; nothing reads it.)
+  likedBy: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Profile",
+    },
+  ],
   GID: { type: String, required: true },
 });
 
