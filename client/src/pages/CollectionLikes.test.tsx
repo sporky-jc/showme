@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished } from "vitest";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Collection from "./Collection";
 import { renderWithApp } from "../test/testUtils";
+import { API } from "../api";
+import { setupInterceptors } from "../api/interceptors";
 import type { Outcome } from "../test/testUtils";
 import type { SentenceLikes, SentenceWithAuthor, User } from "../api/types";
 
@@ -192,10 +194,50 @@ describe("Collections likes, signed in", () => {
     expect(await within(first).findByText("2 likes")).toBeInTheDocument();
   });
 
-  it("still shows the sentences when the likes can't be loaded", async () => {
-    renderCollection({ user: alan, likes: () => "offline" });
+  it("still shows the sentences when the likes can't be loaded, and Try again asks again", async () => {
+    const user = userEvent.setup();
+    let likesCalls = 0;
+    let collectionCalls = 0;
+    renderWithApp(<Collection />, {
+      state: { tellsentences, user: alan },
+      route: "/Collections",
+      respond: (config) => {
+        if (config.url === "/Collections") {
+          collectionCalls += 1;
+          return collectionCalls === 1 ? 500 : { status: 200, data: sentences };
+        }
+        if (config.url === "/Collections/likes") {
+          likesCalls += 1;
+          return likesCalls === 1 ? "offline" : { status: 200, data: serverLikes() };
+        }
+        return 200;
+      },
+    });
+
+    // The first likes request has been answered (offline): no hearts, and
+    // no error about likes either
+    await waitFor(() => expect(likesCalls).toBe(1));
+    await user.click(await screen.findByRole("button", { name: /try again/i }));
+
+    const first = await card("Sentence 1");
+    expect(await within(first).findByText("1 like")).toBeInTheDocument();
+    expect(likesCalls).toBe(2);
+  });
+
+  it("shows sentences but no likes when only the likes fail to load", async () => {
+    let answered = false;
+    renderCollection({
+      user: alan,
+      likes: () => {
+        answered = true;
+        return "offline";
+      },
+    });
 
     await screen.findByText("Sentence 1");
+    await waitFor(() => expect(answered).toBe(true));
+    // Let the failed answer be handled before checking
+    await act(async () => {});
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Like" })).not.toBeInTheDocument();
   });
@@ -214,12 +256,41 @@ describe("Collections likes, signed in", () => {
     expect(screen.getByText("Sentence 1")).toBeInTheDocument();
   });
 
-  it("hides the likes when the login has expired (the server answers 401)", async () => {
-    renderCollection({ user: alan, likes: () => 401 });
-
+  it("logs out and shows no likes when the login has expired (the server answers 401)", async () => {
+    let answered = false;
+    // Alan's remembered by the browser, but his login has run out. The app's
+    // 401 rule is installed (as index.tsx does) before he's signed in, so
+    // the likes request goes through it.
+    const { store } = renderCollection({
+      likes: () => {
+        answered = true;
+        return 401;
+      },
+    });
+    const interceptorId = setupInterceptors(store);
+    onTestFinished(() => API.interceptors.response.eject(interceptorId));
     await screen.findByText("Sentence 1");
-    // Give the likes request time to be answered
-    await waitFor(() => expect(screen.queryByText(/\blikes?\b/)).not.toBeInTheDocument());
+    act(() => {
+      store.dispatch({ type: "FIND_USER", payload: alan });
+    });
+
+    await waitFor(() => expect(answered).toBe(true));
+    await waitFor(() => expect(store.getState().user).toEqual({}));
+    expect(screen.queryByText(/\blikes?\b/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Like" })).not.toBeInTheDocument();
+  });
+
+  it("logs out when a like is refused because the login expired", async () => {
+    const user = userEvent.setup();
+    const { store } = renderCollection({ user: alan, like: () => 401 });
+    const interceptorId = setupInterceptors(store);
+    onTestFinished(() => API.interceptors.response.eject(interceptorId));
+    const first = await card("Sentence 1");
+
+    await user.click(await within(first).findByRole("button", { name: "Like" }));
+
+    await waitFor(() => expect(store.getState().user).toEqual({}));
+    expect(screen.queryByRole("button", { name: "Like" })).not.toBeInTheDocument();
+    expect(screen.getByText("Sentence 1")).toBeInTheDocument();
   });
 });

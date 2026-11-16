@@ -19,12 +19,6 @@ const shuffle = (sentences: SentenceWithAuthor[]) =>
 function Collection() {
   const dispatch = useDispatch<AppDispatch>();
 
-  // Likes, for signed-in users only: with nobody signed in, `likes` is null
-  // and the cards show none. They follow whoever is signed in, so logging
-  // out hides them at once.
-  const userId = useSelector((state: RootState) => state.user.id);
-  const { likes, toggle } = useLikes(userId);
-
   // The server's list (newest first), the order chosen for display (random by
   // default), whether we're still waiting for the server, and whether the
   // last request failed. Bumping `attempt` asks the server again.
@@ -33,6 +27,12 @@ function Collection() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+
+  // Likes, for signed-in users only: with nobody signed in, `likes` is null
+  // and the cards show none. They follow whoever is signed in, so logging
+  // out hides them at once. Try again asks for them again too.
+  const userId = useSelector((state: RootState) => state.user.id);
+  const { likes, toggle } = useLikes(userId, attempt);
 
   // Ask the server for the approved sentences, and shuffle them as soon as
   // they arrive. Only the server's answer is ever shown: an old list the

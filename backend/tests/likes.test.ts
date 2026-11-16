@@ -182,6 +182,30 @@ describe("GET /Collections/likes", () => {
   });
 });
 
+describe("editing a liked sentence", () => {
+  it("starts its likes again: the old ones were for the old text", async () => {
+    const { ada, alan, sentence, path } = await setUp();
+    const admin = await createAdmin();
+    await request(app).put(path).set("Cookie", sessionCookie(alan));
+
+    await request(app)
+      .patch("/MyPage")
+      .set("Cookie", sessionCookie(ada))
+      .send({ title: sentence.title, show: "A completely new sentence." });
+    await request(app)
+      .patch("/Admin")
+      .set("Cookie", sessionCookie(admin))
+      .send({ status: "approve", sentence: { _id: String(sentence._id) } });
+
+    const res = await request(app)
+      .get("/Collections/likes")
+      .set("Cookie", sessionCookie(alan));
+    expect(res.body).toStrictEqual([
+      { _id: String(sentence._id), likes: 1, likedByMe: false, mine: false },
+    ]);
+  });
+});
+
 describe("PUT /Collections/:id/like", () => {
   it("adds the user's like and sends back the sentence's likes", async () => {
     const { alan, sentence, path } = await setUp();

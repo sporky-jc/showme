@@ -86,7 +86,8 @@ const changeLike =
       // Only approved sentences can be liked: the others aren't on the
       // Collections page. Nor can a student like their own. Both are part of
       // the update's filter too, so a sentence sent back for a redo (or
-      // edited) between this check and the update isn't changed.
+      // edited) between this check and the update isn't changed. (Unliking
+      // needs no own-sentence guard: it only ever removes the user.)
       const sentence = await Sentence.findOne(
         { _id: id.data, approved: true },
         "GID"
@@ -103,7 +104,9 @@ const changeLike =
       // $addToSet adds the user only if they aren't there yet, and $pull
       // removes them, each in one step: two likes at once can't count twice.
       const updated = await Sentence.findOneAndUpdate(
-        { _id: id.data, approved: true },
+        like
+          ? { _id: id.data, approved: true, GID: { $ne: me.id } }
+          : { _id: id.data, approved: true },
         like
           ? { $addToSet: { likedBy: me._id } }
           : { $pull: { likedBy: me._id } },

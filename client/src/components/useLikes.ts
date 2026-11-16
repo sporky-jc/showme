@@ -27,7 +27,9 @@ const byId = (list: SentenceLikes[]): LikesById =>
 // may have liked it meanwhile), or, if the request fails, it's put back.
 // While one request for a sentence is on its way, more clicks on it are
 // ignored, so a double click can't send a like and an unlike.
-export function useLikes(userId: string | undefined) {
+//
+// `reload`: changing it asks the server again (Collections' Try again)
+export function useLikes(userId: string | undefined, reload = 0) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   // The sentences with a like or unlike on its way. A ref, not state, so
   // it's up to date even between two quick clicks, before React has redrawn.
@@ -48,7 +50,7 @@ export function useLikes(userId: string | undefined) {
     return () => {
       stillHere = false;
     };
-  }, [userId]);
+  }, [userId, reload]);
 
   const likes = userId && loaded?.forUser === userId ? loaded.byId : null;
 
