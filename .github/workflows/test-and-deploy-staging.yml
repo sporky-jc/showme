@@ -264,27 +264,35 @@ jobs:
           echo "::error::The staging site ($(short "$site")) and backend ($(short "$api")) did not both run $GITHUB_SHA within 10 minutes"
           exit 1
 
-      # A test-login pass for the runs QA Wolf starts from this deployment:
-      # valid for 3 hours, signed with TEST_LOGIN_KEY (which QA Wolf never
-      # sees; see backend/utils/testPass.ts). It reaches the flows as their
-      # TEST_LOGIN_SECRET, so a copy that leaks (QA Wolf's pull request
-      # comments have shown run variables) soon stops working. Without the
-      # key, the runs use the fixed TEST_LOGIN_SECRET in QA Wolf, as before.
-      - name: Mint a short-lived test-login pass
+      # The test-login pass script (.github/scripts/test-login-pass.mjs)
+      - name: Checkout the scripts
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      # A fresh pass in QA Wolf's staging environment, so runs started there
+      # by hand or by the QA Wolf AI can sign in too (the hourly
+      # refresh-qawolf-test-pass.yml keeps it fresh after that). If saving
+      # fails, this deployment's own runs still get the pass below, so it
+      # only warns; the hourly refresh tries again.
+      - name: Save a fresh test-login pass in QA Wolf
+        continue-on-error: true
+        env:
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
+          QAWOLF_API_KEY: ${{ secrets.QAWOLF_API_KEY }}
+        run: node .github/scripts/test-login-pass.mjs save
+
+      # And a pass for the runs this deployment starts, handed over with it
+      - name: Mint a short-lived test-login pass for this deployment's runs
         id: pass
         env:
           TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
-        run: |
-          if [ -z "$TEST_LOGIN_KEY" ]; then
-            echo "::warning::No TEST_LOGIN_KEY secret: QA Wolf uses its fixed TEST_LOGIN_SECRET"
-            echo 'variables={}' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          expiry=$(( $(date +%s) + 3 * 60 * 60 ))
-          signature=$(printf 'v1.%s' "$expiry" | openssl dgst -sha256 -hmac "$TEST_LOGIN_KEY" -hex | awk '{print $NF}')
-          pass="v1.$expiry.$signature"
-          echo "::add-mask::$pass"
-          echo "variables={\"TEST_LOGIN_SECRET\":\"$pass\"}" >> "$GITHUB_OUTPUT"
+        run: node .github/scripts/test-login-pass.mjs output
 
       - name: Tell QA Wolf staging was deployed
         uses: qawolf/notify-qawolf-on-deploy-action@v3

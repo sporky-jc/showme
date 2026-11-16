@@ -1,0 +1,47 @@
+name: Refresh QA Wolf's test-login pass
+
+# Keeps a fresh short-lived pass in QA Wolf's staging environment (as its
+# TEST_LOGIN_SECRET variable), so any QA Wolf run can sign in through the
+# staging test login, however it was started: by a deploy, by hand, or by the
+# QA Wolf AI building or repairing a flow. Each pass lasts 4 hours and this
+# runs every hour, so a late or skipped run doesn't leave QA Wolf without
+# one, and a pass that leaks stops working within hours. See
+# .github/scripts/test-login-pass.mjs.
+#
+# GitHub runs schedules from the default branch (staging), at most about
+# hourly here, and sometimes late. "Run workflow" refreshes it at once, for
+# example after QA Wolf's sign-in flows fail with "Invalid test login secret".
+on:
+  schedule:
+    - cron: "23 * * * *" # every hour, off the busy top of the hour
+  workflow_dispatch:
+
+# Never two refreshes at once; a newer pass replaces an older one anyway
+concurrency:
+  group: refresh-qawolf-test-pass
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: Save a new pass in QA Wolf
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout the script
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Save a new test-login pass in QA Wolf
+        env:
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
+          QAWOLF_API_KEY: ${{ secrets.QAWOLF_API_KEY }}
+        run: node .github/scripts/test-login-pass.mjs save
