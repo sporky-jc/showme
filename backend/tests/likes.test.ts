@@ -397,10 +397,16 @@ describe("the like routes' rate limit", () => {
     expect(res.status).toBe(200);
   });
 
-  it("checks the login first: a request without one is answered 401", async () => {
-    const res = await request(app).get("/Collections/likes");
+  it("still answers a request without a login 401, and doesn't count it against signed-in users", async () => {
+    const { alan, path } = await setUp();
+    for (let i = 0; i < LIKE_REQUESTS_PER_MINUTE; i++) {
+      const res = await request(app).get("/Collections/likes");
+      expect(res.status).toBe(401);
+    }
 
-    expect(res.status).toBe(401);
+    const signedIn = await request(app).put(path).set("Cookie", sessionCookie(alan));
+
+    expect(signedIn.status).toBe(200);
   });
 
   it("leaves the public Collections page unlimited", async () => {

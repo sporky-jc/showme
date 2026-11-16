@@ -59,8 +59,8 @@ router.get("/Collections", fetchApprovedSentences);
 
 // Likes on approved sentences: signed-in users only (see controllers/likes.ts),
 // and limited per user (see middlewares/rateLimit.ts)
-router.get("/Collections/likes", auth, likesRateLimit, getLikes);
-router.put("/Collections/:id/like", auth, likesRateLimit, likeSentence);
-router.delete("/Collections/:id/like", auth, likesRateLimit, unlikeSentence);
+router.get("/Collections/likes", likesRateLimit, auth, getLikes);
+router.put("/Collections/:id/like", likesRateLimit, auth, likeSentence);
+router.delete("/Collections/:id/like", likesRateLimit, auth, unlikeSentence);
 
 export default router;
