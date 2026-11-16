@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Button from "@mui/material/Button";
 import Cards from "../components/Cards";
+import { useLikes } from "../components/useLikes";
 import FadeMenu from "../components/FadeMenu";
 import LoadingOverlay from "react-loading-overlay-ts";
 import { fetchApprovedSentences } from "../actions/approvedsentences";
 import type { SentenceWithAuthor } from "../api/types";
-import type { AppDispatch } from "../reducers/types";
+import type { AppDispatch, RootState } from "../reducers/types";
 
 // A copy of the list in a random order
 const shuffle = (sentences: SentenceWithAuthor[]) =>
@@ -26,6 +27,12 @@ function Collection() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+
+  // Likes, for signed-in users only: with nobody signed in, `likes` is null
+  // and the cards show none. They follow whoever is signed in, so logging
+  // out hides them at once. Try again asks for them again too.
+  const userId = useSelector((state: RootState) => state.user.id);
+  const { likes, toggle } = useLikes(userId, attempt);
 
   // Ask the server for the approved sentences, and shuffle them as soon as
   // they arrive. Only the server's answer is ever shown: an old list the
@@ -90,7 +97,11 @@ function Collection() {
             </p>
           ) : (
             <div>
-              <Cards displaySentences={displaySentences} />
+              <Cards
+                displaySentences={displaySentences}
+                likes={likes}
+                onToggleLike={toggle}
+              />
             </div>
           )}
         </>

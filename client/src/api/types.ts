@@ -19,6 +19,7 @@ export type {
   // what it reads back
   Author,
   Sentence,
+  SentenceLikes,
   SentenceWithAuthor,
   TellSentence,
   User,

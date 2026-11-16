@@ -50,13 +50,14 @@ const newestFirst = <T extends { createdAt: Date }>(sentences: T[]) =>
 // no login needed). Both pages show only the author's name, so only the name
 // is sent: the rest of a profile holds the student's email, their Google
 // account id and their login details. A sentence's own GID is that same
-// Google account id, so it's left out too.
+// Google account id, so it's left out too, as is who liked it (likes are
+// only for signed-in users, through their own routes).
 const sentencesWithAuthorNames = async (filter: {
   approved: boolean;
   toRedo?: boolean;
 }) =>
   newestFirst(
-    await Sentence.find(filter, "-GID").populate(
+    await Sentence.find(filter, "-GID -likedBy").populate(
       "author",
       "firstName lastName -_id"
     )
@@ -122,6 +123,9 @@ export const editUserSentence = async (req: Request, res: Response) => {
     updateSentence.createdAt = new Date();
     updateSentence.toRedo = false;
     updateSentence.approved = false;
+    // Its likes were for the old text: it starts again from the 1 like for
+    // passing review once approved (see controllers/likes.ts)
+    updateSentence.likedBy = [];
     await updateSentence.save();
     // send back updated sentence
 

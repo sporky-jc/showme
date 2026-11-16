@@ -9,9 +9,9 @@ import { startSession } from "./auth.js";
 // A login door for automated browser tests (QA Wolf) on the STAGING backend.
 // A robot can't click through "Sign in with Google", so instead it sends a
 // shared secret and gets logged in as one of a few fixed test accounts.
-// With `fresh: true` it first deletes that test account's own sentences, so
-// a test starts from a clean slate (Day 1) every run; the app itself has no
-// way to delete a sentence.
+// With `fresh: true` it first deletes that test account's own sentences, and
+// takes back every like it gave, so a test starts from a clean slate (Day 1,
+// nothing liked) every run; the app itself has no way to delete a sentence.
 //
 // Each browser test that wipes sentences gets its own student account, so
 // tests running at the same time can't wipe each other's sentences.
@@ -52,6 +52,7 @@ const TEST_ACCOUNTS: Record<string, TestAccount> = {
   "student-sort": testStudent("student-sort"),
   "student-double-submit": testStudent("student-double-submit"),
   "student-mobile": testStudent("student-mobile"),
+  "student-likes": testStudent("student-likes"),
   admin: {
     id: "test-admin",
     firstName: "Test",
@@ -113,10 +114,21 @@ export const testLogin = async (req: Request, res: Response) => {
 
   try {
     // Only ever the test account's own sentences (matched by its fixed id),
-    // both the sentences themselves and the profile's list of them
+    // both the sentences themselves and the profile's list of them, and its
+    // own likes on other students' sentences
     if (fresh === true) {
       await Sentence.deleteMany({ GID: account.id });
-      await Profile.updateOne({ id: account.id }, { $set: { ownSentences: [] } });
+      const existing = await Profile.findOneAndUpdate(
+        { id: account.id },
+        { $set: { ownSentences: [] } },
+        { projection: "_id" }
+      );
+      if (existing) {
+        await Sentence.updateMany(
+          { likedBy: existing._id },
+          { $pull: { likedBy: existing._id } }
+        );
+      }
     }
 
     // Create the test account the first time; reuse it after that

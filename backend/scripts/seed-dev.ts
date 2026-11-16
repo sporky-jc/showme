@@ -93,6 +93,16 @@ const seed = async () => {
       createdAt: new Date(now - (sentences.length - index) * 36 * 60 * 60 * 1000),
     });
     author.ownSentences.push(sentence._id);
+    // Some likes, so Collections has counts other than 1 to show: between
+    // none and all of the other students like each approved sentence.
+    // (Students can't like their own.)
+    if (state === "approved") {
+      const others = students.filter((s) => s.id !== studentId);
+      sentence.likedBy = others
+        .slice(0, index % (others.length + 1))
+        .map((s) => profiles[s.id]._id);
+      await sentence.save();
+    }
   }
   await Promise.all(Object.values(profiles).map((p) => p.save()));
 

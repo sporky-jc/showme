@@ -40,7 +40,7 @@ describe("GET /MyPage", () => {
     expect(showsIn(res)).toEqual(["Ada's sentence"]);
   });
 
-  // Exactly the contract's fields: not the GID, hideedit, likeCount or
+  // Exactly the contract's fields: not the GID, hideedit, likedBy or
   // database bookkeeping (__v) a stored sentence also has
   it("sends each sentence as the contract lists it, and nothing else", async () => {
     const ada = await createUser();

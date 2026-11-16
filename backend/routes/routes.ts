@@ -12,8 +12,14 @@ import {
 } from "../controllers/routes.js";
 import { googleAuth } from "../controllers/auth.js";
 import { testLogin } from "../controllers/testLogin.js";
+import {
+  getLikes,
+  likeSentence,
+  unlikeSentence,
+} from "../controllers/likes.js";
 import auth from "../middlewares/auth.js";
 import admin from "../middlewares/admin.js";
+import { likesRateLimit } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
@@ -50,5 +56,11 @@ router.patch("/Admin", auth, admin, updatePendingApprovalSentences);
 
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);
+
+// Likes on approved sentences: signed-in users only (see controllers/likes.ts),
+// and limited per user (see middlewares/rateLimit.ts)
+router.get("/Collections/likes", likesRateLimit, auth, getLikes);
+router.put("/Collections/:id/like", likesRateLimit, auth, likeSentence);
+router.delete("/Collections/:id/like", likesRateLimit, auth, unlikeSentence);
 
 export default router;

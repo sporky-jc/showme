@@ -42,6 +42,13 @@ export const EditSentenceBody = z.object({
   show: showSentence,
 });
 
+// A sentence's id, sent as text: 24 hexadecimal digits. Ids from a request go
+// into database queries, so anything else (like the object {"$ne": null},
+// which MongoDB reads as "any sentence") is refused.
+const sentenceId = z
+  .string({ error: INVALID_ID })
+  .regex(/^[0-9a-f]{24}$/i, { error: INVALID_ID });
+
 // PATCH /Admin: an admin's decision on a sentence in the review queue. The id
 // goes into a database query, so it must be a real id written as text (24
 // hexadecimal digits): an object like {"$ne": null} would be read as "any
@@ -49,9 +56,7 @@ export const EditSentenceBody = z.object({
 export const ReviewBody = z.object({
   sentence: z.object(
     {
-      _id: z
-        .string({ error: INVALID_ID })
-        .regex(/^[0-9a-f]{24}$/i, { error: INVALID_ID }),
+      _id: sentenceId,
     },
     { error: INVALID_ID }
   ),
@@ -59,6 +64,11 @@ export const ReviewBody = z.object({
     error: "The status must be approve or redo",
   }),
 });
+
+// PUT and DELETE /Collections/:id/like: the sentence to like or unlike, from
+// the address. It goes into a database query, so, like ReviewBody's, it
+// must be a real id written as text.
+export const SentenceIdParam = sentenceId;
 
 // POST /auth: the ID token Google's sign-in button gave the website
 export const LoginBody = z.object({
@@ -130,6 +140,21 @@ export const TellSentences = z.array(TellSentence);
 export const Sentences = z.array(Sentence);
 export const SentencesWithAuthors = z.array(SentenceWithAuthor);
 
+// An approved sentence's likes, as a signed-in student sees them: GET
+// /Collections/likes lists every approved sentence's, and PUT and DELETE
+// /Collections/:id/like send back the one changed. Likes are for signed-in
+// users only, so they're kept out of GET /Collections, which anyone can load.
+// Only the count is sent, never who liked a sentence.
+export const SentenceLikes = z.object({
+  _id: z.string(), // the sentence's id, as GET /Collections sends it
+  // Every approved sentence starts with 1, from passing review, plus one for
+  // each student who liked it
+  likes: z.number(),
+  likedByMe: z.boolean(), // the signed-in user liked it
+  mine: z.boolean(), // the signed-in user wrote it (and so can't like it)
+});
+export const SentencesLikes = z.array(SentenceLikes);
+
 // Any refused or failed request: why
 export const ErrorAnswer = z.object({ message: z.string() });
 
@@ -146,4 +171,5 @@ export type LoginAnswer = z.infer<typeof LoginAnswer>;
 export type Sentence = z.infer<typeof Sentence>;
 export type Author = z.infer<typeof Author>;
 export type SentenceWithAuthor = z.infer<typeof SentenceWithAuthor>;
+export type SentenceLikes = z.infer<typeof SentenceLikes>;
 export type ErrorAnswer = z.infer<typeof ErrorAnswer>;
