@@ -53,6 +53,9 @@ const TEST_ACCOUNTS: Record<string, TestAccount> = {
   "student-double-submit": testStudent("student-double-submit"),
   "student-mobile": testStudent("student-mobile"),
   "student-likes": testStudent("student-likes"),
+  // Writes a sentence and has it approved, so it needs its own account: a
+  // fresh login as student-likes (the like-and-unlike test) would delete it
+  "student-likes-own": testStudent("student-likes-own"),
   admin: {
     id: "test-admin",
     firstName: "Test",

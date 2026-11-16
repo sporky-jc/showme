@@ -185,6 +185,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
         ["student-double-submit", "test-student-double-submit"],
         ["student-mobile", "test-student-mobile"],
         ["student-likes", "test-student-likes"],
+        ["student-likes-own", "test-student-likes-own"],
       ]) {
         const res = await request(app).post("/auth/test").send({ secret: SECRET, role });
 
@@ -226,6 +227,19 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
 
       expect(res.status).toBe(200);
       expect(await Profile.countDocuments({ id: "test-student-likes" })).toBe(1);
+    });
+
+    it("keeps the two likes accounts apart: a fresh student-likes login leaves student-likes-own's sentence", async () => {
+      await request(app).post("/auth/test").send({ secret: SECRET, role: "student-likes-own" });
+      const owner = await Profile.findOne({ id: "test-student-likes-own" }).orFail();
+      await createSentence(owner, { approved: true });
+
+      const res = await request(app)
+        .post("/auth/test")
+        .send({ secret: SECRET, role: "student-likes", fresh: true });
+
+      expect(res.status).toBe(200);
+      expect(await Sentence.countDocuments({ GID: "test-student-likes-own" })).toBe(1);
     });
 
     it("with fresh: true, only wipes the sentences of the student role that asked", async () => {
