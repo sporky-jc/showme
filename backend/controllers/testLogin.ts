@@ -25,6 +25,14 @@ import { startSession } from "./auth.js";
 const PRODUCTION_PROJECT = "showme-backend-789";
 const MIN_SECRET_LENGTH = 32;
 
+// Every test account's id starts with this. Real accounts' ids are Google
+// account ids, which are all digits, so none can.
+export const TEST_ACCOUNT_PREFIX = "test-";
+export const isTestAccount = (id: string | undefined) =>
+  id?.startsWith(TEST_ACCOUNT_PREFIX) ?? false;
+// Sentences written by test accounts (a sentence's GID is its author's id)
+export const TEST_SENTENCES = new RegExp(`^${TEST_ACCOUNT_PREFIX}`);
+
 // Every test student has the same name, so pages show "Test S." whichever
 // one a test uses; only the id and email (built from the role) differ
 interface TestAccount {
@@ -36,7 +44,7 @@ interface TestAccount {
 }
 
 const testStudent = (role: string): TestAccount => ({
-  id: `test-${role}`,
+  id: `${TEST_ACCOUNT_PREFIX}${role}`,
   firstName: "Test",
   lastName: "Student",
   email: `test-${role}@showme.test`,

@@ -16,6 +16,7 @@ import { readSession } from "../middlewares/auth.js";
 import { SESSION_COOKIE, sessionCookieOptions } from "../config/session.js";
 import { answer } from "../utils/answer.js";
 import { firstProblem, messageOf } from "../utils/errors.js";
+import { isTestAccount, TEST_SENTENCES } from "./testLogin.js";
 
 // Route for getting the Tell Sentences. The list lives in the code
 // (public/tellList.ts), so it's sent straight from memory with no database
@@ -55,6 +56,7 @@ const newestFirst = <T extends { createdAt: Date }>(sentences: T[]) =>
 const sentencesWithAuthorNames = async (filter: {
   approved: boolean;
   toRedo?: boolean;
+  GID?: RegExp;
 }) =>
   newestFirst(
     await Sentence.find(filter, "-GID -likedBy").populate(
@@ -172,6 +174,16 @@ export const getUserInfo = async (req: Request, res: Response) => {
   }
 };
 
+// The sentences awaiting review that this admin may see and decide on. The
+// test admin (signed in through the staging test login, see testLogin.ts)
+// gets only test accounts' sentences: if the test login's secret ever
+// leaked, whoever used it still couldn't touch a real person's sentence.
+const reviewQueue = (adminId: string | undefined) => ({
+  approved: false,
+  toRedo: false,
+  ...(isTestAccount(adminId) ? { GID: TEST_SENTENCES } : {}),
+});
+
 // Route for fetching all sentences awaiting approval
 export const getPendingApprovalSentences = async (
   req: Request,
@@ -179,10 +191,9 @@ export const getPendingApprovalSentences = async (
 ) => {
   try {
     // fetch all sentences that are not approved, newest (last edited) first
-    const awaitingApproval = await sentencesWithAuthorNames({
-      approved: false,
-      toRedo: false,
-    });
+    const awaitingApproval = await sentencesWithAuthorNames(
+      reviewQueue(req.userId)
+    );
     answer(res, 200, SentencesWithAuthors, awaitingApproval);
   } catch (error) {
     res.locals.error = error;
@@ -206,7 +217,11 @@ export const updatePendingApprovalSentences = async (
     }
     const { status, sentence } = body.data;
 
-    const checkedSentence = await Sentence.findById(sentence._id);
+    // The test admin may only review test accounts' sentences (see reviewQueue)
+    const checkedSentence = await Sentence.findOne({
+      _id: sentence._id,
+      ...(isTestAccount(req.userId) ? { GID: TEST_SENTENCES } : {}),
+    });
 
     if (!checkedSentence) {
       return res.status(404).json({ message: "Sentence not found" });
@@ -224,10 +239,9 @@ export const updatePendingApprovalSentences = async (
     await checkedSentence.save();
 
     // send back the updated queue, newest first
-    const awaitingApproval = await sentencesWithAuthorNames({
-      approved: false,
-      toRedo: false,
-    });
+    const awaitingApproval = await sentencesWithAuthorNames(
+      reviewQueue(req.userId)
+    );
 
     answer(res, 201, SentencesWithAuthors, awaitingApproval);
   } catch (error) {
