@@ -19,6 +19,7 @@ import {
 } from "../controllers/likes.js";
 import auth from "../middlewares/auth.js";
 import admin from "../middlewares/admin.js";
+import { likesRateLimit } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
@@ -56,9 +57,10 @@ router.patch("/Admin", auth, admin, updatePendingApprovalSentences);
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);
 
-// Likes on approved sentences: signed-in users only (see controllers/likes.ts)
-router.get("/Collections/likes", auth, getLikes);
-router.put("/Collections/:id/like", auth, likeSentence);
-router.delete("/Collections/:id/like", auth, unlikeSentence);
+// Likes on approved sentences: signed-in users only (see controllers/likes.ts),
+// and limited per user (see middlewares/rateLimit.ts)
+router.get("/Collections/likes", auth, likesRateLimit, getLikes);
+router.put("/Collections/:id/like", auth, likesRateLimit, likeSentence);
+router.delete("/Collections/:id/like", auth, likesRateLimit, unlikeSentence);
 
 export default router;

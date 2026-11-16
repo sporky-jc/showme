@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import mongoose from "mongoose";
 import app from "../app.js";
+import { LIKE_REQUESTS_PER_MINUTE } from "../middlewares/rateLimit.js";
 import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
 import {
@@ -360,5 +361,57 @@ describe("DELETE /Collections/:id/like", () => {
       .set("Cookie", sessionCookie(alan));
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("the like routes' rate limit", () => {
+  it("refuses a user's requests beyond the limit (429), counting all three routes together", async () => {
+    const { alan, path } = await setUp();
+    const cookie = sessionCookie(alan);
+
+    for (let i = 0; i < LIKE_REQUESTS_PER_MINUTE; i++) {
+      const res = await request(app)
+        [i % 2 ? "put" : "get"](i % 2 ? path : "/Collections/likes")
+        .set("Cookie", cookie)
+        // as Netlify's proxy adds to every request
+        .set("X-Forwarded-For", "203.0.113.7");
+      expect(res.status).toBe(200);
+    }
+    const over = await request(app).delete(path).set("Cookie", cookie);
+
+    expect(over.status).toBe(429);
+    expect(over.body.message).toMatch(/too many requests/i);
+  });
+
+  // Every request arrives through the same proxy, so a limit per address
+  // would make all students share one
+  it("limits each user separately, even from the same address", async () => {
+    const { alan, path } = await setUp();
+    const carol = await otherUser(3);
+    for (let i = 0; i <= LIKE_REQUESTS_PER_MINUTE; i++) {
+      await request(app).get("/Collections/likes").set("Cookie", sessionCookie(alan));
+    }
+
+    const res = await request(app).put(path).set("Cookie", sessionCookie(carol));
+
+    expect(res.status).toBe(200);
+  });
+
+  it("checks the login first: a request without one is answered 401", async () => {
+    const res = await request(app).get("/Collections/likes");
+
+    expect(res.status).toBe(401);
+  });
+
+  it("leaves the public Collections page unlimited", async () => {
+    const { alan } = await setUp();
+    const cookie = sessionCookie(alan);
+    for (let i = 0; i <= LIKE_REQUESTS_PER_MINUTE; i++) {
+      await request(app).get("/Collections/likes").set("Cookie", cookie);
+    }
+
+    const res = await request(app).get("/Collections").set("Cookie", cookie);
+
+    expect(res.status).toBe(200);
   });
 });
