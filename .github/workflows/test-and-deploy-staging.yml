@@ -169,19 +169,28 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
           TEST_LOGIN_SECRET: ${{ secrets.TEST_LOGIN_SECRET }}
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
         run: |
-          for name in DATABASE_ACCESS GOOGLE_CLIENT_ID JWT_SECRET TEST_LOGIN_SECRET; do
+          for name in DATABASE_ACCESS GOOGLE_CLIENT_ID JWT_SECRET; do
             if [ -z "${!name}" ]; then
               echo "::error::GitHub secret for $name is empty or missing"
               exit 1
             fi
           done
+          # The test login takes short-lived passes signed with TEST_LOGIN_KEY
+          # and, while it is still set, the older fixed TEST_LOGIN_SECRET
+          # (see backend/controllers/testLogin.ts). It needs at least one.
+          if [ -z "$TEST_LOGIN_KEY" ] && [ -z "$TEST_LOGIN_SECRET" ]; then
+            echo "::error::Neither TEST_LOGIN_KEY nor TEST_LOGIN_SECRET is set"
+            exit 1
+          fi
           {
             echo "DATABASE_ACCESS=\"$DATABASE_ACCESS\""
             echo "DATABASE_NAME=\"ShowME-dev\""
             echo "GOOGLE_CLIENT_ID=\"$GOOGLE_CLIENT_ID\""
             echo "JWT_SECRET=\"$JWT_SECRET\""
             echo "TEST_LOGIN_SECRET=\"$TEST_LOGIN_SECRET\""
+            echo "TEST_LOGIN_KEY=\"$TEST_LOGIN_KEY\""
             echo "APP_VERSION=\"$GITHUB_SHA\""
           } > .env
 
@@ -255,6 +264,28 @@ jobs:
           echo "::error::The staging site ($(short "$site")) and backend ($(short "$api")) did not both run $GITHUB_SHA within 10 minutes"
           exit 1
 
+      # A test-login pass for the runs QA Wolf starts from this deployment:
+      # valid for 3 hours, signed with TEST_LOGIN_KEY (which QA Wolf never
+      # sees; see backend/utils/testPass.ts). It reaches the flows as their
+      # TEST_LOGIN_SECRET, so a copy that leaks (QA Wolf's pull request
+      # comments have shown run variables) soon stops working. Without the
+      # key, the runs use the fixed TEST_LOGIN_SECRET in QA Wolf, as before.
+      - name: Mint a short-lived test-login pass
+        id: pass
+        env:
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
+        run: |
+          if [ -z "$TEST_LOGIN_KEY" ]; then
+            echo "::warning::No TEST_LOGIN_KEY secret: QA Wolf uses its fixed TEST_LOGIN_SECRET"
+            echo 'variables={}' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          expiry=$(( $(date +%s) + 3 * 60 * 60 ))
+          signature=$(printf 'v1.%s' "$expiry" | openssl dgst -sha256 -hmac "$TEST_LOGIN_KEY" -hex | awk '{print $NF}')
+          pass="v1.$expiry.$signature"
+          echo "::add-mask::$pass"
+          echo "variables={\"TEST_LOGIN_SECRET\":\"$pass\"}" >> "$GITHUB_OUTPUT"
+
       - name: Tell QA Wolf staging was deployed
         uses: qawolf/notify-qawolf-on-deploy-action@v3
         env:
@@ -264,3 +295,4 @@ jobs:
           workspace-id: xoniuprcn2am5nh63rx8fn6cotea # not a secret
           environment: staging # the QA Wolf environment's alias
           deployment-url: ${{ env.STAGING_URL }}
+          variables: ${{ steps.pass.outputs.variables }}

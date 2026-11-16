@@ -66,6 +66,28 @@ jobs:
           echo "::error::The preview did not run $HEAD_SHA within 10 minutes"
           exit 1
 
+      # A test-login pass for the runs QA Wolf starts from this deployment:
+      # valid for 3 hours, signed with TEST_LOGIN_KEY (which QA Wolf never
+      # sees; see backend/utils/testPass.ts). It reaches the flows as their
+      # TEST_LOGIN_SECRET, so a copy that leaks (QA Wolf's pull request
+      # comments have shown run variables) soon stops working. Without the
+      # key, the runs use the fixed TEST_LOGIN_SECRET in QA Wolf, as before.
+      - name: Mint a short-lived test-login pass
+        id: pass
+        env:
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
+        run: |
+          if [ -z "$TEST_LOGIN_KEY" ]; then
+            echo "::warning::No TEST_LOGIN_KEY secret: QA Wolf uses its fixed TEST_LOGIN_SECRET"
+            echo 'variables={}' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          expiry=$(( $(date +%s) + 3 * 60 * 60 ))
+          signature=$(printf 'v1.%s' "$expiry" | openssl dgst -sha256 -hmac "$TEST_LOGIN_KEY" -hex | awk '{print $NF}')
+          pass="v1.$expiry.$signature"
+          echo "::add-mask::$pass"
+          echo "variables={\"TEST_LOGIN_SECRET\":\"$pass\"}" >> "$GITHUB_OUTPUT"
+
       # No environment given: QA Wolf puts the run in this pull request's own
       # short-lived environment (sporky-jc-showme-pr-<number>, copied from
       # Staging) and removes it when the pull request closes.
@@ -77,3 +99,4 @@ jobs:
           qawolf-api-key: ${{ secrets.QAWOLF_API_KEY }}
           workspace-id: xoniuprcn2am5nh63rx8fn6cotea # not a secret
           deployment-url: ${{ env.PREVIEW_URL }}
+          variables: ${{ steps.pass.outputs.variables }}
