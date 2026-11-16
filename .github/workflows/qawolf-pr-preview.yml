@@ -1,0 +1,79 @@
+name: QA Wolf PR preview
+
+# QA Wolf tests a pull request's preview only when you ask for it:
+#
+#   - Add the "qa-wolf" label to the pull request: QA Wolf tests its preview.
+#   - Push more commits while the label is on: QA Wolf tests again.
+#   - Remove the label: later pushes are not tested.
+#
+# Without the label nothing runs here. Every merge to staging is still tested
+# in full (test-and-deploy-staging.yml), so leaving the label off never skips
+# testing before release.
+#
+# Netlify builds every pull request into its own preview site, which uses the
+# STAGING backend (client/netlify.toml), so a pull request's backend changes
+# are not on it: they are tested on staging after merging. QA Wolf runs the
+# flows tagged "PR preview" (its "Deployment (PR previews)" trigger), which
+# leave out real Google sign-in: Google refuses preview addresses.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  qawolf_preview:
+    name: Test PR preview with QA Wolf
+    # Runs only when the pull request has the label; when a label is added, only
+    # when it's this one. Skips forks, and pushes by Dependabot: neither gets the
+    # QA Wolf key. (You adding the label to a Dependabot pull request works.)
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'qa-wolf') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'qa-wolf') &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    # A newer push to the same pull request makes testing this one pointless
+    concurrency:
+      group: qawolf-preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # The QA Wolf action reads the pull request to link the run to it
+      pull-requests: read
+    env:
+      PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--show-me-not-tell.netlify.app
+      # The pull request's latest commit, which Netlify builds (GITHUB_SHA is
+      # GitHub's trial merge of it into staging, which nothing deploys)
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
+    steps:
+      # The preview writes the commit it was built from into /version.txt, like
+      # every Netlify build. Testing an older build would test old code.
+      - name: Wait until the preview runs this pull request's latest commit
+        run: |
+          for attempt in $(seq 1 60); do
+            site=$(curl -fsS "$PREVIEW_URL/version.txt?check=$attempt" || true)
+            if [ "$site" = "$HEAD_SHA" ]; then
+              echo "The preview runs $HEAD_SHA"
+              exit 0
+            fi
+            echo "Preview runs ${site:0:7}; waiting for ${HEAD_SHA:0:7}..."
+            sleep 10
+          done
+          echo "::error::The preview did not run $HEAD_SHA within 10 minutes"
+          exit 1
+
+      # No environment given: QA Wolf puts the run in this pull request's own
+      # short-lived environment (sporky-jc-showme-pr-<number>, copied from
+      # Staging) and removes it when the pull request closes.
+      - name: Tell QA Wolf the preview was deployed
+        uses: qawolf/notify-qawolf-on-deploy-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          qawolf-api-key: ${{ secrets.QAWOLF_API_KEY }}
+          workspace-id: xoniuprcn2am5nh63rx8fn6cotea # not a secret
+          deployment-url: ${{ env.PREVIEW_URL }}
