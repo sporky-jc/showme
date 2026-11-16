@@ -176,6 +176,7 @@ body {
   }
   .carousel-image {
     height: 81vh;
+    height: 81svh;
   }
 
   .about {
@@ -188,12 +189,17 @@ body {
   .contenthome {
     min-height: 79vh;
   }
+  /* svh: the screen height with the browser's toolbars showing. Unlike vh it
+     stays the same while the address bar shrinks and grows as the page
+     scrolls, so the carousel (and the arrows centred on it) doesn't resize. */
   .carousel {
     width: auto;
     height: 85vh;
+    height: 85svh;
   }
   .carousel-image {
     height: 85vh;
+    height: 85svh;
   }
 
   .contentmypage {
@@ -230,9 +236,11 @@ body {
   .carousel {
     width: auto;
     height: 79.5vh;
+    height: 79.5svh;
   }
   .carousel-image {
     height: 78vh;
+    height: 78svh;
   }
 
   .contentmypage {
@@ -412,6 +420,29 @@ body {
 .carousel .carousel-control-prev-icon::after,
 .carousel .carousel-control-next-icon::after {
   font-family: "Font Awesome 7 Free", "Font Awesome 6 Free";
+}
+
+/* On iPhone Safari the arrows were drawn bunched together on the left and
+   moved as the page scrolled. Pin each arrow to its own edge of the carousel
+   (Bootstrap only says left: 0 / right: 0 and leaves the other side open),
+   and give them their own drawing layer: Safari can misplace elements that
+   sit on top of the sliding photos while it redraws the page during a scroll. */
+.carousel {
+  position: relative;
+}
+.carousel .carousel-control-prev,
+.carousel .carousel-control-next {
+  top: 0;
+  bottom: 0;
+  transform: translateZ(0);
+}
+.carousel .carousel-control-prev {
+  left: 0;
+  right: auto;
+}
+.carousel .carousel-control-next {
+  left: auto;
+  right: 0;
 }
 
 /* The edit pencil on MyPage (EditModal.tsx) is Font Awesome's "pen-to-square"
