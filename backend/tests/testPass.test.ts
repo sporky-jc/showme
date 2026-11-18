@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { promisify } from "node:util";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,6 +40,12 @@ describe("isValidTestPass", () => {
     const pass = mintTestPass(KEY, inAnHour());
     const [, , signature] = pass.split(".");
     expect(isValidTestPass(`v1.${inAnHour() + 60}.${signature}`, KEY)).toBe(false);
+  });
+
+  // The pass saved in QA Wolf lasts a day, because GitHub runs the hourly
+  // refresh only every few hours
+  it("accepts a pass that lasts 24 hours", () => {
+    expect(isValidTestPass(mintTestPass(KEY, now() + 24 * 60 * 60), KEY)).toBe(true);
   });
 
   it(`refuses a pass that claims to last more than ${MAX_PASS_SECONDS / 3600} hours`, () => {
@@ -104,6 +113,51 @@ describe("isValidTestPass", () => {
 
   it("sends no address when none is given", () => {
     expect(outputVariables({})).toEqual({});
+  });
+});
+
+describe("the workflows' script, saving a pass in QA Wolf", () => {
+  // Runs the script's save mode against a stand-in for QA Wolf's API and
+  // returns the request it sent
+  it("saves a 24-hour pass the backend accepts", async () => {
+    const received: { url?: string; auth?: string; body?: string }[] = [];
+    const server = createServer((req, res) => {
+      let body = "";
+      req.on("data", (chunk) => (body += chunk));
+      req.on("end", () => {
+        received.push({ url: req.url, auth: req.headers.authorization, body });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end('{"result":{"data":{"json":{}}}}');
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [fileURLToPath(new URL("../../.github/scripts/test-login-pass.mjs", import.meta.url)), "save"],
+        {
+          env: {
+            PATH: process.env.PATH,
+            TEST_LOGIN_KEY: KEY,
+            QAWOLF_API_KEY: "qawolf-api-key",
+            QAWOLF_HOST_URL: `http://127.0.0.1:${port}`,
+          },
+        }
+      );
+    } finally {
+      server.close();
+    }
+
+    expect(received).toHaveLength(1);
+    expect(received[0].url).toBe("/api/trpc/public.environment.setVariable");
+    expect(received[0].auth).toBe("Bearer qawolf-api-key");
+    const { json } = JSON.parse(received[0].body ?? "{}");
+    expect(json).toMatchObject({ environmentId: "staging", name: "TEST_LOGIN_SECRET" });
+    expect(isValidTestPass(json.value, KEY)).toBe(true);
+    const hours = (Number(json.value.split(".")[1]) - now()) / 3600;
+    expect(hours).toBeGreaterThan(23.9);
+    expect(hours).toBeLessThanOrEqual(24);
   });
 });
 

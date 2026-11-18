@@ -11,7 +11,7 @@
 // Two ways to hand QA Wolf a pass, both as the flows' TEST_LOGIN_SECRET:
 //
 //   node test-login-pass.mjs save
-//     Saves a 4-hour pass as the TEST_LOGIN_SECRET variable of QA Wolf's
+//     Saves a 24-hour pass as the TEST_LOGIN_SECRET variable of QA Wolf's
 //     staging environment, so every run there can sign in, however it was
 //     started: by a deploy, by hand, or by the QA Wolf AI. Run every hour
 //     (refresh-qawolf-test-pass.yml) and after each staging deploy.
@@ -44,8 +44,10 @@ const VARIABLE = "TEST_LOGIN_SECRET"; // the name the flows read
 // The preview the pass is for (output mode, from APPROVED_PREVIEW_URL)
 const PREVIEW_VARIABLE = "TEST_LOGIN_APPROVED_PREVIEW_URL";
 const MIN_KEY_LENGTH = 32; // as the backend requires
-const SAVED_PASS_HOURS = 4; // refreshed hourly, so it outlives a late run
-const DEPLOY_PASS_HOURS = 3; // the backend refuses passes over 6 hours
+// The refresh is scheduled hourly, but GitHub has run it only every 6 to 10
+// hours, so a saved pass has to outlast the longest gap between runs
+const SAVED_PASS_HOURS = 24;
+const DEPLOY_PASS_HOURS = 3; // the backend refuses passes over 26 hours
 
 const fail = (message) => {
   console.log(`::error::${message}`);
