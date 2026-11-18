@@ -19,7 +19,10 @@ import {
 } from "../controllers/likes.js";
 import auth from "../middlewares/auth.js";
 import admin from "../middlewares/admin.js";
-import { likesRateLimit } from "../middlewares/rateLimit.js";
+import {
+  likesRateLimit,
+  testLoginRateLimit,
+} from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
@@ -34,7 +37,7 @@ router.get("/version", (req, res) => {
 
 router.post("/auth", googleAuth); // Google authentication route
 // Login for automated browser tests; only works on staging (see controllers/testLogin.ts)
-router.post("/auth/test", testLogin);
+router.post("/auth/test", testLoginRateLimit, testLogin);
 
 // Route for create/update/fetch user sentences
 router.get("/MyPage", auth, getUserSentences);

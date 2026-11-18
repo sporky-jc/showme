@@ -60,7 +60,7 @@ describe("Cards", () => {
     expect(second).toHaveAttribute("src", "/hot.jpg");
   });
 
-  it("shows a grey placeholder until a picture loads, then the picture", () => {
+  it("shows a gray placeholder until a picture loads, then the picture", () => {
     renderCards(approved(2));
     expect(placeholders()).toHaveLength(2);
     expect(pictures()).toHaveLength(0); // hidden pictures aren't visible to users
