@@ -21,8 +21,11 @@
 //     Writes a 3-hour pass to GITHUB_OUTPUT as `variables`, the JSON the
 //     notify-qawolf-on-deploy action passes to the runs that deployment
 //     starts (used for pull request previews, whose environments are copies
-//     made when the pull request opened). Without TEST_LOGIN_KEY it writes
-//     `{}` and warns, so the runs fall back to the environment's variable.
+//     made when the pull request opened). Without TEST_LOGIN_KEY it leaves
+//     the pass out and warns, so the runs fall back to the environment's
+//     variable. With APPROVED_PREVIEW_URL it also sends that address as
+//     TEST_LOGIN_APPROVED_PREVIEW_URL, which some flows check before using
+//     the test login on a preview.
 //
 // The key is read from the environment, never from the command line, where
 // it would show in the runner's process list. In GitHub Actions the pass is
@@ -38,6 +41,8 @@ const WORKSPACE_ID = "xoniuprcn2am5nh63rx8fn6cotea"; // not a secret
 const QAWOLF_HOST = process.env.QAWOLF_HOST_URL ?? "https://app.qawolf.com";
 const QAWOLF_ENVIRONMENT = "staging"; // the QA Wolf environment's alias
 const VARIABLE = "TEST_LOGIN_SECRET"; // the name the flows read
+// The preview the pass is for (output mode, from APPROVED_PREVIEW_URL)
+const PREVIEW_VARIABLE = "TEST_LOGIN_APPROVED_PREVIEW_URL";
 const MIN_KEY_LENGTH = 32; // as the backend requires
 const SAVED_PASS_HOURS = 4; // refreshed hourly, so it outlives a late run
 const DEPLOY_PASS_HOURS = 3; // the backend refuses passes over 6 hours
@@ -124,15 +129,19 @@ if (mode === "save") {
   const outputFile = process.env.GITHUB_OUTPUT;
   if (!outputFile) fail("GITHUB_OUTPUT is not set");
   const key = keyOrUndefined();
+  const variables = {};
   if (key) {
-    const variables = { [VARIABLE]: mintPass(key, DEPLOY_PASS_HOURS) };
-    appendFileSync(outputFile, `variables=${JSON.stringify(variables)}\n`);
+    variables[VARIABLE] = mintPass(key, DEPLOY_PASS_HOURS);
   } else {
     console.log(
       `::warning::No TEST_LOGIN_KEY secret: the runs use the ${VARIABLE} saved in QA Wolf`
     );
-    appendFileSync(outputFile, "variables={}\n");
   }
+  // Some flows only use the test login on a preview whose address is also
+  // given here, so a pass can't be pointed at some other site by mistake
+  const previewUrl = process.env.APPROVED_PREVIEW_URL;
+  if (previewUrl) variables[PREVIEW_VARIABLE] = previewUrl;
+  appendFileSync(outputFile, `variables=${JSON.stringify(variables)}\n`);
 } else {
   fail("Usage: node test-login-pass.mjs save|output");
 }
