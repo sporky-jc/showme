@@ -2,7 +2,8 @@ import React, { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import Container from "react-bootstrap/Container";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
-import { Routes, Route, Link, useLocation, useNavigate } from "react-router";
+import { Routes, Route, Link, NavLink, useLocation, useNavigate } from "react-router";
+import Logo from "./Logo";
 import Home from "../pages/Home";
 import PageErrorBoundary from "./PageErrorBoundary";
 import PageLoading from "./PageLoading";
@@ -103,21 +104,17 @@ function NavbarComp() {
     <>
       <LoadingOverlay active={loading} spinner text="Logging out...">
         <div>
+          {/* Paper buttons on the sky (src/theme/paper.css); NavLink marks
+              the page you're on, which shows in orange */}
           <Navbar
             variant="light"
-            style={{ backgroundColor: "#e3f2fd" }}
+            className="paper-nav"
             expand="sm"
             expanded={expanded}
           >
             <Container>
               <Navbar.Brand as={Link} to={"/"}>
-                <img
-                  src={"showme.jpg"}
-                  alt="Show ME"
-                  height="35"
-                  loading="lazy"
-                  className="d-inline-block align-top"
-                />
+                <Logo size={24} />
               </Navbar.Brand>
               <Navbar.Toggle
                 aria-controls="basic-navbar-nav"
@@ -126,7 +123,7 @@ function NavbarComp() {
               <Navbar.Collapse id="basic-navbar-nav">
                 <Nav className="ms-auto">
                   <Nav.Link
-                    as={Link}
+                    as={NavLink}
                     to={"/admin"}
                     hidden={!user.isAdmin}
                     onClick={handleNavCollapse}
@@ -134,14 +131,14 @@ function NavbarComp() {
                     Admin
                   </Nav.Link>
                   <Nav.Link
-                    as={Link}
+                    as={NavLink}
                     to={"/Collections"}
                     onClick={handleNavCollapse}
                   >
                     Collections
                   </Nav.Link>
                   <Nav.Link
-                    as={Link}
+                    as={NavLink}
                     to={"/MyPage"}
                     hidden={Object.keys(user).length === 0 ? true : false}
                     onClick={handleNavCollapse}
@@ -151,7 +148,7 @@ function NavbarComp() {
                   <Nav.Link onClick={signInorOut}>
                     {Object.keys(user).length !== 0 ? "Logout" : "Login"}
                   </Nav.Link>
-                  <Nav.Link as={Link} to={"/about"} onClick={handleNavCollapse}>
+                  <Nav.Link as={NavLink} to={"/about"} onClick={handleNavCollapse}>
                     About
                   </Nav.Link>
                 </Nav>

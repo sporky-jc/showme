@@ -1,14 +1,17 @@
 import React from "react";
 import { useNavigate } from "react-router";
+import PaperHills from "./PaperHills";
 
-// React footer component
+// React footer component: the paper hills along the bottom of every page,
+// with the copyright on a small white label (src/theme/paper.css)
 export default function Footer() {
   const navigate = useNavigate();
   return (
-    <footer className="site-footer">
-      <div className="p-3">
+    <footer className="site-footer paper-footer">
+      <PaperHills className="paper-footer__hills" />
+      <div className="paper-footer__text">
         &copy; {new Date().getFullYear()} Copyright:{" "}
-        <a className="text-dark" href="#" onClick={() => navigate("/")}>
+        <a href="#" onClick={() => navigate("/")}>
           Show ME
         </a>
       </div>
