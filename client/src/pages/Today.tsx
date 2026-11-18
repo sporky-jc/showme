@@ -1,25 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link } from "react-router";
-import { useDispatch, useSelector, useStore } from "react-redux";
+import { useSelector } from "react-redux";
 import Scribbles from "../components/Scribbles";
 import PageLoading from "../components/PageLoading";
-import { getTellSentences } from "../actions/tellsentences";
-import { getUserSentences } from "../actions/usersentences";
-import type { Sentence } from "../api/types";
-import type { AppDispatch, RootState } from "../reducers/types";
+import { standing } from "../components/standing";
+import { useStudentData } from "../components/useStudentData";
+import type { RootState } from "../reducers/types";
 
 // How many of the student's latest sentences to show under today's Tell
 const LATEST = 3;
-
-// Where a sentence stands, in the student's words. The class names are
-// written out in full: the build only keeps styles for names it finds in the
-// code as written (see vite.config.ts).
-const standing = (sentence: Sentence) =>
-  sentence.approved
-    ? { note: "paper-note paper-note--done", label: "Done · in the gallery" }
-    : sentence.toRedo
-    ? { note: "paper-note paper-note--retry", label: "Try again" }
-    : { note: "paper-note paper-note--wait", label: "Scribbles is checking…" };
 
 // A signed-in student's home: today's Tell sentence with the way to start
 // writing, and where their latest sentences stand.
@@ -27,28 +16,10 @@ function Today() {
   const user = useSelector((state: RootState) => state.user);
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
   const userSentences = useSelector((state: RootState) => state.usersentences);
-  const dispatch = useDispatch<AppDispatch>();
-
-  const store = useStore<RootState>();
-
   // Today's Tell is the one after the student's last sentence, so it's only
-  // known once their list has arrived, and the Tell sentences too (the app
-  // asks for those when it opens; ask again if they still aren't here).
-  // Without both, say so: a guess would show the wrong day, or "all done".
-  const [loaded, setLoaded] = useState<"loading" | "ready" | "failed">("loading");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let current = true;
-    (async () => {
-      const mine = await dispatch(getUserSentences());
-      const tells =
-        store.getState().tellsentences.length > 0 || (await dispatch(getTellSentences()));
-      if (current) setLoaded(mine && tells ? "ready" : "failed");
-    })();
-    return () => {
-      current = false;
-    };
-  }, [dispatch, store, attempt]);
+  // known once their list and the Tell sentences have arrived. Without both,
+  // say so: a guess would show the wrong day, or "all done".
+  const { loaded, retry } = useStudentData();
 
   if (loaded === "loading") return <PageLoading />;
   if (loaded === "failed") {
@@ -62,10 +33,7 @@ function Today() {
           <button
             type="button"
             className="paper-btn paper-btn--action"
-            onClick={() => {
-              setLoaded("loading");
-              setAttempt(attempt + 1);
-            }}
+            onClick={retry}
           >
             Try again
           </button>
@@ -104,7 +72,7 @@ function Today() {
               <p className="paper-today__hint">
                 Show it with what you see, hear and feel.
               </p>
-              <Link to="/MyPage" className="paper-btn paper-btn--action paper-today__start">
+              <Link to="/Write" className="paper-btn paper-btn--action paper-today__start">
                 Start showing
                 <svg
                   width="26"
@@ -161,7 +129,8 @@ function Today() {
               const { note, label } = standing(sentence);
               return (
                 <li key={sentence._id}>
-                  <Link to="/MyPage" className={note}>
+                  {/* One the teacher sent back opens ready to rewrite */}
+                  <Link to={sentence.toRedo ? `/Write/${sentence._id}` : "/MyPage"} className={note}>
                     <span className="paper-note__status">{label}</span>
                     <span className="paper-note__show">{sentence.show}</span>
                     {tell && <span className="visually-hidden">for “{tell}”</span>}

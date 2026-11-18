@@ -91,7 +91,7 @@ const leo = pending("b", "The road shimmered.", "Leo");
 // Pages download their code on first use; load them once up front so the
 // first test doesn't spend its time waiting for that
 beforeAll(async () => {
-  await Promise.all([import("./pages/Admin"), import("./pages/MyPage")]);
+  await Promise.all([import("./pages/Admin"), import("./pages/Write")]);
 });
 
 describe("an admin opening the review page", () => {
@@ -198,41 +198,47 @@ describe("pages that need a login", () => {
   });
 });
 
-describe("a student writing on MyPage", () => {
+describe("a student writing a sentence", () => {
   // QA Wolf, Oct 7: a save sent while the list was still on its way crossed
   // with it, and the sentence showed twice (the next save would be "day3").
   // The browser's remembered list can also be out of date (here it knows only
   // day 1; the server has two days), so the day number must wait for the server.
-  it("can save only once the list has arrived, then saves the right day and shows it once", async () => {
+  it("can write only once the list has arrived, then saves the right day and lists it once", async () => {
     const user = userEvent.setup();
     const list = heldAnswer();
     const saved = { approved: false, toRedo: false, createdAt: "2026-10-01T00:00:00.000Z" };
     const day1: Sentence = { _id: "s1", title: "day1", tell: "Tell 1", show: "Show 1", ...saved };
     const day2: Sentence = { _id: "s2", title: "day2", tell: "Tell 2", show: "Show 2", ...saved };
+    let posted: Sentence | undefined;
     const { sent } = openApp({
-      url: "/MyPage",
+      url: "/Write",
       state: { user: student, tellsentences: tells, usersentences: [day1] },
       respond: (config) => {
         if (config.url === "/Login") return { status: 200, data: student };
-        if (config.method === "get" && config.url === "/MyPage") return list.answer;
+        if (config.method === "get" && config.url === "/MyPage") {
+          return posted ? { status: 200, data: [day1, day2, posted] } : list.answer;
+        }
         if (config.method === "post" && config.url === "/MyPage") {
-          return { status: 201, data: { _id: "s3", ...JSON.parse(config.data) } };
+          posted = { _id: "s3", ...JSON.parse(config.data), ...saved };
+          return { status: 201, data: posted };
         }
         return { status: 200, data: tells };
       },
     });
-    const button = await screen.findByRole("button", { name: "Show ME!" });
-    expect(button).toBeDisabled();
+    // Nothing to write in until the list is here: no box, no button
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
 
     list.release({ status: 200, data: [day1, day2] });
 
-    await waitFor(() => expect(button).toBeEnabled());
-    expect(screen.getByText("Day 3")).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText("Don't just tell me, instead SHOW ME!"), "Show 3");
-    await user.click(button);
+    await user.type(await screen.findByLabelText("Now show it"), "Show 3");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Tell 3");
+    await user.click(screen.getByRole("button", { name: "Ask Scribbles" }));
 
-    expect(await screen.findByText("Day 4")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Scribbles is checking!" })).toBeInTheDocument();
     expect(JSON.parse(sent("post", "/MyPage")[0].data).title).toBe("day3");
+
+    await user.click(screen.getByRole("link", { name: "My sentences" }));
+    await screen.findByRole("heading", { name: "My sentences" });
     expect(screen.getAllByText("Show 3")).toHaveLength(1);
   });
 });

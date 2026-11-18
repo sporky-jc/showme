@@ -5,11 +5,11 @@ import MyPage from "./MyPage";
 import { OpenLoginContext } from "../components/loginPopup";
 import type { InternalAxiosRequestConfig } from "axios";
 import { renderWithApp } from "../test/testUtils";
-import type { Outcome, Respond } from "../test/testUtils";
+import type { Outcome } from "../test/testUtils";
 import type { Sentence, TellSentence } from "../api/types";
 
-// Characterization tests: they record what MyPage does today, from a
-// student's point of view, so the hooks rework can't change it unnoticed.
+// My sentences: the signed-in student's own sentences, newest first, each
+// with where it stands and the way to change it.
 
 const ada = { id: "g-ada", firstName: "Ada", lastName: "Lovelace" };
 
@@ -35,41 +35,32 @@ const shows = (n: number): Sentence[] =>
     createdAt: "2026-10-01T00:00:00.000Z",
   }));
 
-// Draw MyPage for a signed-in Ada. The pretend server answers GET /MyPage
-// with `mine`, and records every request in `requests`.
+// Draw My sentences for a signed-in Ada. The pretend server answers GET
+// /MyPage with `mine` (or with `answer`, to hold it back or fail).
 const renderMyPage = ({
   tellCount = 12,
   mine = shows(2),
-}: { tellCount?: number; mine?: Sentence[] } = {}) => {
+  answer,
+}: { tellCount?: number; mine?: Sentence[]; answer?: () => Outcome | Promise<Outcome> } = {}) => {
   const requests: InternalAxiosRequestConfig[] = [];
-  const respond: Respond = (config) => {
-    requests.push(config);
-    if (config.method === "get" && config.url === "/MyPage") {
-      return { status: 200, data: mine };
-    }
-    if (config.method === "post" && config.url === "/MyPage") {
-      return { status: 201, data: { _id: "new", ...JSON.parse(config.data) } };
-    }
-    if (config.method === "patch" && config.url === "/MyPage") {
-      return { status: 201, data: JSON.parse(config.data) };
-    }
-    if (config.url === "/Login") return { status: 200, data: ada };
-    return 200;
-  };
   const view = renderWithApp(<MyPage />, {
-    state: { user: ada, tellsentences: tells(tellCount), usersentences: mine },
-    respond,
+    state: { user: ada, tellsentences: tells(tellCount), usersentences: [] },
+    respond: (config) => {
+      requests.push(config);
+      if (config.method === "get" && config.url === "/MyPage") {
+        return answer ? answer() : { status: 200, data: mine };
+      }
+      return 200;
+    },
     route: "/MyPage",
   });
   return { ...view, requests };
 };
 
-const textbox = () => screen.getByPlaceholderText("Don't just tell me, instead SHOW ME!");
-const submitButton = () => screen.getByRole("button", { name: "Show ME!" });
-const listedShows = () =>
-  screen.queryAllByText(/^Show \d+$/).map((el) => el.textContent);
+const listedShows = () => screen.queryAllByText(/^Show \d+$/).map((el) => el.textContent);
+const note = (show: string) => screen.getByText(show).closest("li")!;
 
-describe("MyPage", () => {
+describe("My sentences", () => {
   it("asks a visitor who isn't signed in to sign in, instead of showing an empty page", async () => {
     const openLogin = vi.fn();
     const requests: InternalAxiosRequestConfig[] = [];
@@ -94,151 +85,54 @@ describe("MyPage", () => {
     expect(requests).toHaveLength(0);
   });
 
-  it("shows the next day and its tell sentence", async () => {
-    renderMyPage({ mine: shows(2) });
-
-    expect(await screen.findByText("Day 3")).toBeInTheDocument();
-    expect(screen.getByText("Tell 3")).toBeInTheDocument();
-  });
-
-  it("lists the student's sentences, newest first", async () => {
+  it("lists the student's sentences, newest first, each with its day and Tell sentence", async () => {
     renderMyPage({ mine: shows(3) });
 
     await waitFor(() => expect(listedShows()).toEqual(["Show 3", "Show 2", "Show 1"]));
+    expect(within(note("Show 3")).getByText("Day 3")).toBeInTheDocument();
+    expect(within(note("Show 3")).getByText("Tell 3")).toBeInTheDocument();
   });
 
-  it("submitting sends the sentence, clears the box and moves to the next day", async () => {
-    const user = userEvent.setup();
-    const { requests } = renderMyPage({ mine: shows(2) });
-    await screen.findByText("Day 3");
+  it("says where each sentence stands", async () => {
+    const mine = shows(3);
+    mine[0].approved = true;
+    mine[1].toRedo = true;
+    renderMyPage({ mine });
 
-    await user.type(textbox(), "Brr, my fingers froze.");
-    await user.click(submitButton());
-
-    const post = await waitFor(() => {
-      const found = requests.find((r) => r.method === "post" && r.url === "/MyPage");
-      expect(found).toBeDefined();
-      return found!; // defined: checked just above
-    });
-    expect(JSON.parse(post.data)).toEqual({
-      title: "day3",
-      tell: "Tell 3",
-      show: "Brr, my fingers froze.",
-      hideedit: true,
-    });
-    expect(textbox()).toHaveValue("");
-    expect(await screen.findByText("Day 4")).toBeInTheDocument();
-    expect(screen.getByText("Tell 4")).toBeInTheDocument();
+    await screen.findByText("Show 1");
+    expect(within(note("Show 1")).getByText("Done · in the gallery")).toBeInTheDocument();
+    expect(within(note("Show 2")).getByText("Try again", { selector: ".paper-note__status" })).toBeInTheDocument();
+    expect(within(note("Show 3")).getByText("Scribbles is checking…")).toBeInTheDocument();
   });
 
-  // The day comes from the list, and a save sent while the list is still on its
-  // way can cross with it (a QA Wolf run recorded the list arriving with the
-  // new sentence already in it, which then showed twice). So saving waits.
-  it("lets the student save only once their list has arrived", async () => {
-    let release!: (outcome: Outcome) => void;
-    const list = new Promise<Outcome>((resolve) => (release = resolve));
-    renderWithApp(<MyPage />, {
-      state: { user: ada, tellsentences: tells(12), usersentences: [] },
-      route: "/MyPage",
-      respond: (config) => {
-        if (config.method === "get" && config.url === "/MyPage") return list; // held back
-        return { status: 200, data: ada };
-      },
-    });
+  // The old pencil only appeared under a mouse, so never on a phone
+  it("every sentence has a link to change it on the Write page; one sent back says Try again", async () => {
+    const mine = shows(2);
+    mine[1].toRedo = true;
+    renderMyPage({ mine });
 
-    expect(submitButton()).toBeDisabled();
-
-    release({ status: 200, data: shows(2) });
-
-    await waitFor(() => expect(submitButton()).toBeEnabled());
-    expect(screen.getByText("Day 3")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Edit: day 1" })).toHaveAttribute("href", "/Write/s1");
+    expect(screen.getByRole("link", { name: "Try again: day 2" })).toHaveAttribute("href", "/Write/s2");
   });
 
-  it("disables the button while saving, so a double click can't submit twice", async () => {
-    const user = userEvent.setup();
-    let release!: (outcome: Outcome) => void;
-    const answer = new Promise<Outcome>((resolve) => (release = resolve));
-    const requests: InternalAxiosRequestConfig[] = [];
-    renderWithApp(<MyPage />, {
-      state: { user: ada, tellsentences: tells(12), usersentences: shows(2) },
-      route: "/MyPage",
-      respond: (config) => {
-        requests.push(config);
-        if (config.method === "post") return answer; // held back until release()
-        if (config.url === "/MyPage") return { status: 200, data: shows(2) };
-        return { status: 200, data: ada };
-      },
-    });
-    await screen.findByText("Day 3");
+  it("offers today's sentence while there is one left to write", async () => {
+    renderMyPage({ tellCount: 3, mine: shows(2) });
 
-    await user.type(textbox(), "First try");
-    await user.click(submitButton());
-    expect(submitButton()).toBeDisabled();
-    await user.click(submitButton());
-    expect(requests.filter((r) => r.method === "post")).toHaveLength(1);
-
-    release({ status: 201, data: { _id: "new", title: "day3", show: "First try" } });
-    await waitFor(() => expect(submitButton()).toBeEnabled());
-    expect(await screen.findByText("Day 4")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Write today's sentence" })).toHaveAttribute("href", "/Write");
   });
 
-  it("editing: hovering shows the pencil; saving sends the change and shows it", async () => {
-    const user = userEvent.setup();
-    const { requests } = renderMyPage({ mine: shows(2) });
-    const item = (await screen.findByText("Show 2")).closest("form")!;
-    const pencil = () => item.querySelector('[data-icon="pen-to-square"]')!;
-    expect(pencil()).not.toBeVisible();
-    // Hidden with CSS, which works on an <svg> in every browser. The `hidden`
-    // attribute is only defined for HTML elements, so browsers differ on it.
-    expect(pencil()).not.toHaveAttribute("hidden");
+  it("doesn't offer writing when every day is done", async () => {
+    renderMyPage({ tellCount: 2, mine: shows(2) });
 
-    await user.hover(item);
-    expect(pencil()).toBeVisible();
-    await user.click(pencil());
-
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Tell 2")).toBeInTheDocument();
-    const box = within(dialog).getByRole("textbox");
-    expect(box).toHaveValue("Show 2");
-    await user.clear(box);
-    await user.type(box, "Better 2");
-    await user.click(within(dialog).getByRole("button", { name: "Save Changes" }));
-
-    const patch = await waitFor(() => {
-      const found = requests.find((r) => r.method === "patch" && r.url === "/MyPage");
-      expect(found).toBeDefined();
-      return found!; // defined: checked just above
-    });
-    expect(JSON.parse(patch.data)).toMatchObject({
-      title: "day2",
-      show: "Better 2",
-      approved: false,
-      toRedo: false,
-    });
-    expect(await screen.findByText("Better 2")).toBeInTheDocument();
+    await screen.findByText("Show 2");
+    expect(screen.queryByRole("link", { name: "Write today's sentence" })).not.toBeInTheDocument();
   });
 
-  it("ignores an empty submission", async () => {
-    const user = userEvent.setup();
-    const { requests } = renderMyPage();
-    await screen.findByText("Day 3");
+  it("with nothing written yet, says so", async () => {
+    renderMyPage({ mine: [] });
 
-    await user.click(submitButton());
-
-    expect(requests.some((r) => r.method === "post")).toBe(false);
-    expect(screen.getByText("Day 3")).toBeInTheDocument();
-  });
-
-  it("ignores a submission of only spaces and line breaks, so no day is used up", async () => {
-    const user = userEvent.setup();
-    const { requests } = renderMyPage();
-    await screen.findByText("Day 3");
-
-    await user.type(screen.getByRole("textbox"), "   {Enter}  ");
-    await user.click(submitButton());
-
-    expect(requests.some((r) => r.method === "post")).toBe(false);
-    expect(screen.getByText("Day 3")).toBeInTheDocument();
+    expect(await screen.findByText(/haven't written a sentence yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Write today's sentence" })).toBeInTheDocument();
   });
 
   it("shows 8 sentences per page, with page buttons when there are more", async () => {
@@ -250,25 +144,36 @@ describe("MyPage", () => {
         "Show 10", "Show 9", "Show 8", "Show 7", "Show 6", "Show 5", "Show 4", "Show 3",
       ])
     );
-    const pager = screen.getByRole("list", { name: (_, el) => el.classList.contains("pagination") });
-    expect(within(pager).getAllByRole("listitem")).toHaveLength(2);
+    const pager = screen.getByRole("navigation", { name: "Pages" });
+    expect(within(pager).getAllByRole("button")).toHaveLength(2);
+    expect(within(pager).getByRole("button", { name: "Page 1" })).toHaveAttribute("aria-current", "page");
 
-    await user.click(within(pager).getByText("2"));
+    await user.click(within(pager).getByRole("button", { name: "Page 2" }));
 
     await waitFor(() => expect(listedShows()).toEqual(["Show 2", "Show 1"]));
+    // The edit link still belongs to the right day on the second page
+    expect(screen.getByRole("link", { name: "Edit: day 2" })).toHaveAttribute("href", "/Write/s2");
   });
 
-  it("when every day is done, says come back later and blocks submitting", async () => {
+  it("has no page buttons for a single page", async () => {
+    renderMyPage({ mine: shows(8) });
+
+    await screen.findByText("Show 8");
+    expect(screen.queryByRole("navigation", { name: "Pages" })).not.toBeInTheDocument();
+  });
+
+  it("when the list can't be loaded, says so and loads it on Try again", async () => {
     const user = userEvent.setup();
-    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-    const { requests } = renderMyPage({ tellCount: 2, mine: shows(2) });
+    let online = false;
+    renderMyPage({
+      mine: shows(1),
+      answer: () => (online ? { status: 200, data: shows(1) } : "offline"),
+    });
 
-    expect(await screen.findByText("Come Back Later For More Sentences!")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't load your sentences/i);
+    online = true;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
 
-    await user.type(textbox(), "One more?");
-    await user.click(submitButton());
-
-    expect(alert).toHaveBeenCalled();
-    expect(requests.some((r) => r.method === "post")).toBe(false);
+    expect(await screen.findByText("Show 1")).toBeInTheDocument();
   });
 });

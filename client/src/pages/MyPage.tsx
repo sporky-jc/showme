@@ -1,53 +1,53 @@
-import React, { useEffect, useState } from "react";
-import Badge from "react-bootstrap/Badge";
-import ListGroup from "react-bootstrap/ListGroup";
-import OverlayTrigger from "react-bootstrap/OverlayTrigger";
-import Tooltip from "react-bootstrap/Tooltip";
-import InputSentence from "../components/InputSentence";
-import EditModal from "../components/EditModal";
-import Pagination from "react-bootstrap/Pagination";
-import Button from "react-bootstrap/Button";
-import { useSelector, useDispatch } from "react-redux";
-import { getUserSentences } from "../actions/usersentences";
-import { useLocation } from "react-router";
-import * as config from "../../src/config";
-import { useOpenLogin } from "../components/loginPopup";
-import type { AppDispatch, RootState } from "../reducers/types";
+import React, { useState } from "react";
+import { Link } from "react-router";
+import { useSelector } from "react-redux";
+import PageLoading from "../components/PageLoading";
+import SignInPrompt from "../components/SignInPrompt";
+import { standing } from "../components/standing";
+import { useStudentData } from "../components/useStudentData";
+import * as config from "../config";
+import type { RootState } from "../reducers/types";
 
+// My sentences: everything the signed-in student has written, newest first,
+// each on a paper note colored by where it stands, with the way to change
+// it. Writing happens on the Write page.
 function MyPage() {
-  // get states from global react redux store
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
   const user = useSelector((state: RootState) => state.user);
   const userSentences = useSelector((state: RootState) => state.usersentences);
-
-  const dispatch = useDispatch<AppDispatch>();
-  const location = useLocation();
-  const openLogin = useOpenLogin();
   const signedIn = Object.keys(user).length !== 0;
 
-  // Only things that belong to this screen are kept as state: which page is
-  // open, and which sentence the mouse is over (to show its edit pencil).
+  const { loaded, retry } = useStudentData(signedIn);
   const [activePage, setActivePage] = useState(1);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const itemsPerPage = config.SentencesPerPageForMyPage;
 
-  // The signed-in student's sentences (nobody's signed in: nothing to fetch).
-  // Saving waits until they've arrived: the day number comes from this list,
-  // and a save sent while it's still on its way can cross with it.
-  const [listLoaded, setListLoaded] = useState(false);
-  useEffect(() => {
-    if (!signedIn) return;
-    let current = true;
-    dispatch(getUserSentences()).finally(() => {
-      if (current) setListLoaded(true);
-    });
-    return () => {
-      current = false;
-    };
-  }, [dispatch, location, signedIn]);
+  if (!signedIn) {
+    return (
+      <div className="paper-mine">
+        <SignInPrompt>Sign in to write your own sentences and see them here.</SignInPrompt>
+      </div>
+    );
+  }
+
+  if (loaded === "loading") return <PageLoading />;
+  if (loaded === "failed") {
+    return (
+      <div className="paper-mine">
+        <div className="page-message" role="alert">
+          <p>
+            We couldn&apos;t load your sentences. Check your internet
+            connection, then try again.
+          </p>
+          <button type="button" className="paper-btn paper-btn--action" onClick={retry}>
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Everything below is worked out from the store each time this draws, so
   // it can never be out of date.
+  const itemsPerPage = config.SentencesPerPageForMyPage;
   const pageCount = Math.ceil(userSentences.length / itemsPerPage);
   // If the list shrinks, don't stay on a page that no longer exists
   const page = Math.min(activePage, Math.max(pageCount, 1));
@@ -57,99 +57,66 @@ function MyPage() {
     .map((sentence, index) => ({ sentence, index }))
     .reverse()
     .slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  // There is a Tell sentence the student hasn't written for yet
+  const more = userSentences.length < tellSentences.length;
 
-  if (signedIn) {
-    // if there is a login user, display their own sentences
-    return (
-      <div className="contentmypage">
-        <InputSentence ready={listLoaded} />
-
-        <ListGroup as="ol">
-          {pageItems.map(({ sentence, index }) => (
-            <ListGroup.Item
-              as="form"
-              className="d-flex justify-content-between align-items-start form"
-              key={sentence._id}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              style={{
-                backgroundColor:
-                  sentence.approved === true
-                    ? "#F1FEEC"
-                    : sentence.toRedo === true
-                    ? "#ffe1a8"
-                    : "rgb(243, 236, 242)",
-              }}
-            >
-              <OverlayTrigger
-                placement="bottom"
-                delay={{ show: 250, hide: 400 }}
-                overlay={
-                  <Tooltip id="button-tooltip">
-                    {sentence.approved === true
-                      ? "Approved"
-                      : sentence.toRedo === true
-                      ? "Need To Redo"
-                      : "Pending Approval"}
-                  </Tooltip>
-                }
-              >
-                {({ ref, ...triggerHandler }) => (
-                  <div className="ms-2 me-auto">
-                    <div
-                      className="fw-bold wordwrap"
-                      {...triggerHandler}
-                      ref={ref}
-                    >
-                      {sentence.show}
-                    </div>
-                    {tellSentences[index]?.tell}
-                  </div>
-                )}
-              </OverlayTrigger>
-              <Badge bg="primary" pill>
-                {sentence.title?.toUpperCase()}
-              </Badge>
-              <EditModal
-                sentence={sentence}
-                tell={tellSentences[index]?.tell}
-                showEdit={hoveredIndex === index}
-              />
-            </ListGroup.Item>
-          ))}
-        </ListGroup>
-        <div className="pages">
-          {pageCount > 1 && (
-            <Pagination size="sm">
-              {Array.from({ length: pageCount }, (_, i) => i + 1).map(
-                (number) => (
-                  <Pagination.Item
-                    key={number}
-                    active={number === page}
-                    onClick={() => setActivePage(number)}
-                  >
-                    {number}
-                  </Pagination.Item>
-                )
-              )}
-            </Pagination>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Nobody's signed in (e.g. an old bookmark, or the login ran out): say so,
-  // with a way to sign in, instead of an empty page. Signing in then opens
-  // this page.
   return (
-    <div className="contentmypage">
-      <div className="page-message">
-        <p>Sign in to write your own sentences and see them here.</p>
-        <Button variant="primary" onClick={openLogin}>
-          Sign in
-        </Button>
+    <div className="paper-mine">
+      <div className="paper-mine__top">
+        <h1>My sentences</h1>
+        {more && (
+          <Link to="/Write" className="paper-btn paper-btn--action">
+            Write today&apos;s sentence
+          </Link>
+        )}
       </div>
+
+      {userSentences.length === 0 ? (
+        <p className="page-message">
+          You haven&apos;t written a sentence yet. Today&apos;s is waiting!
+        </p>
+      ) : (
+        <ol className="paper-mine__list">
+          {pageItems.map(({ sentence, index }) => {
+            const { note, label } = standing(sentence);
+            return (
+              <li key={sentence._id} className={note}>
+                <div className="paper-mine__head">
+                  <span className="paper-note__status">{label}</span>
+                  <span className="paper-mine__day">Day {index + 1}</span>
+                </div>
+                <p className="paper-mine__show">{sentence.show}</p>
+                <div className="paper-mine__foot">
+                  <p className="paper-mine__tell">{tellSentences[index]?.tell}</p>
+                  <Link
+                    to={`/Write/${sentence._id}`}
+                    className="paper-mine__edit"
+                    aria-label={`${sentence.toRedo ? "Try again" : "Edit"}: day ${index + 1}`}
+                  >
+                    {sentence.toRedo ? "Try again" : "Edit"}
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {pageCount > 1 && (
+        <nav className="paper-mine__pages" aria-label="Pages">
+          {Array.from({ length: pageCount }, (_, i) => i + 1).map((number) => (
+            <button
+              type="button"
+              key={number}
+              aria-current={number === page ? "page" : undefined}
+              aria-label={`Page ${number}`}
+              onClick={() => setActivePage(number)}
+            >
+              {number}
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

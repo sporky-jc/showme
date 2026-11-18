@@ -14,9 +14,9 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
 
   // navigate from react router
   const navigate = useNavigate();
-  // Signing in from MyPage's "Sign in" stays there; from anywhere else it
-  // opens Today, the student's home
-  const onMyPage = useLocation().pathname.toLowerCase() === "/mypage";
+  // Signing in from a student page's own "Sign in" (My sentences, Write)
+  // stays there; from anywhere else it opens Today, the student's home
+  const onMyPage = /^\/(mypage|write)(\/|$)/i.test(useLocation().pathname);
 
   // state to show login modal
   const [loading, setLoading] = useState(false);

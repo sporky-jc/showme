@@ -41,7 +41,7 @@ body {
   justify-content: center;
 }
 
-/* mypage styles */
+/* About page height */
 .contentmypage {
   min-height: 87.5vh;
 }
@@ -49,56 +49,12 @@ body {
   min-height: 84vh;
 }
 
-/* new sentence form styles */
-.formContainer {
-  padding-bottom: 1%;
-  border-style: ridge;
-  border-radius: 1rem;
-}
-
-.form-text {
-  font-size: large !important;
-}
-
-.form-label {
-  font-size: x-large;
-}
-
-.submitSentence {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* user sentences styles */
-.list-group {
-  min-height: 57vh;
-}
-
-.list-group-item {
-  background-color: rgb(243, 236, 242);
-}
-
-.tooltip {
-  font-size: 0.1rem !important;
-  font-weight: 200 !important;
-  line-height: 0.5 !important;
-  font-style: italic !important;
-}
-
-/* Sentence edit modal styles */
+/* The sign-in pop-up's body */
 .modal-body {
   display: block;
   margin-left: auto;
   margin-right: auto;
   max-width: 95%;
-}
-
-/* pagination styles */
-.pages {
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 /* footer styles */
@@ -128,9 +84,6 @@ body {
   .contentmypage {
     min-height: 79vh;
   }
-  .list-group-item {
-    font-size: medium !important;
-  }
 
   .about {
     font-size: medium !important;
@@ -141,19 +94,6 @@ body {
 @media (max-width: 1024px) and (orientation: portrait) {
   .contentmypage {
     min-height: 89vh;
-  }
-  .list-group {
-    min-height: 70vh;
-  }
-  .list-group-item {
-    min-height: 8.5vh;
-    font-size: x-large;
-  }
-  .form-text {
-    font-size: x-large !important;
-  }
-  .form-label {
-    font-size: xx-large;
   }
 
   .about {
@@ -169,19 +109,6 @@ body {
 @media (max-width: 1366px) and (orientation: landscape) {
   .contentmypage {
     min-height: 88.5vh;
-  }
-  .list-group {
-    min-height: 61vh;
-  }
-  .list-group-item {
-    min-height: 7.4vh;
-    font-size: large;
-  }
-  .form-text {
-    font-size: large !important;
-  }
-  .form-label {
-    font-size: x-large;
   }
 
   .about {
@@ -297,21 +224,4 @@ body {
     stroke-dasharray: 89, 200;
     stroke-dashoffset: -124px;
   }
-}
-
-/* The edit pencil on MyPage (EditModal.tsx) is Font Awesome's "pen-to-square"
-   icon drawn directly. These are the sizing rules Font Awesome's code used to
-   add for it; fa-lg, fa-width-auto and fa-bounce come from Font Awesome's
-   stylesheet. */
-.svg-inline--fa {
-  box-sizing: content-box;
-  display: var(--fa-display, inline-block);
-  height: 1em;
-  overflow: visible;
-  vertical-align: -0.125em;
-  width: var(--fa-width, 1.25em);
-}
-
-.svg-inline--fa.fa-lg {
-  vertical-align: -0.2em;
 }

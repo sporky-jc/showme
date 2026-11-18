@@ -19,12 +19,14 @@ import type { RootState } from "../reducers/types";
 const loadAbout = () => import("../pages/About");
 const loadLogin = () => import("../pages/Login");
 const loadMyPage = () => import("../pages/MyPage");
+const loadWrite = () => import("../pages/Write");
 const loadAdmin = () => import("../pages/Admin");
 const loadCollection = () => import("../pages/Collection");
 
 const About = lazy(loadAbout);
 const Login = lazy(loadLogin);
 const MyPage = lazy(loadMyPage);
+const Write = lazy(loadWrite);
 const Admin = lazy(loadAdmin);
 const Collection = lazy(loadCollection);
 
@@ -32,7 +34,7 @@ const Collection = lazy(loadCollection);
 // download the other pages' files in the background, so opening them later
 // is instant instead of waiting for the download at the moment of the click.
 const prefetchPages = () => {
-  [loadAbout, loadLogin, loadMyPage, loadAdmin, loadCollection].forEach(
+  [loadAbout, loadLogin, loadMyPage, loadWrite, loadAdmin, loadCollection].forEach(
     (load) => load().catch(() => {}) // a failure here is retried on the click
   );
 };
@@ -170,6 +172,8 @@ function NavbarComp() {
                     element={<OpenLogin onOpen={handleShowLoginModal} />}
                   />
                   <Route path="/MyPage" element={<MyPage />} />
+                  {/* A new sentence, or with an id, an edit of that one */}
+                  <Route path="/Write/:id?" element={<Write />} />
                   <Route path="/" element={<Home />} />
                 </Routes>
               </OpenLoginContext.Provider>
