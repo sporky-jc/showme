@@ -43,7 +43,8 @@ const Where = () => <div data-testid="where">{useLocation().pathname}</div>;
 const renderLogin = ({
   onHide = vi.fn(),
   respond,
-}: { onHide?: Mock<() => void>; respond?: Respond } = {}) => {
+  route = "/Collections",
+}: { onHide?: Mock<() => void>; respond?: Respond; route?: string } = {}) => {
   const requests: InternalAxiosRequestConfig[] = [];
   const view = renderWithApp(
     <Routes>
@@ -57,6 +58,7 @@ const renderLogin = ({
         if (config.url === "/Login") return { status: 200, data: { firstName: "Ada" } };
         return 200;
       },
+      route,
     }
   );
   return { ...view, requests, onHide };
@@ -74,7 +76,7 @@ describe("Login", () => {
     );
   });
 
-  it("after Google signs someone in: logs in with our backend, closes, and goes to MyPage", async () => {
+  it("after Google signs someone in: logs in with our backend, closes, and goes to Today (the home page)", async () => {
     const { requests, onHide } = renderLogin();
     await waitFor(() => expect(google.accounts.id.initialize).toHaveBeenCalled());
     const { callback } = google.accounts.id.initialize.mock.calls[0][0];
@@ -85,6 +87,17 @@ describe("Login", () => {
     expect(JSON.parse(auth!.data)).toEqual({ token: "google-id-token" });
     expect(requests.some((r) => r.url === "/Login")).toBe(true);
     expect(onHide).toHaveBeenCalled();
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/$/);
+  });
+
+  // MyPage asks a visitor to sign in, and then shows their sentences
+  it("stays on MyPage when the sign-in started there", async () => {
+    renderLogin({ route: "/MyPage" });
+    await waitFor(() => expect(google.accounts.id.initialize).toHaveBeenCalled());
+    const { callback } = google.accounts.id.initialize.mock.calls[0][0];
+
+    await act(() => callback!({ credential: "google-id-token", select_by: "btn" }));
+
     expect(screen.getByTestId("where")).toHaveTextContent("/MyPage");
   });
 
@@ -97,7 +110,7 @@ describe("Login", () => {
     await act(() => callback!({ credential: "bad", select_by: "btn" }));
 
     expect(onHide).not.toHaveBeenCalled();
-    expect(screen.getByTestId("where")).toHaveTextContent("/");
+    expect(screen.getByTestId("where")).toHaveTextContent("/Collections");
   });
 
   it("doesn't set up Google's button if the popup closes within 300ms", () => {

@@ -5,21 +5,21 @@ import react from "@vitejs/plugin-react";
 // Version 8 exports the plugin as the package itself, not by name
 import purgeCSSPlugin from "@fullhuman/postcss-purgecss";
 import tell from "./src/tellData";
-import { phoneCarouselMedia } from "./src/config";
+import { phonePhotoMedia } from "./src/config";
 
 // The style libraries (MDB, Bootstrap and Font Awesome: about 570 KB) style
 // far more than this site uses, and browsers download all of it before they
 // can draw anything. When building, keep only the rules for the classes, tags
 // and attributes this site uses: the ones written in its code, plus the ones
 // the libraries' own code adds while you use the site, which never appear in
-// our code as written (e.g. "carousel-item-next" while a slide moves).
+// our code as written (e.g. "collapsing" while the phone menu opens).
 // Using a new react-bootstrap or MDB component, or a new variant (e.g.
 // <Button variant="success">)? Add its class names here: `npm start` keeps
 // every rule, so it looks fine there, but the built site would leave it
 // unstyled. (public/styles.css is not touched.)
 const addedByLibraries = [
-  /^carousel/, /^slide$/, /^active$/, /^fade$/, /^show$/, /^showing$/, /^hiding$/,
-  /^collaps/, /^disabled$/, /^visually-hidden/, // slides, menus, pop-ups
+  /^active$/, /^fade$/, /^show$/, /^showing$/, /^hiding$/,
+  /^collaps/, /^disabled$/, /^visually-hidden/, // menus, pop-ups
   /^navbar/, /^nav$/, /^nav-/, /^container/, /^row$/, /^col/, // Navbar, Nav, Container, MDBRow/MDBCol
   /^modal/, /^tooltip/, /^bs-tooltip/, // Modal, Tooltip
   // Only the variants our code picks (each library has dozens): Button
@@ -31,7 +31,7 @@ const addedByLibraries = [
   /^fa[srb]?$/, /^fa-(list-check|check|rotate-right|lg|width-auto|bounce)$/, // Admin's MDBIcons, the edit pencil
 ];
 // Tags and attributes that only the libraries' code writes (e.g. <table>, or
-// the carousel's data-bs-target and a tooltip's data-popper-placement, with
+// a menu's data-bs-target and a tooltip's data-popper-placement, with
 // its values). MDB writes a few tag names in capitals.
 const tagsAndAttributes =
   "html body div span a p h1 h2 h3 h4 h5 h6 img picture source svg path i b strong small " +
@@ -81,9 +81,9 @@ const pageRoutes = {
   "/mypage": "MyPage",
 };
 
-// The home page's first photo (see CarouselComp): the phone-shaped copy on
-// phones held upright, the full photo everywhere else. The <picture> in
-// CarouselComp makes the same choice, so the photo is never downloaded twice.
+// The Welcome screen's first photo (see pages/Welcome.tsx): the phone-shaped
+// copy on phones held upright, the full photo everywhere else. The <picture>
+// there makes the same choice, so the photo is never downloaded twice.
 const firstPhoto = tell[0];
 const preloadPhoto = (href: string, media: string) => ({
   rel: "preload",
@@ -93,8 +93,8 @@ const preloadPhoto = (href: string, media: string) => ({
   media,
 });
 const homePhoto = [
-  preloadPhoto(firstPhoto.phonePicture, phoneCarouselMedia),
-  preloadPhoto(firstPhoto.picture, `not all and ${phoneCarouselMedia}`),
+  preloadPhoto(firstPhoto.phonePicture, phonePhotoMedia),
+  preloadPhoto(firstPhoto.picture, `not all and ${phonePhotoMedia}`),
 ];
 
 // What the tiny script starts for one address: <link> tags (as their
@@ -102,6 +102,9 @@ const homePhoto = [
 interface PageStart {
   links: Record<string, string>[];
   requests?: string[];
+  // Only for someone who isn't signed in (this browser remembers no login):
+  // a signed-in student gets another page at this address, without these
+  visitorsOnly?: boolean;
 }
 
 // The tiny script. `byAddress` lists, for each address, the <link> tags to add
@@ -112,6 +115,12 @@ interface PageStart {
 const pageScript = (byAddress: Record<string, PageStart>) => `(function () {
       var page = ${JSON.stringify(byAddress)}[location.pathname.toLowerCase().replace(/\\/+$/, "") || "/"];
       if (!page) return;
+      if (page.visitorsOnly) {
+        try {
+          var saved = JSON.parse(localStorage.getItem("persist:root") || "{}");
+          if (Object.keys(JSON.parse(saved.user || "{}")).length) return;
+        } catch (e) {} // nothing remembered, or unreadable: a visitor
+      }
       (page.links || []).forEach(function (attributes) {
         if (attributes.media && !matchMedia(attributes.media).matches) return;
         var link = document.createElement("link");
@@ -156,7 +165,8 @@ const preloadCurrentPage = (): Plugin => ({
         atTheTop[address] = { links };
       }
       atTheTop["/collections"].requests = ["/Collections"];
-      const afterTheStylesheets = { "/": { links: homePhoto } };
+      // Welcome's photo; a signed-in student sees Today there instead
+      const afterTheStylesheets = { "/": { links: homePhoto, visitorsOnly: true } };
 
       // 1. Right after <meta charset> (which must stay in the first 1024
       // bytes) and before the stylesheets: a script placed after them waits

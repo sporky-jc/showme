@@ -3,7 +3,7 @@ import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import { useDispatch } from "react-redux";
 import { fetchUser } from "../actions/user";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { loginUser } from "../api";
 import type { AppDispatch } from "../reducers/types";
@@ -14,6 +14,9 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
 
   // navigate from react router
   const navigate = useNavigate();
+  // Signing in from MyPage's "Sign in" stays there; from anywhere else it
+  // opens Today, the student's home
+  const onMyPage = useLocation().pathname.toLowerCase() === "/mypage";
 
   // state to show login modal
   const [loading, setLoading] = useState(false);
@@ -35,7 +38,7 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
         await dispatch(fetchUser());
         onHide?.();
         setLoading(false);
-        navigate("/MyPage");
+        if (!onMyPage) navigate("/");
       } catch (error) {
         console.error("Authentication error", error);
         setLoading(false);
@@ -60,7 +63,7 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
 
     // If the popup closes first, cancel: there'd be no box to draw into
     return () => clearTimeout(timer);
-  }, [dispatch, navigate, onHide]);
+  }, [dispatch, navigate, onHide, onMyPage]);
 
   // login modal with React and google identity service
   return (

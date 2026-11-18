@@ -384,6 +384,641 @@ h3,
   }
 }
 
+/* ---- Shared by the Welcome and Today pages ---- */
+
+/* A white card with an orange sheet of paper peeking out behind it */
+.paper-stack {
+  position: relative;
+}
+
+.paper-stack::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #ffb27a;
+  border-radius: 32px;
+  transform: translate(12px, 12px) rotate(0.9deg);
+}
+
+.paper-stack__card {
+  position: relative;
+  background: var(--paper-white);
+  border-radius: 32px;
+}
+
+/* What Scribbles says */
+.paper-bubble {
+  position: relative;
+  margin: 0;
+  max-width: 190px;
+  background: var(--paper-white);
+  border-radius: 22px;
+  padding: 12px 16px;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1.4;
+  box-shadow: 4px 5px 0 var(--paper-edge);
+}
+
+.paper-bubble::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  background: var(--paper-white);
+  transform: rotate(45deg);
+}
+
+/* Two or more choices in one pill; the chosen one is orange */
+.paper-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.paper-toggle button {
+  border: 0;
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 0 18px;
+  font-weight: 800;
+  font-size: 1rem;
+  background: transparent;
+  color: var(--paper-ink);
+}
+
+.paper-toggle button[aria-pressed="true"] {
+  background: var(--paper-action);
+  color: var(--paper-action-ink);
+}
+
+.paper-toggle button:focus-visible,
+.paper-welcome__pause:focus-visible,
+.paper-welcome__picker button:focus-visible,
+.paper-note:focus-visible {
+  outline: 3px solid var(--paper-ink);
+  outline-offset: 2px;
+}
+
+/* ---- Welcome (signed out) ---- */
+
+.paper-welcome {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px 20px 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  text-align: left;
+}
+
+.paper-welcome__pitch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+/* Lines far enough apart that the yellow behind "Show" doesn't cover the
+   line above it */
+.paper-welcome__title {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 3.6rem);
+  line-height: 1.2;
+}
+
+.paper-welcome__tell {
+  color: var(--paper-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--paper-action);
+  text-decoration-thickness: 0.1em;
+}
+
+.paper-welcome__show {
+  background: var(--paper-sun);
+  border-radius: 14px;
+  padding: 0 0.2em;
+  /* Baloo's letters sit low in their line: trim the yellow to fit them */
+  line-height: 1;
+  display: inline-block;
+}
+
+.paper-welcome__lead {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.paper-welcome__signin {
+  font-size: 1.5rem;
+  border-radius: 18px;
+}
+
+.paper-welcome__g {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  font-family: var(--paper-font-body);
+  font-size: 1rem;
+}
+
+.paper-welcome__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.paper-welcome__steps li {
+  background: var(--paper-white);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 0 var(--paper-edge);
+}
+
+.paper-welcome__examples {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.paper-welcome__card {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.paper-welcome__photo {
+  position: relative;
+  height: 210px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--paper-sky);
+}
+
+.paper-welcome__photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter 0.4s ease;
+}
+
+/* The Tell half: the same photo with the life taken out of it */
+.paper-welcome__photo img.paper-welcome__faded {
+  filter: grayscale(1) blur(2px) brightness(1.05);
+}
+
+.paper-welcome__photo .paper-toggle {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+}
+
+/* Stops the examples changing by themselves; only offered to someone who
+   asked their device for less motion (Welcome.tsx) */
+.paper-welcome__pause {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 16px;
+  font-weight: 800;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--paper-ink);
+}
+
+/* Tall enough for the longest Show sentence, so the page doesn't jump as the
+   examples change */
+.paper-welcome__words {
+  min-height: 150px;
+  padding: 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* The narrowest phones wrap the sentences onto more lines */
+@media (max-width: 359px) {
+  .paper-welcome__words {
+    min-height: 200px;
+  }
+}
+
+.paper-welcome__sentence {
+  margin: 0;
+  font-family: var(--paper-font-display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.paper-welcome__sentence--tell {
+  font-size: 1.75rem;
+  color: var(--paper-muted);
+}
+
+/* Scribbles stands on the card's bottom corner on small screens, without
+   his speech bubble; on wide ones he leans in from the top with it */
+.paper-welcome__scribbles {
+  position: absolute;
+  right: -6px;
+  bottom: -34px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.paper-welcome__scribbles .scribbles {
+  width: 70px;
+  height: auto;
+}
+
+.paper-welcome__scribbles .paper-bubble {
+  display: none;
+}
+
+/* More examples: dots on a phone, photo buttons on wider screens */
+.paper-welcome__picker {
+  display: flex;
+  gap: 2px;
+}
+
+/* Each dot's button is 44 px square, big enough for a finger */
+.paper-welcome__picker button {
+  border: 0;
+  padding: 14px;
+  background: transparent;
+  line-height: 0;
+}
+
+/* Dark enough to see on the sky: the dots 6:1, and the chosen one's dark
+   ring where its orange alone would be 2:1 */
+.paper-welcome__picker button::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--paper-muted);
+}
+
+.paper-welcome__picker button[aria-pressed="true"]::before {
+  width: 40px;
+  background: var(--paper-action);
+  box-shadow: inset 0 0 0 3px var(--paper-ink);
+}
+
+.paper-welcome__picker picture {
+  display: none;
+}
+
+/* The dots have no words to see, but screen readers still get them */
+.paper-welcome__picker span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 576px) {
+  .paper-welcome__photo {
+    height: 290px;
+  }
+
+  .paper-welcome__words {
+    min-height: 124px;
+  }
+
+  .paper-welcome__sentence {
+    font-size: 1.6rem;
+  }
+
+  .paper-welcome__sentence--tell {
+    font-size: 2.1rem;
+  }
+
+  .paper-welcome__picker {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .paper-welcome__picker button {
+    padding: 6px;
+    border-radius: 14px;
+    background: var(--paper-white);
+    box-shadow: 0 4px 0 var(--paper-edge);
+    color: var(--paper-ink);
+    line-height: inherit;
+    text-align: left;
+  }
+
+  .paper-welcome__picker button[aria-pressed="true"] {
+    box-shadow: 0 5px 0 var(--paper-action);
+  }
+
+  .paper-welcome__picker button::before {
+    content: none;
+  }
+
+  .paper-welcome__picker picture {
+    display: block;
+  }
+
+  .paper-welcome__picker img {
+    display: block;
+    width: 100%;
+    height: 58px;
+    object-fit: cover;
+    border-radius: 10px;
+  }
+
+  .paper-welcome__picker span {
+    position: static;
+    display: block;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    padding: 6px 4px 2px;
+    font-weight: 800;
+    font-size: 0.85rem;
+  }
+}
+
+@media (min-width: 992px) {
+  .paper-welcome {
+    grid-template-columns: 430px minmax(0, 1fr);
+    gap: 44px;
+    align-items: center;
+    padding-top: 40px;
+  }
+
+  /* Room above the card for Scribbles and what he says */
+  .paper-welcome__examples {
+    padding-top: 56px;
+  }
+
+  .paper-welcome__scribbles {
+    right: -14px;
+    top: -92px;
+    bottom: auto;
+  }
+
+  .paper-welcome__scribbles .scribbles {
+    width: 96px;
+  }
+
+  .paper-welcome__scribbles .paper-bubble {
+    display: block;
+  }
+}
+
+/* ---- Today (signed in) ---- */
+
+.paper-today {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 20px 20px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  text-align: left;
+}
+
+.paper-today__hello {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.paper-today__hello h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 4vw, 2.25rem);
+}
+
+.paper-today__hello .paper-status {
+  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.paper-today__card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 14px;
+}
+
+.paper-today__tell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.paper-today__sentence {
+  margin: 0;
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  font-size: clamp(2.1rem, 6vw, 3.75rem);
+  line-height: 1;
+}
+
+.paper-today__hint {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.paper-today__start {
+  align-self: stretch;
+  font-size: 1.4rem;
+  border-radius: 18px;
+}
+
+/* An arch, like a window cut out of the paper */
+.paper-today__photo {
+  display: block;
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  border-radius: 120px 120px 18px 18px;
+  background: var(--paper-sky);
+}
+
+.paper-today__scribbles {
+  position: absolute;
+  right: -10px;
+  top: 118px;
+  pointer-events: none;
+}
+
+.paper-today__scribbles .scribbles {
+  width: 76px;
+  height: auto;
+}
+
+.paper-today__card--finished + .paper-today__scribbles {
+  top: auto;
+  bottom: -40px;
+}
+
+.paper-today__mine h2 {
+  margin: 0 0 12px;
+  font-size: 1.5rem;
+}
+
+/* What happens next to a sentence that is being checked */
+.paper-today__later {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.paper-today__mine ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+/* One of the student's sentences, colored by where it stands */
+.paper-note {
+  display: block;
+  height: 100%;
+  border-radius: 18px;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: var(--paper-ink);
+  background: var(--paper-white);
+  box-shadow: 0 5px 0 var(--paper-edge);
+}
+
+.paper-note:hover {
+  color: var(--paper-ink);
+  transform: translateY(-1px);
+}
+
+.paper-note__status {
+  display: block;
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--paper-muted);
+}
+
+.paper-note__show {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  margin-top: 2px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Waiting for the teacher: yellow, like the sticky note Scribbles holds */
+.paper-note--wait {
+  background: var(--paper-turn-bg);
+  box-shadow: 0 5px 0 var(--paper-turn-edge);
+}
+
+.paper-note--wait .paper-note__status {
+  color: var(--paper-turn-ink);
+}
+
+.paper-note--done {
+  background: var(--paper-done-bg);
+  box-shadow: 0 5px 0 var(--paper-done-edge);
+}
+
+.paper-note--done .paper-note__status {
+  color: var(--paper-done-ink);
+}
+
+.paper-note--retry {
+  background: var(--paper-retry-bg);
+  box-shadow: 0 5px 0 var(--paper-retry-edge);
+}
+
+.paper-note--retry .paper-note__status {
+  color: var(--paper-retry-ink);
+}
+
+@media (min-width: 768px) {
+  .paper-today__card {
+    padding: 34px 36px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 34px;
+    align-items: center;
+  }
+
+  .paper-today__tell {
+    gap: 16px;
+  }
+
+  .paper-today__start {
+    align-self: flex-start;
+    font-size: 1.5rem;
+  }
+
+  .paper-today__photo {
+    height: 270px;
+    border-radius: 170px 170px 26px 26px;
+  }
+
+  .paper-today__scribbles {
+    right: -6px;
+    top: auto;
+    bottom: -64px;
+  }
+
+  .paper-today__scribbles .scribbles {
+    width: 120px;
+  }
+
+  /* The last column stays clear for Scribbles' feet */
+  .paper-today__mine ul {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-right: 130px;
+  }
+}
+
 /* Someone who asked their device for less motion gets everything still:
    the logo's underline and Scribbles' squiggle already drawn. */
 @media (prefers-reduced-motion: reduce) {
@@ -397,7 +1032,9 @@ h3,
   .scribbles__arm,
   .scribbles__eye,
   .paper-btn,
-  .paper-nav .nav-link {
+  .paper-nav .nav-link,
+  .paper-welcome__photo img,
+  .paper-note {
     animation: none;
     transition: none;
   }

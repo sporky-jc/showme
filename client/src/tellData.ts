@@ -1,13 +1,16 @@
-// home page display - static doesn't change
+// The Welcome screen's examples: fixed, they don't change. Each Show
+// sentence describes what its photo shows; change them together.
 // picture: the photo; phonePicture: its middle, for phones held upright (see
-// phoneCarouselMedia in config.ts). Replacing a photo? Replace both.
+// phonePhotoMedia in config.ts). Replacing a photo? Replace both.
 
-// One slide of the home page carousel (see CarouselComp)
+// One example on the Welcome screen (see pages/Welcome.tsx)
 export interface Slide {
   key: number;
-  title: string;
   tell: string;
   show: string;
+  // A few words for the example's button, and what the photo shows
+  short: string;
+  alt: string;
   picture: string;
   phonePicture: string;
 }
@@ -15,33 +18,37 @@ export interface Slide {
 const tell: Slide[] = [
   {
     key: 1,
-    title: "Day 1",
     tell: "It is cold outside.",
-    show: "As I walked out the door, the frigid air hit my face and instantly the sweat on my forehead crystalized.",
+    show: "Every tree wore a thick white coat, and my boots left a lonely trail across the frozen hill.",
+    short: "Cold",
+    alt: "A lone hiker crossing a snowy hill of frosted trees",
     picture: "/images/winter.jpg",
     phonePicture: "/images/winter-phone.jpg",
   },
   {
     key: 2,
-    title: "Day 2",
     tell: "It is hot outside.",
-    show: "The blazing heat scorches the parched lands eliminating the last bit of moisture trying to escape.",
+    show: "Golden sand stretched to the sky with nowhere to hide, and every step burned through my shoes.",
+    short: "Hot",
+    alt: "Sand dunes under a cloudless blue sky",
     picture: "/images/summer.jpg",
     phonePicture: "/images/summer-phone.jpg",
   },
   {
     key: 3,
-    title: "Day 3",
     tell: "His room is messy.",
-    show: "There are dirty clothes all over the filthy floor and a foul smell from the leftover rotting food envelopes his flat.",
+    show: "His blanket had tumbled halfway to the floor, and the pillows looked like they had lost a pillow fight.",
+    short: "Messy room",
+    alt: "An unmade bed with a crumpled blanket sliding off",
     picture: "/images/messy.jpg",
     phonePicture: "/images/messy-phone.jpg",
   },
   {
     key: 4,
-    title: "Day 4",
     tell: "Her room is clean.",
-    show: "Even with a magnifying glass, you won't be able to see a minute speck of dust in her spotless apartment.",
+    show: "Every pillow stood in a neat row, and her blanket lay so smooth that not one wrinkle dared to show.",
+    short: "Clean room",
+    alt: "A neatly made bed with its pillows in a row",
     picture: "/images/clean.jpg",
     phonePicture: "/images/clean-phone.jpg",
   },
