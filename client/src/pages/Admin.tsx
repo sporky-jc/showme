@@ -82,8 +82,11 @@ function Admin() {
 
   return (
     <LoadingOverlay active={isActive} spinner text="Loading...">
-      <section className="gradient-custom-2 vh-100">
-        <MDBContainer className="py-5 h-100 approvallist">
+      {/* At least a screen tall, and taller when the queue is: a fixed
+          height let a long queue spill out underneath the footer, whose
+          hills then covered the last rows */}
+      <section className="gradient-custom-2 min-vh-100">
+        <MDBContainer className="py-5 approvallist">
           <MDBRow className="d-flex justify-content-center align-items-center">
             <MDBCol md="12" xl="12">
               <MDBCard>
