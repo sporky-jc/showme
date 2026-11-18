@@ -156,7 +156,7 @@ describe("Today", () => {
 
     expect(await screen.findByText("You showed every sentence!")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Start showing" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the class collection" })).toHaveAttribute("href", "/Collections");
+    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Collections");
   });
 
   it("lists the three latest sentences, newest first, each linked to MyPage", async () => {
@@ -171,7 +171,7 @@ describe("Today", () => {
     notes().forEach((note) => expect(note).toHaveAttribute("href", "/MyPage"));
   });
 
-  it("says where each sentence stands: done, try again, or waiting", async () => {
+  it("says where each sentence stands: done, try again, or being checked", async () => {
     const [done, redo, waiting] = shows(3);
     renderToday({
       mine: [
@@ -183,11 +183,11 @@ describe("Today", () => {
     await screen.findByText("“Tell 4”");
 
     const [third, second, first] = notes();
-    expect(first).toHaveTextContent("Done · in Collections");
+    expect(first).toHaveTextContent("Done · in the gallery");
     expect(first).toHaveClass("paper-note--done");
     expect(second).toHaveTextContent("Try again");
     expect(second).toHaveClass("paper-note--retry");
-    expect(third).toHaveTextContent("Waiting to be checked");
+    expect(third).toHaveTextContent("Scribbles is checking…");
     expect(third).toHaveClass("paper-note--wait");
   });
 
@@ -212,6 +212,26 @@ describe("Today", () => {
     renderToday({ mine: shows(1) });
     await screen.findByText("“Tell 2”");
     expect(screen.queryByText(/shown$/)).not.toBeInTheDocument();
+  });
+
+  it("tells a student with a sentence being checked to come back later, with Scribbles thinking it over", async () => {
+    renderToday({ mine: shows(1) });
+    await screen.findByText("“Tell 2”");
+
+    expect(
+      screen.getByText("Come back later! Once your teacher approves it, it will appear in the gallery.")
+    ).toBeInTheDocument();
+    const scribbles = screen.getByRole("img", { name: "Scribbles the pencil" });
+    expect(scribbles).toHaveClass("scribbles--thinking");
+    expect(scribbles.querySelector('[data-held="note"]')).not.toBeNull();
+  });
+
+  it("doesn't say 'come back later' when nothing is being checked", async () => {
+    renderToday({ mine: [...shows(1, { approved: true }), { ...shows(2)[1], toRedo: true }] });
+    await screen.findByText("“Tell 3”");
+
+    expect(screen.queryByText(/Come back later/)).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Scribbles the pencil" })).toHaveClass("scribbles--idle");
   });
 
   it("brings Scribbles along", async () => {

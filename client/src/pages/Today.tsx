@@ -16,10 +16,10 @@ const LATEST = 3;
 // code as written (see vite.config.ts).
 const standing = (sentence: Sentence) =>
   sentence.approved
-    ? { note: "paper-note paper-note--done", label: "Done · in Collections" }
+    ? { note: "paper-note paper-note--done", label: "Done · in the gallery" }
     : sentence.toRedo
     ? { note: "paper-note paper-note--retry", label: "Try again" }
-    : { note: "paper-note paper-note--wait", label: "Waiting to be checked" };
+    : { note: "paper-note paper-note--wait", label: "Scribbles is checking…" };
 
 // A signed-in student's home: today's Tell sentence with the way to start
 // writing, and where their latest sentences stand.
@@ -76,6 +76,8 @@ function Today() {
 
   const today = tellSentences[userSentences.length];
   const shown = userSentences.filter((sentence) => sentence.approved).length;
+  // Something is waiting for the teacher: Scribbles is "checking" it
+  const checking = userSentences.some((sentence) => !sentence.approved && !sentence.toRedo);
   // Newest first; each keeps its place in the list, which is its day
   const latest = userSentences
     .map((sentence, index) => ({ sentence, tell: tellSentences[index]?.tell }))
@@ -131,19 +133,29 @@ function Today() {
               <p className="paper-today__sentence">You showed every sentence!</p>
               <p className="paper-today__hint">Come back later for more.</p>
               <Link to="/Collections" className="paper-btn paper-btn--action paper-today__start">
-                See the class collection
+                See the class gallery
               </Link>
             </div>
           </div>
         )}
         <div className="paper-today__scribbles">
-          <Scribbles mood={today ? "idle" : "happy"} size={120} />
+          <Scribbles
+            mood={checking ? "thinking" : today ? "idle" : "happy"}
+            prop={checking ? "note" : "none"}
+            size={120}
+          />
         </div>
       </div>
 
       {latest.length > 0 && (
         <section className="paper-today__mine" aria-labelledby="today-mine">
           <h2 id="today-mine">My sentences</h2>
+          {checking && (
+            <p className="paper-today__later">
+              Come back later! Once your teacher approves it, it will appear
+              in the gallery.
+            </p>
+          )}
           <ul>
             {latest.map(({ sentence, tell }) => {
               const { note, label } = standing(sentence);

@@ -34,6 +34,8 @@ describe("Welcome", () => {
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Don't just tell it. Show it!");
     expect(screen.getByText(/Turn boring sentences into pictures made of words/)).toBeInTheDocument();
+    expect(screen.getByText("2 · Scribbles checks")).toBeInTheDocument();
+    expect(screen.getByText("3 · Join the gallery")).toBeInTheDocument();
   });
 
   it("opens the sign-in pop-up from its button", () => {
@@ -99,16 +101,19 @@ describe("Welcome", () => {
     expect(sentence()).toBe(cold.tell);
   });
 
-  it("stops turning once the visitor picks something, so they can read", () => {
+  it("gives the visitor longer to read what they picked, then carries on", () => {
     vi.useFakeTimers();
     lessMotion(false);
     render(<Welcome />);
 
     fireEvent.click(screen.getByRole("button", { name: "Show" }));
     turn();
-    turn();
-
     expect(sentence()).toBe(cold.show);
+
+    act(() => vi.advanceTimersByTime(8000 - 3500));
+    expect(sentence()).toBe(hot.tell);
+    turn();
+    expect(sentence()).toBe(hot.show);
   });
 
   it("waits while the mouse is on the examples, and carries on after", () => {
@@ -117,40 +122,77 @@ describe("Welcome", () => {
     render(<Welcome />);
     const examplesBox = screen.getByRole("region", { name: "Tell versus Show examples" });
 
-    fireEvent.mouseEnter(examplesBox);
+    fireEvent.pointerEnter(examplesBox, { pointerType: "mouse" });
     turn();
     expect(sentence()).toBe(cold.tell);
 
-    fireEvent.mouseLeave(examplesBox);
+    fireEvent.pointerLeave(examplesBox, { pointerType: "mouse" });
     turn();
     expect(sentence()).toBe(cold.show);
   });
 
-  it("never turns by itself for someone who asked for less motion", () => {
+  // A tap also "enters" the examples, but a finger never leaves them
+  it("doesn't wait for a finger that tapped the examples", () => {
     vi.useFakeTimers();
-    lessMotion(true);
+    lessMotion(false);
     render(<Welcome />);
 
-    turn();
+    fireEvent.pointerEnter(screen.getByRole("region", { name: "Tell versus Show examples" }), {
+      pointerType: "touch",
+    });
     turn();
 
-    expect(sentence()).toBe(cold.tell);
+    expect(sentence()).toBe(cold.show);
+  });
+
+  describe("for someone who asked their device for less motion", () => {
+    it("still turns by itself, with a button to pause it", () => {
+      vi.useFakeTimers();
+      lessMotion(true);
+      render(<Welcome />);
+
+      turn();
+      expect(sentence()).toBe(cold.show);
+
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      turn();
+      turn();
+      expect(sentence()).toBe(cold.show);
+      expect(screen.getByRole("button", { name: "Play" })).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.click(screen.getByRole("button", { name: "Play" }));
+      turn();
+      expect(sentence()).toBe(hot.tell);
+    });
+
+    it("has no pause button for everyone else", () => {
+      lessMotion(false);
+      render(<Welcome />);
+
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+    });
   });
 
   // Screen readers can miss a change that lands at the same moment the
   // region is switched on, so it is on before the press: from when the
-  // keyboard (or mouse) reaches the examples
+  // mouse (or keyboard) reaches the examples
   it("reads a change out when the visitor made it, not while it plays by itself", () => {
+    vi.useFakeTimers();
     lessMotion(false);
     render(<Welcome />);
     const words = document.querySelector(".paper-welcome__words")!;
+    const examplesBox = screen.getByRole("region", { name: "Tell versus Show examples" });
 
     expect(words).toHaveAttribute("aria-live", "off");
-    fireEvent.focus(screen.getByRole("button", { name: "Show" }));
+    fireEvent.pointerEnter(examplesBox, { pointerType: "mouse" });
     expect(words).toHaveAttribute("aria-live", "polite");
     fireEvent.click(screen.getByRole("button", { name: "Show" }));
-    fireEvent.blur(screen.getByRole("button", { name: "Show" }));
+    fireEvent.pointerLeave(examplesBox, { pointerType: "mouse" });
     expect(words).toHaveAttribute("aria-live", "polite");
+
+    // Playing by itself again: quiet
+    act(() => vi.advanceTimersByTime(8000));
+    expect(words).toHaveAttribute("aria-live", "off");
   });
 
   describe("the other examples' photos", () => {

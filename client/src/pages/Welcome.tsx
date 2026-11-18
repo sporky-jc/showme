@@ -5,8 +5,10 @@ import { phonePhotoMedia } from "../config";
 import examples from "../tellData";
 
 // How long each half of an example stays up while they play by themselves:
-// its Tell sentence, then its Show sentence, then the next example
+// its Tell sentence, then its Show sentence, then the next example. One the
+// visitor picked stays up longer, so they can read it.
 const TURN_EVERY_MS = 3500;
+const AFTER_A_PICK_MS = 8000;
 
 const wantsLessMotion = () =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -19,24 +21,31 @@ function Welcome() {
   // Which example is up, and which half of it
   const [index, setIndex] = useState(0);
   const [showing, setShowing] = useState(false);
-  // The examples turn by themselves until the visitor picks one (then they
-  // are reading at their own speed), and never for someone who asked their
-  // device for less motion. They also wait while the mouse or the keyboard
-  // is on them.
-  const [playing, setPlaying] = useState(() => !wantsLessMotion());
+  // The examples turn by themselves, like a slideshow. They wait while the
+  // mouse or the keyboard is on them, and a little longer after the visitor
+  // picks one. Someone who asked their device for less motion still gets the
+  // slideshow (without the fades, see paper.css) and a button to pause it.
+  const [lessMotion] = useState(wantsLessMotion);
+  const [paused, setPaused] = useState(false);
   const [resting, setResting] = useState(false);
+  const [picked, setPicked] = useState(false);
+  const playing = !paused && !resting;
   // The other examples' photos wait for the first one, the main thing on
   // this screen, instead of sharing the connection with it
   const [firstPhotoDone, setFirstPhotoDone] = useState(false);
 
   useEffect(() => {
-    if (!playing || resting) return;
-    const timer = setTimeout(() => {
-      if (showing) setIndex((index + 1) % examples.length);
-      setShowing(!showing);
-    }, TURN_EVERY_MS);
+    if (!playing) return;
+    const timer = setTimeout(
+      () => {
+        if (showing) setIndex((index + 1) % examples.length);
+        setShowing(!showing);
+        setPicked(false);
+      },
+      picked ? AFTER_A_PICK_MS : TURN_EVERY_MS
+    );
     return () => clearTimeout(timer);
-  }, [playing, resting, showing, index]);
+  }, [playing, picked, showing, index]);
 
   // Once the first photo is in (or the first example has been left before
   // it finished), fetch the others, so changing example doesn't show an
@@ -54,9 +63,19 @@ function Welcome() {
 
   const example = examples[index];
   const pick = (next: number, show: boolean) => {
-    setPlaying(false);
+    setPicked(true);
     setIndex(next);
     setShowing(show);
+  };
+  // Only a real mouse rests on the examples: a finger's tap also counts as
+  // "entering", but never leaves, which would stop them for good. The same
+  // goes for the keyboard: a tapped button keeps the focus without showing
+  // it, so only focus the visitor can see counts.
+  const mouseOnly = (rest: boolean) => (event: React.PointerEvent) => {
+    if (event.pointerType === "mouse") setResting(rest);
+  };
+  const keyboardFocus = (event: React.FocusEvent) => {
+    if ((event.target as Element).matches(":focus-visible")) setResting(true);
   };
   const photoDone = index === 0 ? () => setFirstPhotoDone(true) : undefined;
 
@@ -68,8 +87,8 @@ function Welcome() {
           <span className="paper-welcome__show">Show</span> it!
         </h1>
         <p className="paper-welcome__lead">
-          Turn boring sentences into pictures made of words. Write your own,
-          get it checked, and see it join the class collection.
+          Turn boring sentences into pictures made of words. Write yours,
+          and once your teacher approves it, it joins the class gallery.
         </p>
         <button
           type="button"
@@ -83,17 +102,17 @@ function Welcome() {
         </button>
         <ol className="paper-welcome__steps">
           <li>1 · Write it</li>
-          <li>2 · Get it checked</li>
-          <li>3 · Share it</li>
+          <li>2 · Scribbles checks</li>
+          <li>3 · Join the gallery</li>
         </ol>
       </section>
 
       <section
         className="paper-welcome__examples"
         aria-label="Tell versus Show examples"
-        onMouseEnter={() => setResting(true)}
-        onMouseLeave={() => setResting(false)}
-        onFocus={() => setResting(true)}
+        onPointerEnter={mouseOnly(true)}
+        onPointerLeave={mouseOnly(false)}
+        onFocus={keyboardFocus}
         onBlur={() => setResting(false)}
       >
         <div className="paper-stack">
@@ -132,13 +151,23 @@ function Welcome() {
                   Show
                 </button>
               </div>
+              {lessMotion && (
+                <button
+                  type="button"
+                  className="paper-welcome__pause"
+                  aria-pressed={paused}
+                  onClick={() => setPaused(!paused)}
+                >
+                  {paused ? "Play" : "Pause"}
+                </button>
+              )}
             </div>
             {/* Read out when the visitor changes it, not while it plays by
                 itself. Already "polite" once the mouse or keyboard is on
                 the examples, before the press that changes the words. */}
             <div
               className="paper-welcome__words"
-              aria-live={playing && !resting ? "off" : "polite"}
+              aria-live={playing && !picked ? "off" : "polite"}
             >
               <span
                 className={`paper-status ${

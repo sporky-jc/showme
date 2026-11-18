@@ -458,6 +458,7 @@ h3,
 }
 
 .paper-toggle button:focus-visible,
+.paper-welcome__pause:focus-visible,
 .paper-welcome__picker button:focus-visible,
 .paper-note:focus-visible {
   outline: 3px solid var(--paper-ink);
@@ -587,6 +588,22 @@ h3,
   position: absolute;
   left: 12px;
   top: 12px;
+}
+
+/* Stops the examples changing by themselves; only offered to someone who
+   asked their device for less motion (Welcome.tsx) */
+.paper-welcome__pause {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 16px;
+  font-weight: 800;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--paper-ink);
 }
 
 /* Tall enough for the longest Show sentence, so the page doesn't jump as the
@@ -872,6 +889,13 @@ h3,
   font-size: 1.5rem;
 }
 
+/* What happens next to a sentence that is being checked */
+.paper-today__later {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
 .paper-today__mine ul {
   list-style: none;
   margin: 0;
@@ -918,6 +942,16 @@ h3,
   font-size: 0.95rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+/* Waiting for the teacher: yellow, like the sticky note Scribbles holds */
+.paper-note--wait {
+  background: var(--paper-turn-bg);
+  box-shadow: 0 5px 0 var(--paper-turn-edge);
+}
+
+.paper-note--wait .paper-note__status {
+  color: var(--paper-turn-ink);
 }
 
 .paper-note--done {
