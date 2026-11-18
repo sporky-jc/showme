@@ -129,6 +129,15 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
       expect(res.headers["set-cookie"]).toBeUndefined();
     });
 
+    it("refuses a well-formed pass signed with another key", async () => {
+      const res = await request(app)
+        .post("/auth/test")
+        .send({ secret: pass("o".repeat(64)), role: "student" });
+
+      expect(res.status).toBe(401);
+      expect(res.headers["set-cookie"]).toBeUndefined();
+    });
+
     it("refuses a missing pass or body", async () => {
       const res = await request(app).post("/auth/test");
       expect(res.status).toBe(401);
