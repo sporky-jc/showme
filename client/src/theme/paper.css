@@ -1,0 +1,402 @@
+/* The "paper cut-out" theme: sky, paper cards with a solid shadow, orange
+   for anything you can press, and one color per sentence status.
+
+   Imported in src/index.tsx after Bootstrap and MDB, so equal-strength rules
+   here win over theirs. Pages still use public/styles.css for their layout. */
+
+:root {
+  /* Surfaces */
+  --paper-sky: #dff1ff;
+  --paper-white: #ffffff;
+  --paper-edge: #b9cfe0; /* the solid "paper shadow" under white cards */
+
+  /* Text */
+  --paper-ink: #2d2a32;
+  --paper-muted: #5c5670; /* 6:1 on the sky, 7:1 on white */
+
+  /* Anything you can press. Dark ink on this orange reads at 6:1; white
+     text on it doesn't (2.4:1), so action text is ink. */
+  --paper-action: #ff8a3d;
+  --paper-action-shadow: #d9661e;
+  --paper-action-ink: #2d2a32;
+
+  /* Sentence status: done, your turn, try again (text 4.7–5.4:1 on its
+     background) */
+  --paper-done-bg: #def5e4;
+  --paper-done-ink: #1f7a3e;
+  --paper-done-edge: #9fd7ae;
+  --paper-turn-bg: #fff6cc;
+  --paper-turn-ink: #8a6a00;
+  --paper-turn-edge: #e8d27a;
+  --paper-retry-bg: #ffe2e0;
+  --paper-retry-ink: #b42318;
+  --paper-retry-edge: #f0b3ae;
+
+  /* Scenery */
+  --paper-hill-1: #9fdcae;
+  --paper-hill-2: #5fbf7d;
+  --paper-hill-3: #3a9a5c;
+  --paper-sun: #ffd35c;
+
+  --paper-radius: 20px;
+  --paper-font-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --paper-font-body: Nunito, "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--paper-sky);
+  color: var(--paper-ink);
+  font-family: var(--paper-font-body);
+  font-style: normal;
+  font-weight: 600;
+}
+
+h1,
+h2,
+h3,
+.paper-display {
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  /* No color here: headings take their section's color (pages like About
+     put white headings on a dark panel) */
+}
+
+/* ---- Building blocks ---- */
+
+.paper-card {
+  background: var(--paper-white);
+  border-radius: var(--paper-radius);
+  box-shadow: 0 6px 0 var(--paper-edge);
+}
+
+.paper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  border: 0;
+  border-radius: 16px;
+  padding: 0.7em 1.4em;
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  font-size: 1.2rem;
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  box-shadow: 0 5px 0 var(--paper-edge);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.paper-btn--action {
+  background: var(--paper-action);
+  color: var(--paper-action-ink);
+  box-shadow: 0 6px 0 var(--paper-action-shadow);
+}
+
+.paper-btn:hover {
+  transform: translateY(-1px);
+}
+
+.paper-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--paper-edge);
+}
+
+.paper-btn--action:active {
+  box-shadow: 0 1px 0 var(--paper-action-shadow);
+}
+
+.paper-btn:focus-visible,
+.paper-nav .nav-link:focus-visible,
+.paper-nav .navbar-toggler:focus-visible {
+  outline: 3px solid var(--paper-ink);
+  outline-offset: 3px;
+}
+
+.paper-status {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 0.2em 0.7em;
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.paper-status--done {
+  background: var(--paper-done-bg);
+  color: var(--paper-done-ink);
+}
+
+.paper-status--turn {
+  background: var(--paper-turn-bg);
+  color: var(--paper-turn-ink);
+}
+
+.paper-status--retry {
+  background: var(--paper-retry-bg);
+  color: var(--paper-retry-ink);
+}
+
+/* ---- Nav bar ---- */
+
+.paper-nav {
+  background: transparent;
+  padding-top: 14px;
+  padding-bottom: 10px;
+}
+
+.paper-nav .navbar-nav {
+  gap: 8px;
+}
+
+.paper-nav .nav-link,
+.paper-nav .nav-link:focus {
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  border-radius: 14px;
+  padding: 8px 16px !important;
+  font-weight: 800;
+  box-shadow: 0 4px 0 var(--paper-edge);
+}
+
+.paper-nav .nav-link:hover {
+  color: var(--paper-ink);
+  transform: translateY(-1px);
+}
+
+.paper-nav .nav-link.active {
+  background: var(--paper-action);
+  color: var(--paper-action-ink);
+  box-shadow: 0 4px 0 var(--paper-action-shadow);
+}
+
+.paper-nav .navbar-toggler {
+  background: var(--paper-white);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--paper-edge);
+}
+
+/* On a phone the menu opens under the logo, one button per row */
+@media (max-width: 575.98px) {
+  .paper-nav .navbar-nav {
+    padding-top: 12px;
+  }
+}
+
+/* ---- Footer ---- */
+
+.paper-footer {
+  position: relative;
+  padding-top: 64px;
+}
+
+.paper-footer__hills {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 110px;
+  display: block;
+}
+
+/* On a white label: small text on the green hills would be hard to read */
+.paper-footer__text {
+  position: relative;
+  display: inline-block;
+  margin: 0 16px 16px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: var(--paper-white);
+  box-shadow: 0 4px 0 var(--paper-hill-3);
+  font-weight: 700;
+  color: var(--paper-ink);
+}
+
+.paper-footer__text a {
+  color: var(--paper-ink);
+  font-weight: 800;
+}
+
+/* ---- Logo ---- */
+
+.paper-logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 1em 0.45em 0;
+}
+
+.paper-logo__show,
+.paper-logo__me {
+  position: relative;
+  padding: 0.3em 0.45em 0.2em;
+}
+
+.paper-logo__show {
+  z-index: 1;
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  border-radius: 0.45em 0 0 0.45em;
+  box-shadow: 0.13em 0.16em 0 var(--paper-edge);
+}
+
+.paper-logo__me {
+  z-index: 2;
+  background: var(--paper-action);
+  color: var(--paper-ink);
+  border-radius: 0 0.45em 0.45em 0;
+  box-shadow: 0.13em 0.16em 0 var(--paper-action-shadow);
+}
+
+.paper-logo__line {
+  position: absolute;
+  left: 0.07em;
+  right: 0.85em;
+  bottom: 0;
+  height: 0.4em;
+  overflow: visible;
+}
+
+.paper-logo__line path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: paper-draw 0.7s ease-out 0.2s forwards;
+}
+
+.paper-logo__pencil {
+  position: absolute;
+  right: 0;
+  bottom: -0.13em;
+  width: 0.66em;
+  height: 2em;
+  transform: rotate(32deg);
+  transform-origin: 50% 100%;
+}
+
+@keyframes paper-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---- Scribbles the pencil ---- */
+
+.scribbles {
+  display: inline-block;
+  overflow: visible;
+}
+
+.scribbles__squiggle {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: scribbles-squiggle 7s ease-in-out infinite;
+}
+
+.scribbles__body {
+  transform-origin: 100px 180px;
+  animation: scribbles-sway 4s ease-in-out infinite;
+}
+
+.scribbles--happy .scribbles__body {
+  transform-origin: 100px 120px;
+  animation: scribbles-spin 5s ease-in-out infinite;
+}
+
+.scribbles__arm {
+  transform-origin: 66px 104px;
+  animation: scribbles-wave 2.4s ease-in-out infinite;
+}
+
+.scribbles--thinking .scribbles__arm {
+  animation-duration: 1.6s;
+}
+
+.scribbles__eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: scribbles-blink 4.5s infinite;
+}
+
+@keyframes scribbles-squiggle {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  35%,
+  90% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes scribbles-sway {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes scribbles-spin {
+  0%,
+  78% {
+    transform: translateY(0) rotate(0);
+  }
+  84% {
+    transform: translateY(-14px) rotate(180deg);
+  }
+  90%,
+  100% {
+    transform: translateY(0) rotate(360deg);
+  }
+}
+
+@keyframes scribbles-wave {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(-14deg);
+  }
+}
+
+@keyframes scribbles-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* Someone who asked their device for less motion gets everything still:
+   the logo's underline and Scribbles' squiggle already drawn. */
+@media (prefers-reduced-motion: reduce) {
+  .paper-logo__line path,
+  .scribbles__squiggle {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .scribbles__body,
+  .scribbles__arm,
+  .scribbles__eye,
+  .paper-btn,
+  .paper-nav .nav-link {
+    animation: none;
+    transition: none;
+  }
+}
