@@ -26,7 +26,7 @@ const approved = (n: number, prefix = "Show"): SentenceWithAuthor[] =>
 
 const renderCards = (sentences: SentenceWithAuthor[]) =>
   renderWithApp(<Cards displaySentences={sentences} />, {
-    state: { tellsentences, approvedsentences: sentences },
+    state: { tellsentences },
   });
 
 const pictures = () => screen.queryAllByRole("img");

@@ -37,7 +37,7 @@ function Collection() {
 
   // Ask the server for the approved sentences, and shuffle them as soon as
   // they arrive. Only the server's answer is ever shown: an old list the
-  // browser may have remembered never is, not even by the sort menu.
+  // browser may have remembered never is, not even by the order buttons.
   useEffect(() => {
     let stillHere = true;
     dispatch(fetchApprovedSentences()).then((fresh) => {

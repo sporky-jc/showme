@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { SentenceLikes } from "../api/types";
 
 const countText = (likes: number) => (likes === 1 ? "1 like" : `${likes} likes`);
@@ -30,6 +31,10 @@ function LikeButton({
   likes: SentenceLikes;
   onToggle: () => void;
 }) {
+  // The heart pops when the student presses it (paper.css), not when the
+  // page first shows hearts they liked before
+  const [pressed, setPressed] = useState(false);
+
   if (likes.mine) {
     return (
       <span className="paper-like paper-like--mine" title="Likes on your sentence">
@@ -43,10 +48,17 @@ function LikeButton({
     <span className="paper-like">
       <button
         type="button"
-        className="paper-like__heart"
+        className={
+          pressed && likes.likedByMe
+            ? "paper-like__heart paper-like__heart--pop"
+            : "paper-like__heart"
+        }
         aria-label="Like"
         aria-pressed={likes.likedByMe}
-        onClick={onToggle}
+        onClick={() => {
+          setPressed(true);
+          onToggle();
+        }}
       >
         <Heart filled={likes.likedByMe} />
       </button>

@@ -160,6 +160,27 @@ describe("Collections likes, signed in", () => {
     ]);
   });
 
+  // The pop is for a press, not for hearts the page shows already liked
+  it("pops the heart the student just pressed, and no other", async () => {
+    const user = userEvent.setup();
+    renderCollection({ user: alan });
+    const first = await card("Sentence 1");
+    const second = await card("Sentence 2");
+    const heart = (within_: HTMLElement) => within(within_).getByRole("button", { name: "Like" });
+    await within(first).findByText("1 like");
+
+    expect(heart(second)).not.toHaveClass("paper-like__heart--pop");
+
+    await user.click(heart(first));
+    expect(heart(first)).toHaveClass("paper-like__heart--pop");
+    expect(heart(second)).not.toHaveClass("paper-like__heart--pop");
+
+    // Taking the like back doesn't pop
+    await within(first).findByText("2 likes");
+    await user.click(heart(first));
+    expect(heart(first)).not.toHaveClass("paper-like__heart--pop");
+  });
+
   it("changes the heart at once, then shows the server's count", async () => {
     const user = userEvent.setup();
     let answer!: (outcome: Outcome) => void;

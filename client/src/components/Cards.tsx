@@ -38,13 +38,15 @@ function Cards(props: {
           <li key={sentence._id}>
             <article className="paper-gallery__card">
               {/* Scenery for the sentences under it, which say it all. The
-                  sky shows in its place until it has downloaded. */}
-              <img
-                className="paper-gallery__photo"
-                src={tellSentences[day - 1]?.image}
-                alt=""
-                loading="lazy"
-              />
+                  sky shows in its frame until it has downloaded. */}
+              <div className="paper-gallery__frame">
+                <img
+                  className="paper-gallery__photo"
+                  src={tellSentences[day - 1]?.image}
+                  alt=""
+                  loading="lazy"
+                />
+              </div>
               <p className="paper-gallery__tell">{sentence.tell}</p>
               <p className="paper-gallery__show">{sentence.show}</p>
               <div className="paper-gallery__foot">

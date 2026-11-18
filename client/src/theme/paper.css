@@ -1039,8 +1039,9 @@ h3,
 
 .paper-gallery__title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
 }
 
 .paper-gallery__title h1 {
@@ -1054,9 +1055,11 @@ h3,
   height: auto;
 }
 
-/* Scribbles says it on screens with room for a speech bubble */
+/* Smaller on a phone, where it may sit on a line of its own */
 .paper-gallery__title .paper-bubble {
-  display: none;
+  max-width: none;
+  padding: 8px 14px;
+  font-size: 0.9rem;
 }
 
 /* On the sky, so it needs an edge of its own */
@@ -1065,15 +1068,17 @@ h3,
   box-shadow: 0 4px 0 var(--paper-edge);
 }
 
+/* One card across on a phone, two on a tablet, three on a wide screen */
 .paper-gallery__cards {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
 }
 
+/* Cards in a row are as tall as the tallest, so the rows line up */
 .paper-gallery__cards > li {
   display: flex;
 }
@@ -1084,47 +1089,54 @@ h3,
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 8px 10px;
+  overflow: hidden;
   background: var(--paper-white);
-  border-radius: 18px;
-  box-shadow: 4px 5px 0 #ffd8bd;
+  border-radius: 22px;
+  box-shadow: 6px 7px 0 #ffd8bd;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .paper-gallery__cards > li:nth-child(even) .paper-gallery__card {
-  box-shadow: 4px 5px 0 var(--paper-edge);
+  box-shadow: 6px 7px 0 var(--paper-edge);
 }
 
-/* An arch, like Today's photo */
-.paper-gallery__photo {
-  display: block;
-  width: 100%;
-  height: 110px;
-  object-fit: cover;
-  border-radius: 60px 60px 10px 10px;
+/* The photo fills the top of the card, edge to edge. Its frame keeps it in
+   place when it grows under the mouse. */
+.paper-gallery__frame {
+  height: 230px;
+  overflow: hidden;
   background: var(--paper-sky);
 }
 
+.paper-gallery__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
 .paper-gallery__tell {
-  margin: 4px 2px 0;
+  margin: 12px 16px 0;
   font-weight: 800;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #b93a0a; /* 5.9:1 on white */
+  color: #b93a0a; /* 5.7:1 on white */
 }
 
 .paper-gallery__show {
-  margin: 0 2px;
+  margin: 0 16px;
   font-weight: 700;
-  font-size: 0.85rem;
-  line-height: 1.35;
+  font-size: 1.05rem;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
 /* At the bottom of the card, however long the sentence */
 .paper-gallery__foot {
-  margin: auto 2px 0;
-  padding-top: 4px;
+  margin: auto 16px 0;
+  padding: 4px 0 6px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1135,8 +1147,27 @@ h3,
 
 .paper-gallery__author {
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: var(--paper-muted);
+}
+
+/* Under a mouse, a card is picked up off the board: it lifts and tips a
+   little (odd cards one way, even the other), its paper shows more, and its
+   photo grows. Touch screens have no mouse to be under. */
+@media (hover: hover) {
+  .paper-gallery__card:hover {
+    transform: translateY(-6px) rotate(-0.8deg);
+    box-shadow: 10px 13px 0 #ffd8bd;
+  }
+
+  .paper-gallery__cards > li:nth-child(even) .paper-gallery__card:hover {
+    transform: translateY(-6px) rotate(0.8deg);
+    box-shadow: 10px 13px 0 var(--paper-edge);
+  }
+
+  .paper-gallery__card:hover .paper-gallery__photo {
+    transform: scale(1.08);
+  }
 }
 
 /* A sentence's heart and how many likes it has */
@@ -1150,7 +1181,7 @@ h3,
 
 .paper-like__count {
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 
 .paper-like__heart {
@@ -1158,11 +1189,12 @@ h3,
   place-items: center;
   width: 44px;
   height: 44px;
-  margin: 0 -6px 0 -11px;
+  margin: 0 -6px 0 -8px; /* its heart lines up with the card's text */
   border: 0;
   border-radius: 50%;
   background: transparent;
   color: var(--paper-muted);
+  transition: transform 0.12s ease;
 }
 
 .paper-like__heart[aria-pressed="true"] {
@@ -1171,6 +1203,28 @@ h3,
 
 .paper-like__heart:hover {
   background: var(--paper-sky);
+  transform: scale(1.12);
+}
+
+.paper-like__heart:active {
+  transform: scale(0.9);
+}
+
+/* The heart the student just pressed pops (LikeButton.tsx) */
+.paper-like__heart--pop svg {
+  animation: paper-pop 0.35s ease-out;
+}
+
+@keyframes paper-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .paper-like__heart:focus-visible {
@@ -1183,59 +1237,26 @@ h3,
   gap: 6px;
 }
 
-@media (max-width: 359px) {
-  .paper-gallery__cards {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 @media (min-width: 576px) {
   .paper-gallery__title .scribbles {
     width: 80px;
   }
 
   .paper-gallery__title .paper-bubble {
-    display: block;
+    max-width: 190px;
+    padding: 12px 16px;
+    font-size: 1rem;
   }
 
   .paper-gallery__cards {
-    gap: 20px;
-  }
-
-  .paper-gallery__card {
-    padding: 10px;
-    border-radius: 22px;
-    box-shadow: 6px 7px 0 #ffd8bd;
-  }
-
-  .paper-gallery__cards > li:nth-child(even) .paper-gallery__card {
-    box-shadow: 6px 7px 0 var(--paper-edge);
-  }
-
-  .paper-gallery__photo {
-    height: 124px;
-    border-radius: 70px 70px 12px 12px;
-  }
-
-  .paper-gallery__tell {
-    margin-top: 8px;
-    font-size: 0.75rem;
-  }
-
-  .paper-gallery__show {
-    font-size: 0.95rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 26px;
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   .paper-gallery__cards {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1100px) {
-  .paper-gallery__cards {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -1254,8 +1275,21 @@ h3,
   .paper-btn,
   .paper-nav .nav-link,
   .paper-welcome__photo img,
-  .paper-note {
+  .paper-note,
+  .paper-gallery__card,
+  .paper-gallery__photo,
+  .paper-like__heart,
+  .paper-like__heart--pop svg {
     animation: none;
     transition: none;
+  }
+
+  /* Still shows which card the mouse is on, without moving it */
+  .paper-gallery__card:hover,
+  .paper-gallery__cards > li:nth-child(even) .paper-gallery__card:hover,
+  .paper-gallery__card:hover .paper-gallery__photo,
+  .paper-like__heart:hover,
+  .paper-like__heart:active {
+    transform: none;
   }
 }

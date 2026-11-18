@@ -205,8 +205,8 @@ body {
 }
 
 /* A short message instead of a page's usual content, in a light box that's
-   readable on the patterned background: "couldn't load, try again" and
-   "nothing approved yet" on the collection page, "sign in" on MyPage */
+   readable on the sky: "couldn't load, try again" and "nothing approved
+   yet" on the gallery, "sign in" on MyPage */
 .page-message {
   max-width: 34rem;
   margin: 3rem auto;
@@ -217,12 +217,10 @@ body {
 }
 
 /* "Loading..." while a page's code downloads (PageLoading.tsx): placed and
-   sized like the collection page's own "Loading..." (whose sort menu's 1% top
-   margin pushes it down), so the handover between the two doesn't move it,
-   and the footer stays at the bottom */
+   sized like the gallery's own "Loading...", so the handover between the two
+   doesn't move it, and the footer stays at the bottom */
 .page-loading {
   min-height: 87vh;
-  margin-top: 1%;
 }
 
 /* "Loading..." while the app's code downloads (#app-loading in index.html,
