@@ -24,8 +24,10 @@ gha-creds-*.json
 *.log
 npm-debug.log*
 
-# Claude Code's local settings and notes
-.claude/
+# Claude Code's local settings and notes, except the shared project
+# settings (permission rules every session on this repo should use)
+.claude/*
+!.claude/settings.json
 
 # Editor and operating system files
 .vscode/

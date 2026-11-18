@@ -84,6 +84,8 @@ The client's types come from the backend's API contract (`backend/contract/api.t
 2. Merging it deploys both halves to staging. Once the staging site and backend both run the merged commit, QA Wolf tests it.
 3. "Promote to production" (in the Actions tab) checks that QA Wolf greenlit that commit, then deploys the backend and the site from it.
 
+QA Wolf's flows sign in on staging through a test-only login (`backend/controllers/testLogin.ts`, shut on production). It takes short-lived passes signed with the `TEST_LOGIN_KEY` GitHub secret, which QA Wolf never sees. GitHub keeps a fresh 24-hour pass in QA Wolf's staging environment (the "Refresh QA Wolf's test-login pass" workflow, scheduled hourly but run by GitHub every few hours, and after each staging deploy), and gives each deployment's runs their own. If QA Wolf's sign-in flows fail with "Invalid test login secret", run that workflow from the Actions tab (GitHub also turns scheduled workflows off after 60 days without repository activity; the Actions tab offers to turn it back on). Generate `TEST_LOGIN_KEY` with `openssl rand -hex 32` or similar: at least 32 letters, digits, `_` or `-`.
+
 ## Project Status
 
 Project is: _in progress_

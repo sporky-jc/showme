@@ -2,6 +2,24 @@ import type { Request } from "express";
 import { MemoryStore, rateLimit } from "express-rate-limit";
 import { readSession } from "./auth.js";
 
+// How many staging test logins the server takes in a minute, from everyone
+// together: a full QA Wolf suite needs a few dozen, while a script guessing
+// the secret gets nowhere. One shared count, as these requests carry no
+// login to tell senders apart, and all arrive through Netlify's proxy.
+export const TEST_LOGINS_PER_MINUTE = 60;
+export const testLoginRateLimitStore = new MemoryStore();
+
+export const testLoginRateLimit = rateLimit({
+  store: testLoginRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: TEST_LOGINS_PER_MINUTE,
+  keyGenerator: () => "test-login",
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many test logins. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});
+
 // How many like requests (loading likes, liking, unliking) one signed-in user
 // may send in a minute. Far more than anyone clicking hearts needs, while
 // stopping a script from loading the database with them.

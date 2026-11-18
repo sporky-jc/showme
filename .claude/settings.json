@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__QA_Wolf"
+    ],
+    "ask": [
+      "mcp__QA_Wolf__environment_deleteVariable",
+      "mcp__QA_Wolf__environment_setVariable",
+      "mcp__QA_Wolf__environment_terminate",
+      "mcp__QA_Wolf__build_delete",
+      "mcp__QA_Wolf__trigger_delete"
+    ]
+  }
+}
