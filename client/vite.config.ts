@@ -21,14 +21,13 @@ const addedByLibraries = [
   /^active$/, /^fade$/, /^show$/, /^showing$/, /^hiding$/,
   /^collaps/, /^disabled$/, /^visually-hidden/, // menus, pop-ups
   /^navbar/, /^nav$/, /^nav-/, /^container/, /^row$/, /^col/, // Navbar, Nav, Container, MDBRow/MDBCol
-  /^modal/, /^tooltip/, /^bs-tooltip/, // Modal, Tooltip
+  /^modal/, /^tooltip/, /^bs-tooltip/, // Modal (the sign-in pop-up), Admin's MDBTooltip
   // Only the variants our code picks (each library has dozens): Button
-  // variant="primary"/"secondary" and Modal's close button; Form.Control,
-  // Form.Label, Form.Text; a plain ListGroup and ListGroup.Item
-  /^btn$/, /^btn-(primary|secondary|close)$/, /^form-(control|label|text)$/, /^list-group(-item)?$/,
-  /^badge/, /^rounded-pill$/, /^bg-/, /^text-/, /^pagination/, /^page-/, // Badge, Pagination
+  // variant="primary"/"secondary" and Modal's close button
+  /^btn$/, /^btn-(primary|secondary|close)$/,
+  /^bg-/, /^text-/,
   /^spinner/, /^card/, /^table/, /^ripple/, // Spinner, MDBCard, MDBTable, MDB's click ripple
-  /^fa[srb]?$/, /^fa-(list-check|check|rotate-right|lg|width-auto|bounce)$/, // Admin's MDBIcons, the edit pencil
+  /^fa[srb]?$/, /^fa-(list-check|check|rotate-right|lg|width-auto)$/, // Admin's MDBIcons (size="lg")
 ];
 // Tags and attributes that only the libraries' code writes (e.g. <table>, or
 // a menu's data-bs-target and a tooltip's data-popper-placement, with
@@ -79,6 +78,7 @@ const pageRoutes = {
   "/collections": "Collection",
   "/login": "Login",
   "/mypage": "MyPage",
+  "/write": "Write",
 };
 
 // The Welcome screen's first photo (see pages/Welcome.tsx): the phone-shaped
@@ -147,7 +147,7 @@ const preloadCurrentPage = (): Plugin => ({
       const entry = chunks.find((c) => c.isEntry);
       if (!entry) throw new Error("No main file found in the build");
       const alreadyLoaded = new Set([entry.fileName, ...entry.imports]);
-      // A page's file plus the shared files it imports (e.g. MyPage needs Modal)
+      // A page's file plus the shared files it imports (e.g. Write needs Scribbles)
       const filesFor = (page: string) => {
         const chunk = chunks.find((c) =>
           c.facadeModuleId?.replaceAll("\\", "/").endsWith(`/src/pages/${page}.tsx`)

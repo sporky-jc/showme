@@ -16,28 +16,33 @@ export const getUserSentences = (): AppThunk<Promise<boolean>> => async (dispatc
   }
 };
 
-// update edited sentences
+// Update an edited sentence. Answers whether the server saved it, so the
+// Write page can say so (and keep the student's words if it didn't).
 export const editSentences =
-  (editedSentence: EditSentenceBody): AppThunk =>
+  (editedSentence: EditSentenceBody): AppThunk<Promise<boolean>> =>
   async (dispatch) => {
     try {
       const { data } = await api.editUserSentences(editedSentence);
       dispatch({ type: "EDIT", payload: data });
+      return true;
     } catch (error) {
       console.log((error as Error).message);
+      return false;
     }
   };
 
-// Create new sentences
+// Create a new sentence. Answers whether the server saved it.
 export const createSentence =
-  (newSentence: NewSentenceBody): AppThunk =>
+  (newSentence: NewSentenceBody): AppThunk<Promise<boolean>> =>
   async (dispatch) => {
     try {
       const { data } = await api.createSentence(newSentence);
 
       dispatch({ type: "CREATE", payload: data });
+      return true;
     } catch (error) {
       console.log((error as Error).message);
+      return false;
     }
   };
 

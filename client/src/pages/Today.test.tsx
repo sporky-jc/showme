@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import Today from "./Today";
 import { renderWithApp } from "../test/testUtils";
 import type { Outcome, Respond } from "../test/testUtils";
@@ -87,10 +87,21 @@ describe("Today", () => {
     expect(document.querySelector(".paper-today__photo")).toHaveAttribute("src", "/day4.jpg");
   });
 
-  it("'Start showing' leads to MyPage, where sentences are written", async () => {
+  it("'Start showing' leads to the Write page", async () => {
     renderToday();
 
-    expect(await screen.findByRole("link", { name: "Start showing" })).toHaveAttribute("href", "/MyPage");
+    expect(await screen.findByRole("link", { name: "Start showing" })).toHaveAttribute("href", "/Write");
+  });
+
+  it("a sentence the teacher sent back opens ready to rewrite; the others open My sentences", async () => {
+    const mine = shows(2);
+    mine[1].toRedo = true;
+    renderToday({ mine });
+
+    await waitFor(() => expect(notes()).toHaveLength(2));
+    // Newest first
+    expect(notes()[0]).toHaveAttribute("href", "/Write/s2");
+    expect(notes()[1]).toHaveAttribute("href", "/MyPage");
   });
 
   // The day is counted from the student's list, so Day 1 must not flash up

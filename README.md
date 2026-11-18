@@ -31,7 +31,7 @@ Exact versions are listed in each folder's `package.json`.
 ## Features
 
 - Login with school google account (every student has a school Google account)
-- Personal page where students can create and edit show sentences
+- A Write page where students show today's Tell sentence, with Scribbles the pencil asking questions for each sense, and a My sentences page to follow and edit them
 - Admin can approve or reject show sentences
 - Display students' sentences in Collections Page after approval
 
@@ -39,7 +39,7 @@ Exact versions are listed in each folder's `package.json`.
 
 ![Home Page](./img/homepage.PNG)
 
-![My Page](./img/MyPage.PNG)
+![Write page](./img/MyPage.PNG)
 
 ![Admin Page](./img/AdminPage.PNG)
 
