@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import Today from "./Today";
 import { renderWithApp } from "../test/testUtils";
-import type { Outcome } from "../test/testUtils";
+import type { Outcome, Respond } from "../test/testUtils";
 import type { Sentence, TellSentence } from "../api/types";
 
 // Today: a signed-in student's home. Today's Tell sentence is the one after
@@ -34,17 +34,34 @@ const shows = (n: number, each: Partial<Sentence> = {}): Sentence[] =>
   }));
 
 // Draw Today for a signed-in Ada; the pretend server answers GET /MyPage
-// with `mine` (or with `answer`, to hold it back)
+// with `mine` (or with `answer`, to hold it back, or `respond`, for anything
+// else). `remembered`: how many Tell sentences this browser already has.
 const renderToday = ({
   tellCount = 12,
+  remembered = tellCount,
   mine = [],
   answer,
-}: { tellCount?: number; mine?: Sentence[]; answer?: Promise<Outcome> } = {}) =>
-  renderWithApp(<Today />, {
-    state: { user: ada, tellsentences: tells(tellCount) },
-    respond: (config) =>
-      config.url === "/MyPage" ? answer ?? { status: 200, data: mine } : 200,
+  respond,
+}: {
+  tellCount?: number;
+  remembered?: number;
+  mine?: Sentence[];
+  answer?: Promise<Outcome>;
+  respond?: Respond;
+} = {}) => {
+  const requests: string[] = [];
+  const view = renderWithApp(<Today />, {
+    state: { user: ada, tellsentences: tells(remembered) },
+    respond: (config) => {
+      requests.push(`${config.method} ${config.url}`);
+      if (respond) return respond(config);
+      if (config.url === "/MyPage") return answer ?? { status: 200, data: mine };
+      if (config.url === "/") return { status: 200, data: tells(tellCount) };
+      return 200;
+    },
   });
+  return { ...view, requests };
+};
 
 const notes = () => within(screen.getByRole("region", { name: "My sentences" })).getAllByRole("link");
 
@@ -88,6 +105,50 @@ describe("Today", () => {
 
     release({ status: 200, data: shows(3) });
     expect(await screen.findByText("“Tell 4”")).toBeInTheDocument();
+  });
+
+  // A guess here would show Day 1 to a student on Day 4
+  it("says it couldn't load, with a way to try again, when the student's list doesn't arrive", async () => {
+    let online = false;
+    renderToday({
+      respond: (config) =>
+        config.url === "/MyPage" ? (online ? { status: 200, data: shows(3) } : "offline") : 200,
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't load today's sentence");
+    expect(screen.queryByText("Today's Tell")).not.toBeInTheDocument();
+    expect(screen.queryByText("You showed every sentence!")).not.toBeInTheDocument();
+
+    online = true;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("“Tell 4”")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("asks for the Tell sentences itself when this browser doesn't have them yet", async () => {
+    const { requests } = renderToday({ remembered: 0, mine: shows(1) });
+
+    expect(await screen.findByText("“Tell 2”")).toBeInTheDocument();
+    expect(requests).toContain("get /");
+  });
+
+  it("doesn't ask for the Tell sentences again when it has them", async () => {
+    const { requests } = renderToday();
+
+    await screen.findByText("“Tell 1”");
+    expect(requests).toEqual(["get /MyPage"]);
+  });
+
+  // No Tell sentences at all must not read as "you've written them all"
+  it("says it couldn't load, not 'all done', when the Tell sentences don't arrive", async () => {
+    renderToday({
+      remembered: 0,
+      respond: (config) => (config.url === "/MyPage" ? { status: 200, data: [] } : "offline"),
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't load today's sentence");
+    expect(screen.queryByText("You showed every sentence!")).not.toBeInTheDocument();
   });
 
   it("says so when every Tell sentence has been written for, and points to Collections", async () => {

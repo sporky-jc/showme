@@ -125,9 +125,6 @@ body {
 
 /* Mobile phone styles */
 @media (max-width: 480px) and (orientation: portrait) {
-  .contenthome {
-    min-height: 79vh;
-  }
   .contentmypage {
     min-height: 79vh;
   }
@@ -142,10 +139,6 @@ body {
 
 /* Tablet styles */
 @media (max-width: 1024px) and (orientation: portrait) {
-  .contenthome {
-    min-height: 79vh;
-  }
-
   .contentmypage {
     min-height: 89vh;
   }
@@ -174,10 +167,6 @@ body {
   }
 }
 @media (max-width: 1366px) and (orientation: landscape) {
-  .contenthome {
-    min-height: 79vh;
-  }
-
   .contentmypage {
     min-height: 88.5vh;
   }

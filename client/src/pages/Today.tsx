@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 import Scribbles from "../components/Scribbles";
 import PageLoading from "../components/PageLoading";
+import { getTellSentences } from "../actions/tellsentences";
 import { getUserSentences } from "../actions/usersentences";
 import type { Sentence } from "../api/types";
 import type { AppDispatch, RootState } from "../reducers/types";
@@ -28,20 +29,50 @@ function Today() {
   const userSentences = useSelector((state: RootState) => state.usersentences);
   const dispatch = useDispatch<AppDispatch>();
 
+  const store = useStore<RootState>();
+
   // Today's Tell is the one after the student's last sentence, so it's only
-  // known once their list has arrived
-  const [listLoaded, setListLoaded] = useState(false);
+  // known once their list has arrived, and the Tell sentences too (the app
+  // asks for those when it opens; ask again if they still aren't here).
+  // Without both, say so: a guess would show the wrong day, or "all done".
+  const [loaded, setLoaded] = useState<"loading" | "ready" | "failed">("loading");
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let current = true;
-    dispatch(getUserSentences()).finally(() => {
-      if (current) setListLoaded(true);
-    });
+    (async () => {
+      const mine = await dispatch(getUserSentences());
+      const tells =
+        store.getState().tellsentences.length > 0 || (await dispatch(getTellSentences()));
+      if (current) setLoaded(mine && tells ? "ready" : "failed");
+    })();
     return () => {
       current = false;
     };
-  }, [dispatch]);
+  }, [dispatch, store, attempt]);
 
-  if (!listLoaded) return <PageLoading />;
+  if (loaded === "loading") return <PageLoading />;
+  if (loaded === "failed") {
+    return (
+      <div className="paper-today">
+        <div className="page-message" role="alert">
+          <p>
+            We couldn&apos;t load today&apos;s sentence. Check your internet
+            connection, then try again.
+          </p>
+          <button
+            type="button"
+            className="paper-btn paper-btn--action"
+            onClick={() => {
+              setLoaded("loading");
+              setAttempt(attempt + 1);
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const today = tellSentences[userSentences.length];
   const shown = userSentences.filter((sentence) => sentence.approved).length;

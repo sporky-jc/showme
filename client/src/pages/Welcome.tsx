@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Scribbles from "../components/Scribbles";
 import { useOpenLogin } from "../components/loginPopup";
 import { phonePhotoMedia } from "../config";
@@ -38,15 +38,19 @@ function Welcome() {
     return () => clearTimeout(timer);
   }, [playing, resting, showing, index]);
 
-  // Once the first photo is in, fetch the others, so changing example
-  // doesn't show an empty frame
+  // Once the first photo is in (or the first example has been left before
+  // it finished), fetch the others, so changing example doesn't show an
+  // empty frame
+  const fetchTheRest = firstPhotoDone || index !== 0;
+  const fetched = useRef(false);
   useEffect(() => {
-    if (!firstPhotoDone) return;
+    if (!fetchTheRest || fetched.current) return;
+    fetched.current = true;
     const onPhone = window.matchMedia?.(phonePhotoMedia).matches ?? false;
     examples.slice(1).forEach((example) => {
       new Image().src = onPhone ? example.phonePicture : example.picture;
     });
-  }, [firstPhotoDone]);
+  }, [fetchTheRest]);
 
   const example = examples[index];
   const pick = (next: number, show: boolean) => {
@@ -130,8 +134,12 @@ function Welcome() {
               </div>
             </div>
             {/* Read out when the visitor changes it, not while it plays by
-                itself */}
-            <div className="paper-welcome__words" aria-live={playing ? "off" : "polite"}>
+                itself. Already "polite" once the mouse or keyboard is on
+                the examples, before the press that changes the words. */}
+            <div
+              className="paper-welcome__words"
+              aria-live={playing && !resting ? "off" : "polite"}
+            >
               <span
                 className={`paper-status ${
                   showing ? "paper-status--done" : "paper-status--retry"

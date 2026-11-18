@@ -2,14 +2,17 @@ import * as api from "../api";
 import type { EditSentenceBody, NewSentenceBody } from "../api/types";
 import type { AppThunk } from "../reducers/types";
 
-// Retrieve user sentences
-export const getUserSentences = (): AppThunk => async (dispatch) => {
+// Retrieve user sentences. Answers whether they arrived, for pages that
+// can't show the right thing without them (Today).
+export const getUserSentences = (): AppThunk<Promise<boolean>> => async (dispatch) => {
   try {
     const { data } = await api.fetchUserSentences();
 
     dispatch({ type: "FETCH_ALL", payload: data });
+    return true;
   } catch (error) {
     console.log((error as Error).message);
+    return false;
   }
 };
 

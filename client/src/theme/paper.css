@@ -637,30 +637,32 @@ h3,
 /* More examples: dots on a phone, photo buttons on wider screens */
 .paper-welcome__picker {
   display: flex;
-  gap: 4px;
+  gap: 2px;
 }
 
+/* Each dot's button is 44 px square, big enough for a finger */
 .paper-welcome__picker button {
   border: 0;
-  padding: 16px 6px;
+  padding: 14px;
   background: transparent;
   line-height: 0;
 }
 
+/* Dark enough to see on the sky: the dots 6:1, and the chosen one's dark
+   ring where its orange alone would be 2:1 */
 .paper-welcome__picker button::before {
   content: "";
   display: block;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
-  background: var(--paper-white);
-  box-shadow: 0 0 0 2px var(--paper-edge);
+  background: var(--paper-muted);
 }
 
 .paper-welcome__picker button[aria-pressed="true"]::before {
-  width: 36px;
+  width: 40px;
   background: var(--paper-action);
-  box-shadow: 0 0 0 2px var(--paper-action-shadow);
+  box-shadow: inset 0 0 0 3px var(--paper-ink);
 }
 
 .paper-welcome__picker picture {

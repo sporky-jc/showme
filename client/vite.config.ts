@@ -102,6 +102,9 @@ const homePhoto = [
 interface PageStart {
   links: Record<string, string>[];
   requests?: string[];
+  // Only for someone who isn't signed in (this browser remembers no login):
+  // a signed-in student gets another page at this address, without these
+  visitorsOnly?: boolean;
 }
 
 // The tiny script. `byAddress` lists, for each address, the <link> tags to add
@@ -112,6 +115,12 @@ interface PageStart {
 const pageScript = (byAddress: Record<string, PageStart>) => `(function () {
       var page = ${JSON.stringify(byAddress)}[location.pathname.toLowerCase().replace(/\\/+$/, "") || "/"];
       if (!page) return;
+      if (page.visitorsOnly) {
+        try {
+          var saved = JSON.parse(localStorage.getItem("persist:root") || "{}");
+          if (Object.keys(JSON.parse(saved.user || "{}")).length) return;
+        } catch (e) {} // nothing remembered, or unreadable: a visitor
+      }
       (page.links || []).forEach(function (attributes) {
         if (attributes.media && !matchMedia(attributes.media).matches) return;
         var link = document.createElement("link");
@@ -156,7 +165,8 @@ const preloadCurrentPage = (): Plugin => ({
         atTheTop[address] = { links };
       }
       atTheTop["/collections"].requests = ["/Collections"];
-      const afterTheStylesheets = { "/": { links: homePhoto } };
+      // Welcome's photo; a signed-in student sees Today there instead
+      const afterTheStylesheets = { "/": { links: homePhoto, visitorsOnly: true } };
 
       // 1. Right after <meta charset> (which must stay in the first 1024
       // bytes) and before the stylesheets: a script placed after them waits

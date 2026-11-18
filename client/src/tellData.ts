@@ -5,7 +5,6 @@
 // One example on the Welcome screen (see pages/Welcome.tsx)
 export interface Slide {
   key: number;
-  title: string;
   tell: string;
   show: string;
   // A few words for the example's button, and what the photo shows
@@ -18,7 +17,6 @@ export interface Slide {
 const tell: Slide[] = [
   {
     key: 1,
-    title: "Day 1",
     tell: "It is cold outside.",
     show: "My breath puffed out like a little cloud, and the crunchy grass snapped under my boots.",
     short: "Cold",
@@ -28,7 +26,6 @@ const tell: Slide[] = [
   },
   {
     key: 2,
-    title: "Day 2",
     tell: "It is hot outside.",
     show: "The sun pressed on my shoulders like a heavy blanket, and my ice cream dripped faster than I could lick it.",
     short: "Hot",
@@ -38,7 +35,6 @@ const tell: Slide[] = [
   },
   {
     key: 3,
-    title: "Day 3",
     tell: "His room is messy.",
     show: "Socks hid under pizza boxes, and the floor crunched with every step.",
     short: "Messy room",
@@ -48,7 +44,6 @@ const tell: Slide[] = [
   },
   {
     key: 4,
-    title: "Day 4",
     tell: "Her room is clean.",
     show: "The floor shone so brightly that I could see my own face smiling back at me.",
     short: "Clean room",

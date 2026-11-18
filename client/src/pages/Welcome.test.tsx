@@ -137,14 +137,70 @@ describe("Welcome", () => {
     expect(sentence()).toBe(cold.tell);
   });
 
-  it("reads a change out only when the visitor made it", () => {
+  // Screen readers can miss a change that lands at the same moment the
+  // region is switched on, so it is on before the press: from when the
+  // keyboard (or mouse) reaches the examples
+  it("reads a change out when the visitor made it, not while it plays by itself", () => {
     lessMotion(false);
     render(<Welcome />);
     const words = document.querySelector(".paper-welcome__words")!;
 
     expect(words).toHaveAttribute("aria-live", "off");
-    fireEvent.click(screen.getByRole("button", { name: "Show" }));
+    fireEvent.focus(screen.getByRole("button", { name: "Show" }));
     expect(words).toHaveAttribute("aria-live", "polite");
+    fireEvent.click(screen.getByRole("button", { name: "Show" }));
+    fireEvent.blur(screen.getByRole("button", { name: "Show" }));
+    expect(words).toHaveAttribute("aria-live", "polite");
+  });
+
+  describe("the other examples' photos", () => {
+    // What `new Image().src = ...` asked for
+    const fetchedPhotos = () => {
+      const asked: string[] = [];
+      vi.stubGlobal(
+        "Image",
+        class {
+          set src(url: string) {
+            asked.push(url);
+          }
+        }
+      );
+      return asked;
+    };
+    const theRest = examples.slice(1).map((example) => example.picture);
+
+    it("wait for the first photo, then download, once", () => {
+      const asked = fetchedPhotos();
+      render(<Welcome />);
+      expect(asked).toEqual([]);
+
+      fireEvent.load(bigPhoto());
+      expect(asked).toEqual(theRest);
+
+      fireEvent.click(screen.getByRole("button", { name: hot.short }));
+      fireEvent.click(screen.getByRole("button", { name: cold.short }));
+      fireEvent.load(bigPhoto());
+      expect(asked).toEqual(theRest);
+    });
+
+    it("don't wait for a first photo that fails", () => {
+      const asked = fetchedPhotos();
+      render(<Welcome />);
+
+      fireEvent.error(bigPhoto());
+
+      expect(asked).toEqual(theRest);
+    });
+
+    // On a slow connection the first photo may still be on its way
+    it("download when the first example is left before its photo arrived", () => {
+      const asked = fetchedPhotos();
+      render(<Welcome />);
+
+      fireEvent.click(screen.getByRole("button", { name: hot.short }));
+
+      expect(asked).toEqual(theRest);
+    });
   });
 
   // index.html starts downloading the first photo early (vite.config.ts), in
