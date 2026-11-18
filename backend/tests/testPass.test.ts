@@ -73,6 +73,38 @@ describe("isValidTestPass", () => {
     expect(isValidTestPass(pass, KEY)).toBe(true);
     expect(isValidTestPass(pass, OTHER_KEY)).toBe(false);
   });
+
+  // Runs the script's output mode and returns the variables it hands QA Wolf
+  const outputVariables = (env: Record<string, string>) => {
+    const dir = mkdtempSync(join(tmpdir(), "test-pass-"));
+    const output = join(dir, "github_output");
+    writeFileSync(output, "");
+    execFileSync(
+      process.execPath,
+      [fileURLToPath(new URL("../../.github/scripts/test-login-pass.mjs", import.meta.url)), "output"],
+      { env: { PATH: process.env.PATH, GITHUB_OUTPUT: output, ...env } }
+    );
+    const line = readFileSync(output, "utf8").trim();
+    return JSON.parse(line.slice("variables=".length));
+  };
+
+  it("sends the preview's address with the pass, for flows that check it", () => {
+    const url = "https://deploy-preview-7--show-me-not-tell.netlify.app";
+    const variables = outputVariables({ TEST_LOGIN_KEY: KEY, APPROVED_PREVIEW_URL: url });
+    expect(variables.TEST_LOGIN_APPROVED_PREVIEW_URL).toBe(url);
+    expect(isValidTestPass(variables.TEST_LOGIN_SECRET, KEY)).toBe(true);
+  });
+
+  it("still sends the preview's address when there is no key", () => {
+    const url = "https://deploy-preview-7--show-me-not-tell.netlify.app";
+    expect(outputVariables({ APPROVED_PREVIEW_URL: url })).toEqual({
+      TEST_LOGIN_APPROVED_PREVIEW_URL: url,
+    });
+  });
+
+  it("sends no address when none is given", () => {
+    expect(outputVariables({})).toEqual({});
+  });
 });
 
 describe("the test login with passes", () => {

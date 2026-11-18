@@ -85,6 +85,8 @@ jobs:
         id: pass
         env:
           TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
+          # Some flows only use the test login on the preview named here
+          APPROVED_PREVIEW_URL: ${{ env.PREVIEW_URL }}
         run: node .github/scripts/test-login-pass.mjs output
 
       # No environment given: QA Wolf puts the run in this pull request's own
