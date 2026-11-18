@@ -169,19 +169,35 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
           TEST_LOGIN_SECRET: ${{ secrets.TEST_LOGIN_SECRET }}
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
         run: |
-          for name in DATABASE_ACCESS GOOGLE_CLIENT_ID JWT_SECRET TEST_LOGIN_SECRET; do
+          for name in DATABASE_ACCESS GOOGLE_CLIENT_ID JWT_SECRET; do
             if [ -z "${!name}" ]; then
               echo "::error::GitHub secret for $name is empty or missing"
               exit 1
             fi
           done
+          # The test login takes short-lived passes signed with TEST_LOGIN_KEY
+          # and, while it is still set, the older fixed TEST_LOGIN_SECRET
+          # (see backend/controllers/testLogin.ts). It needs at least one.
+          if [ -z "$TEST_LOGIN_KEY" ] && [ -z "$TEST_LOGIN_SECRET" ]; then
+            echo "::error::Neither TEST_LOGIN_KEY nor TEST_LOGIN_SECRET is set"
+            exit 1
+          fi
+          # The backend ignores a key under 32 characters (which would shut
+          # the door), and the .env line below is double-quoted, so only
+          # letters, digits, _ and - are safe (e.g. `openssl rand -hex 32`)
+          if [ -n "$TEST_LOGIN_KEY" ] && ! [[ "$TEST_LOGIN_KEY" =~ ^[A-Za-z0-9_-]{32,}$ ]]; then
+            echo "::error::TEST_LOGIN_KEY must be at least 32 letters, digits, _ or - (e.g. openssl rand -hex 32)"
+            exit 1
+          fi
           {
             echo "DATABASE_ACCESS=\"$DATABASE_ACCESS\""
             echo "DATABASE_NAME=\"ShowME-dev\""
             echo "GOOGLE_CLIENT_ID=\"$GOOGLE_CLIENT_ID\""
             echo "JWT_SECRET=\"$JWT_SECRET\""
             echo "TEST_LOGIN_SECRET=\"$TEST_LOGIN_SECRET\""
+            echo "TEST_LOGIN_KEY=\"$TEST_LOGIN_KEY\""
             echo "APP_VERSION=\"$GITHUB_SHA\""
           } > .env
 
@@ -255,6 +271,43 @@ jobs:
           echo "::error::The staging site ($(short "$site")) and backend ($(short "$api")) did not both run $GITHUB_SHA within 10 minutes"
           exit 1
 
+      # The test-login pass script (.github/scripts/test-login-pass.mjs)
+      - name: Checkout the scripts
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      # A fresh pass in QA Wolf's staging environment, where this
+      # deployment's runs, and runs started there by hand or by the QA Wolf
+      # AI, all read it (the hourly refresh-qawolf-test-pass.yml keeps it
+      # fresh after that, so a run re-tried hours later still signs in). If
+      # saving fails, it only warns: the step below then hands this
+      # deployment's runs a pass of their own. Time-boxed, so a slow QA Wolf
+      # can't use up the job's time before the runs are requested.
+      - name: Save a fresh test-login pass in QA Wolf
+        id: save
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
+          QAWOLF_API_KEY: ${{ secrets.QAWOLF_API_KEY }}
+        run: node .github/scripts/test-login-pass.mjs save
+
+      # Only if saving failed: a pass handed over with this deployment, for
+      # the runs it starts. (Not otherwise: a pass pinned to the deployment
+      # would expire under a run re-tried more than 3 hours later.)
+      - name: Mint a short-lived test-login pass for this deployment's runs
+        id: pass
+        if: steps.save.outcome != 'success'
+        env:
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
+        run: node .github/scripts/test-login-pass.mjs output
+
       - name: Tell QA Wolf staging was deployed
         uses: qawolf/notify-qawolf-on-deploy-action@v3
         env:
@@ -264,3 +317,4 @@ jobs:
           workspace-id: xoniuprcn2am5nh63rx8fn6cotea # not a secret
           environment: staging # the QA Wolf environment's alias
           deployment-url: ${{ env.STAGING_URL }}
+          variables: ${{ steps.pass.outputs.variables || '{}' }}

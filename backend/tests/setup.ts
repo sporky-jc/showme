@@ -2,7 +2,10 @@ import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { logger } from "firebase-functions/logger";
-import { likesRateLimitStore } from "../middlewares/rateLimit.js";
+import {
+  likesRateLimitStore,
+  testLoginRateLimitStore,
+} from "../middlewares/rateLimit.js";
 
 let mongod: MongoMemoryServer;
 
@@ -26,6 +29,7 @@ afterEach(async () => {
   await Promise.all(collections.map((c) => c.deleteMany({})));
   // Likewise the like routes' per-user request counts
   await likesRateLimitStore.resetAll();
+  await testLoginRateLimitStore.resetAll();
 });
 
 afterAll(async () => {
