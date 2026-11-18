@@ -4,6 +4,8 @@ import App from "../src/components/App";
 import "mdb-react-ui-kit/dist/css/mdb.min.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+// After the UI libraries, so the paper theme's colors and fonts win
+import "./theme/paper.css";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import reducers from "./reducers";

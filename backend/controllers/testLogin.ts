@@ -5,10 +5,12 @@ import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
 import { messageOf } from "../utils/errors.js";
 import { startSession } from "./auth.js";
+import { isValidTestPass } from "../utils/testPass.js";
 
 // A login door for automated browser tests (QA Wolf) on the STAGING backend.
 // A robot can't click through "Sign in with Google", so instead it sends a
-// shared secret and gets logged in as one of a few fixed test accounts.
+// short-lived pass (or, while it is still set, a fixed shared secret) and
+// gets logged in as one of a few fixed test accounts.
 // With `fresh: true` it first deletes that test account's own sentences, and
 // takes back every like it gave, so a test starts from a clean slate (Day 1,
 // nothing liked) every run; the app itself has no way to delete a sentence.
@@ -18,12 +20,20 @@ import { startSession } from "./auth.js";
 //
 // The door is shut (the route answers 404, as if it didn't exist) unless ALL
 // of these hold:
-//   - TEST_LOGIN_SECRET is set (only the staging deploy writes it), and is at
-//     least 32 characters long, so it can't be guessed
+//   - TEST_LOGIN_KEY or TEST_LOGIN_SECRET is set (only the staging deploy
+//     writes them), and is at least 32 characters long, so it can't be guessed
 //   - the code is not running in the production Firebase project, so even a
 //     secret copied there by mistake can't open it
 const PRODUCTION_PROJECT = "showme-backend-789";
 const MIN_SECRET_LENGTH = 32;
+
+// Every test account's id starts with this. Real accounts' ids are Google
+// account ids, which are all digits, so none can.
+export const TEST_ACCOUNT_PREFIX = "test-";
+export const isTestAccount = (id: string | undefined) =>
+  id?.startsWith(TEST_ACCOUNT_PREFIX) ?? false;
+// Sentences written by test accounts (a sentence's GID is its author's id)
+export const TEST_SENTENCES = new RegExp(`^${TEST_ACCOUNT_PREFIX}`);
 
 // Every test student has the same name, so pages show "Test S." whichever
 // one a test uses; only the id and email (built from the role) differ
@@ -36,7 +46,7 @@ interface TestAccount {
 }
 
 const testStudent = (role: string): TestAccount => ({
-  id: `test-${role}`,
+  id: `${TEST_ACCOUNT_PREFIX}${role}`,
   firstName: "Test",
   lastName: "Student",
   email: `test-${role}@showme.test`,
@@ -75,9 +85,29 @@ const currentProject = () => {
   }
 };
 
+// What can open the door. TEST_LOGIN_KEY signs the short-lived passes the
+// deploy workflows give QA Wolf (see utils/testPass.ts). TEST_LOGIN_SECRET is
+// the older fixed secret, accepted only while it is still set, so the switch
+// to passes can be made without a gap; leave it unset to accept only passes.
+// Each counts only if it's long enough not to be guessed.
+const longEnough = (value: string | undefined) =>
+  (value ?? "").length >= MIN_SECRET_LENGTH ? value : undefined;
+const testLoginKey = () => longEnough(process.env.TEST_LOGIN_KEY);
+const fixedSecret = () => longEnough(process.env.TEST_LOGIN_SECRET);
+
 const doorIsOpen = () =>
-  (process.env.TEST_LOGIN_SECRET ?? "").length >= MIN_SECRET_LENGTH &&
+  (testLoginKey() !== undefined || fixedSecret() !== undefined) &&
   currentProject() !== PRODUCTION_PROJECT;
+
+// A valid pass, or (while it is still set) the fixed secret
+const opensTheDoor = (given: string) => {
+  const key = testLoginKey();
+  const secret = fixedSecret();
+  return (
+    (key !== undefined && isValidTestPass(given, key)) ||
+    (secret !== undefined && sameSecret(given, secret))
+  );
+};
 
 // Compare secrets in constant time, so an attacker can't learn the secret one
 // character at a time by measuring how fast wrong guesses are rejected.
@@ -95,12 +125,9 @@ export const testLogin = async (req: Request, res: Response) => {
 
   // The secret first: if it's missing, isn't text or is wrong, that's all the
   // sender learns (401), whatever else the request holds.
-  // (doorIsOpen() has checked TEST_LOGIN_SECRET is set)
+  // ("Secret" is the request's name for it: a pass, or the fixed secret.)
   const secret = TestLoginBody.shape.secret.safeParse(req.body?.secret);
-  if (
-    !secret.success ||
-    !sameSecret(secret.data, process.env.TEST_LOGIN_SECRET ?? "")
-  ) {
+  if (!secret.success || !opensTheDoor(secret.data)) {
     return res.status(401).json({ message: "Invalid test login secret" });
   }
 
