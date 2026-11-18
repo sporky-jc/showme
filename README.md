@@ -22,7 +22,7 @@
 
 ## Technologies Used
 
-- Client (`client/`): React, Redux with redux-persist, React Router, Bootstrap, MDB and MUI, built with Vite and hosted on Netlify
+- Client (`client/`): React, Redux with redux-persist, React Router, Bootstrap and MDB, built with Vite and hosted on Netlify
 - Backend (`backend/`): Node.js, Express and Mongoose (MongoDB Atlas), running on Firebase Cloud Functions
 - Tests: Vitest in both halves, plus QA Wolf's end-to-end tests on staging
 

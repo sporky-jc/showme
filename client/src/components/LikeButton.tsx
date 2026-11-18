@@ -1,17 +1,26 @@
-import IconButton from "@mui/material/IconButton";
-import Typography from "@mui/material/Typography";
-// Only these icons: "@mui/icons-material" on its own means thousands of icon
-// files for the bundler to read (see FadeMenu.tsx)
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import { useState } from "react";
 import type { SentenceLikes } from "../api/types";
 
 const countText = (likes: number) => (likes === 1 ? "1 like" : `${likes} likes`);
 
-// The heart and the count side by side
-const row = { display: "inline-flex", alignItems: "center", gap: 4 };
+// A heart, filled or just its outline. Scenery: the button around it, or the
+// count beside it, says what it means.
+const Heart = ({ filled }: { filled: boolean }) => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill={filled ? "currentColor" : "none"}
+    stroke="currentColor"
+    strokeWidth={2.2}
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M12 20.5 4.2 12.9a4.9 4.9 0 0 1 0-7 5 5 0 0 1 7 0l.8.8.8-.8a5 5 0 0 1 7 0 4.9 4.9 0 0 1 0 7Z" />
+  </svg>
+);
 
-// A sentence's heart and like count, on its Collections card (signed-in users
+// A sentence's heart and like count, on its gallery card (signed-in users
 // only). Filled once the user likes it; pressing it again takes the like
 // back. On the user's own sentence it only shows the count: students can't
 // like their own.
@@ -22,37 +31,38 @@ function LikeButton({
   likes: SentenceLikes;
   onToggle: () => void;
 }) {
-  const count = (
-    <Typography variant="body2" sx={{ color: "text.secondary" }}>
-      {countText(likes.likes)}
-    </Typography>
-  );
+  // The heart pops when the student presses it (paper.css), not when the
+  // page first shows hearts they liked before
+  const [pressed, setPressed] = useState(false);
 
   if (likes.mine) {
     return (
-      <span style={row} title="Likes on your sentence">
-        <FavoriteIcon fontSize="small" sx={{ color: "text.disabled" }} aria-hidden />
-        {count}
+      <span className="paper-like paper-like--mine" title="Likes on your sentence">
+        <Heart filled />
+        <span className="paper-like__count">{countText(likes.likes)}</span>
       </span>
     );
   }
 
   return (
-    <span style={row}>
-      <IconButton
-        size="small"
+    <span className="paper-like">
+      <button
+        type="button"
+        className={
+          pressed && likes.likedByMe
+            ? "paper-like__heart paper-like__heart--pop"
+            : "paper-like__heart"
+        }
         aria-label="Like"
         aria-pressed={likes.likedByMe}
-        onClick={onToggle}
-        sx={{ color: likes.likedByMe ? "#e0245e" : "text.secondary" }}
+        onClick={() => {
+          setPressed(true);
+          onToggle();
+        }}
       >
-        {likes.likedByMe ? (
-          <FavoriteIcon fontSize="small" />
-        ) : (
-          <FavoriteBorderIcon fontSize="small" />
-        )}
-      </IconButton>
-      {count}
+        <Heart filled={likes.likedByMe} />
+      </button>
+      <span className="paper-like__count">{countText(likes.likes)}</span>
     </span>
   );
 }

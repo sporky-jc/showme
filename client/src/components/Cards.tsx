@@ -1,127 +1,56 @@
-import React, { useState, useEffect } from "react";
-import Grid from "@mui/material/Grid";
-import Card from "@mui/material/Card";
-import CardActions from "@mui/material/CardActions";
-import CardContent from "@mui/material/CardContent";
-import CardMedia from "@mui/material/CardMedia";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import Skeleton from "@mui/material/Skeleton";
+import React from "react";
 import { useSelector } from "react-redux";
 import * as config from "../../src/config";
 import LikeButton from "./LikeButton";
 import type { LikesById } from "./useLikes";
-import type { SentenceWithAuthor, TellSentence } from "../api/types";
+import type { SentenceWithAuthor } from "../api/types";
 import type { RootState } from "../reducers/types";
 
-// The cards for one list of sentences, plus a record of which pictures are
-// still loading. Cards gives this a key made from the list, so a new list
-// (or a new order) gets a fresh CardGrid that starts with every picture
-// loading, instead of an effect resetting the record after drawing.
-function CardGrid({
-  sentences,
-  tellSentences,
-  likes,
-  onToggleLike,
-}: {
-  sentences: SentenceWithAuthor[];
-  tellSentences: TellSentence[];
-  likes: LikesById | null;
-  onToggleLike: (id: string) => void;
+// Nothing to do when there are no likes to press
+const noLikes = () => {};
+
+// First name and last initial. Some accounts have no last name (the database
+// doesn't require one).
+const authorName = ({ firstName, lastName }: SentenceWithAuthor["author"]) =>
+  lastName ? `${firstName} ${lastName[0]}.` : firstName;
+
+// The gallery's cards: each approved sentence under its Tell sentence's
+// photo, with who wrote it and, for signed-in users, its likes.
+function Cards(props: {
+  displaySentences?: SentenceWithAuthor[];
+  // The signed-in user's view of each sentence's likes, or null for none
+  likes?: LikesById | null;
+  onToggleLike?: (id: string) => void;
 }) {
-  const [loadingState, setLoadingState] = useState(() =>
-    Array(config.DisplayCollectionSentences).fill(true)
+  const tellSentences = useSelector((state: RootState) => state.tellsentences);
+  const likes = props.likes ?? null;
+  const onToggleLike = props.onToggleLike ?? noLikes;
+  const sentences = (props.displaySentences ?? []).slice(
+    0,
+    config.DisplayCollectionSentences
   );
 
-  // Function to handle image load
-  const handleImageLoad = (index: number) => {
-    setLoadingState((prevState) => {
-      const newState = [...prevState];
-      newState[index] = false;
-      return newState;
-    });
-  };
-
-  // Show every picture after 4 seconds, even if some never finish loading.
-  // (A timer is outside React, which is what effects are for.)
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setLoadingState((prevState) => prevState.map(() => false));
-    }, 4000);
-
-    // Clean up the timeout when the component unmounts
-    return () => clearTimeout(timeout);
-  }, []);
-
   return (
-    <Grid
-      container
-      sx={{ padding: "1% 0" }}
-      rowSpacing={{ xs: 1, sm: 2, md: 4 }}
-      columns={{ xs: 4, sm: 8, md: 12 }}
-    >
-      {sentences.map((sentence, index) => {
+    <ul className="paper-gallery__cards">
+      {sentences.map((sentence) => {
         const day = Number(sentence.title.match(/\d+$/)?.[0]);
         return (
-          <Grid
-            size={{ xs: 4, sm: 4, md: 4 }}
-            key={sentence._id}
-            sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}
-          >
-            <Card
-              sx={{
-                // Fill the column (up to 500px) whatever the sentence
-                // length; heights stay natural, centered in the row.
-                width: "100%",
-                maxWidth: 500,
-                boxShadow: "1.5px 1.5px rgba(0, 0, 255, .2)",
-                margin: "0% 2%",
-                // Pink-to-aqua gradient. Set here rather than in styles.css
-                // because MUI 9's own card styles (which reset the background
-                // image) come after styles.css; sx always comes after them.
-                backgroundImage:
-                  "radial-gradient(circle, rgba(251, 228, 238, 1) 20%, rgba(236, 255, 255, 1) 77%)",
-              }}
-            >
-              {loadingState[index] && (
-                <Skeleton
-                  animation="wave"
-                  variant="rectangular"
-                  width={500}
-                  height={250}
-                  hidden={!loadingState[index]}
+          <li key={sentence._id}>
+            <article className="paper-gallery__card">
+              {/* Scenery for the sentences under it, which say it all. The
+                  sky shows in its frame until it has downloaded. */}
+              <div className="paper-gallery__frame">
+                <img
+                  className="paper-gallery__photo"
+                  src={tellSentences[day - 1]?.image}
+                  alt=""
+                  loading="lazy"
                 />
-              )}
-              <CardMedia
-                component="img"
-                sx={{ height: 250 }}
-                image={tellSentences[day - 1]?.image}
-                title={sentence.tell}
-                onLoad={() => handleImageLoad(index)}
-                hidden={loadingState[index]}
-              />
-              <CardContent>
-                <Typography gutterBottom variant="body1" component="div">
-                  {sentence.show}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  {sentence.tell}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ color: "text.secondary", textAlign: "right" }}
-                >
-                  {/* First name and last initial. Some accounts have no
-                      last name (the database doesn't require one). */}
-                  {sentence.author.lastName
-                    ? `${sentence.author.firstName} ${sentence.author.lastName[0]}.`
-                    : sentence.author.firstName}
-                </Typography>
-              </CardContent>
-              <CardActions>
-                <Button hidden={true} size="small">
-                  Learn More
-                </Button>
+              </div>
+              <p className="paper-gallery__tell">{sentence.tell}</p>
+              <p className="paper-gallery__show">{sentence.show}</p>
+              <div className="paper-gallery__foot">
+                <span className="paper-gallery__author">{authorName(sentence.author)}</span>
                 {/* Signed-in users only: with nobody signed in there are
                     no likes to show (see useLikes) */}
                 {likes?.[sentence._id] && (
@@ -130,50 +59,13 @@ function CardGrid({
                     onToggle={() => onToggleLike(sentence._id)}
                   />
                 )}
-              </CardActions>
-            </Card>
-          </Grid>
+              </div>
+            </article>
+          </li>
         );
       })}
-    </Grid>
+    </ul>
   );
-}
-
-// Nothing to do when there are no likes to press
-const noLikes = () => {};
-
-function Cards(props: {
-  displaySentences?: SentenceWithAuthor[];
-  // The signed-in user's view of each sentence's likes, or null for none
-  likes?: LikesById | null;
-  onToggleLike?: (id: string) => void;
-}) {
-  // tell sentences from global redux state
-  const tellSentences = useSelector(
-    (state: RootState) => state.tellsentences
-  );
-  const approvedSentences = useSelector(
-    (state: RootState) => state.approvedsentences
-  );
-
-  // Card component for displaying sample students' approved sentences once global state loaded
-  if (approvedSentences.length !== 0) {
-    const sentences = (props.displaySentences ?? []).slice(
-      0,
-      config.DisplayCollectionSentences
-    );
-    // A different list, or the same list in a different order, gets a new key
-    const listKey = sentences.map((sentence) => sentence._id).join(",");
-    return (
-      <CardGrid
-        key={listKey}
-        sentences={sentences}
-        tellSentences={tellSentences}
-        likes={props.likes ?? null}
-        onToggleLike={props.onToggleLike ?? noLikes}
-      />
-    );
-  }
 }
 
 export default React.memo(Cards);

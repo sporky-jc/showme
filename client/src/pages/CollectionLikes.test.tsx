@@ -82,7 +82,7 @@ const renderCollection = ({
 
 // The card showing `show`
 const card = async (show: string) =>
-  (await screen.findByText(show)).closest(".MuiCard-root") as HTMLElement;
+  (await screen.findByText(show)).closest("article") as HTMLElement;
 
 const likeRequests = (requests: Request[]) =>
   requests.filter((r) => r.url?.endsWith("/like"));
@@ -123,6 +123,23 @@ describe("Collections likes, signed in", () => {
     expect(within(own).queryByRole("button", { name: "Like" })).not.toBeInTheDocument();
   });
 
+  it("has Scribbles tell a student when one of theirs is on show", async () => {
+    renderCollection({ user: alan });
+
+    expect(await screen.findByText(`I taped yours up, ${alan.firstName}!`)).toBeInTheDocument();
+  });
+
+  it("has Scribbles say what the page is when none of the student's are on show", async () => {
+    renderCollection({
+      user: alan,
+      likes: () => ({ status: 200, data: serverLikes().map((entry) => ({ ...entry, mine: false })) }),
+    });
+
+    await card("Sentence 1");
+    expect(await screen.findByText("Look what the class made!")).toBeInTheDocument();
+    expect(screen.queryByText(/I taped yours up/)).not.toBeInTheDocument();
+  });
+
   it("likes a sentence, then takes the like back", async () => {
     const user = userEvent.setup();
     const { requests } = renderCollection({ user: alan });
@@ -141,6 +158,27 @@ describe("Collections likes, signed in", () => {
       { method: "put", url: "/Collections/id-1/like" },
       { method: "delete", url: "/Collections/id-1/like" },
     ]);
+  });
+
+  // The pop is for a press, not for hearts the page shows already liked
+  it("pops the heart the student just pressed, and no other", async () => {
+    const user = userEvent.setup();
+    renderCollection({ user: alan });
+    const first = await card("Sentence 1");
+    const second = await card("Sentence 2");
+    const heart = (within_: HTMLElement) => within(within_).getByRole("button", { name: "Like" });
+    await within(first).findByText("1 like");
+
+    expect(heart(second)).not.toHaveClass("paper-like__heart--pop");
+
+    await user.click(heart(first));
+    expect(heart(first)).toHaveClass("paper-like__heart--pop");
+    expect(heart(second)).not.toHaveClass("paper-like__heart--pop");
+
+    // Taking the like back doesn't pop
+    await within(first).findByText("2 likes");
+    await user.click(heart(first));
+    expect(heart(first)).not.toHaveClass("paper-like__heart--pop");
   });
 
   it("changes the heart at once, then shows the server's count", async () => {

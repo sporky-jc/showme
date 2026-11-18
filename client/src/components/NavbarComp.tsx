@@ -15,7 +15,7 @@ import type { RootState } from "../reducers/types";
 
 // Home is the first page most visitors see, so it ships with the main file.
 // Every other page has its own file, so the home page doesn't wait for code
-// (like MUI for Collections) it doesn't use.
+// it doesn't use.
 const loadAbout = () => import("../pages/About");
 const loadLogin = () => import("../pages/Login");
 const loadMyPage = () => import("../pages/MyPage");

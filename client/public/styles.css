@@ -205,8 +205,8 @@ body {
 }
 
 /* A short message instead of a page's usual content, in a light box that's
-   readable on the patterned background: "couldn't load, try again" and
-   "nothing approved yet" on the collection page, "sign in" on MyPage */
+   readable on the sky: "couldn't load, try again" and "nothing approved
+   yet" on the gallery, "sign in" on MyPage */
 .page-message {
   max-width: 34rem;
   margin: 3rem auto;
@@ -217,12 +217,10 @@ body {
 }
 
 /* "Loading..." while a page's code downloads (PageLoading.tsx): placed and
-   sized like the collection page's own "Loading..." (whose sort menu's 1% top
-   margin pushes it down), so the handover between the two doesn't move it,
-   and the footer stays at the bottom */
+   sized like the gallery's own "Loading...", so the handover between the two
+   doesn't move it, and the footer stays at the bottom */
 .page-loading {
   min-height: 87vh;
-  margin-top: 1%;
 }
 
 /* "Loading..." while the app's code downloads (#app-loading in index.html,
@@ -299,43 +297,6 @@ body {
     stroke-dasharray: 89, 200;
     stroke-dashoffset: -124px;
   }
-}
-
-.dropdown {
-  -webkit-justify-content: flex-end;
-  align-items: flex-end;
-  -webkit-align-items: flex-end;
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1%;
-}
-
-#fade-button {
-  margin-right: 2vw;
-}
-
-/* The cards' gradient background is set in Cards.tsx (sx), because MUI 9's
-   own card styles load after this file and would override it here. */
-
-.MuiCard-root:hover {
-  box-shadow: 5px 10px 20px 1px rgba(0, 0, 0, 0.253);
-}
-
-.MuiCardMedia-root {
-  transform: scale(1);
-  transition: transform 0.5s ease;
-}
-
-.MuiCardMedia-root:hover {
-  transform: scale(1.1);
-}
-
-.MuiTypography-caption {
-  font-size: smaller !important;
-}
-
-.MuiTypography-body2 {
-  font-size: small !important;
 }
 
 /* The edit pencil on MyPage (EditModal.tsx) is Font Awesome's "pen-to-square"
