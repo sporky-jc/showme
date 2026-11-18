@@ -108,6 +108,18 @@ describe("Admin", () => {
     expect(rows()).toHaveLength(2);
   });
 
+  // A fixed one-screen height let a long queue spill out underneath the
+  // footer, whose hills then covered the last rows so they couldn't be clicked
+  it("grows with the queue instead of being a fixed screen tall", async () => {
+    renderAdmin();
+
+    await screen.findByText("Frost bit my fingers.");
+    const page = document.querySelector("section");
+    expect(page).toHaveClass("min-vh-100");
+    expect(page).not.toHaveClass("vh-100");
+    expect(document.querySelector(".approvallist")).not.toHaveClass("h-100");
+  });
+
   it("approving a row sends that row's sentence, then shows the updated queue", async () => {
     const { requests } = renderAdmin({ afterUpdate: [waiting[1]] });
     await screen.findByText("Mia Torres");
