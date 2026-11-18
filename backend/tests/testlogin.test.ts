@@ -4,9 +4,12 @@ import app from "../app.js";
 import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
 import { createSentence, createUser, tokenFromLogin } from "./helpers.js";
+import { mintTestPass } from "../utils/testPass.js";
 
-// A secret long enough for the test login door to agree to open
-const SECRET = "a-long-random-test-login-secret-0123456789";
+// A key long enough for the test login door to agree to open, and a pass
+// signed with it that is good for an hour (what QA Wolf sends as "secret")
+const KEY = "k".repeat(64);
+const pass = (key = KEY) => mintTestPass(key, Math.floor(Date.now() / 1000) + 60 * 60);
 
 // Each test chooses its own settings; restore the real ones afterwards
 afterEach(() => {
@@ -16,14 +19,14 @@ afterEach(() => {
 describe("POST /auth/test (test-only login, for automated browser tests on staging)", () => {
   describe("when the door is open (staging)", () => {
     beforeEach(() => {
-      vi.stubEnv("TEST_LOGIN_SECRET", SECRET);
+      vi.stubEnv("TEST_LOGIN_KEY", KEY);
       vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
     });
 
     it("logs in as the test student and sets the same session cookie a Google login does", async () => {
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student" });
+        .send({ secret: pass(), role: "student" });
 
       expect(res.status).toBe(200);
       expect(res.body.user).toMatchObject({ firstName: "Test", isAdmin: false });
@@ -40,7 +43,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
     it("logs in as the test admin, who can open the admin page", async () => {
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "admin" });
+        .send({ secret: pass(), role: "admin" });
 
       expect(res.status).toBe(200);
       expect(res.body.user.isAdmin).toBe(true);
@@ -51,8 +54,8 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
     });
 
     it("reuses the same test account on every login instead of creating new ones", async () => {
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student" });
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student" });
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
 
       expect(await Profile.countDocuments({ id: "test-student" })).toBe(1);
     });
@@ -60,7 +63,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
     it("with fresh: true, deletes the test account's sentences so it starts over at Day 1", async () => {
       const first = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student" });
+        .send({ secret: pass(), role: "student" });
       const student = await Profile.findOne({ id: "test-student" }).orFail();
       const sentence = await createSentence(student);
       student.ownSentences.push(sentence._id);
@@ -68,7 +71,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
 
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student", fresh: true });
+        .send({ secret: pass(), role: "student", fresh: true });
 
       expect(first.status).toBe(200);
       expect(res.status).toBe(200);
@@ -89,23 +92,23 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
 
       await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student", fresh: true });
+        .send({ secret: pass(), role: "student", fresh: true });
 
       expect(await Sentence.countDocuments({ GID: ada.id })).toBe(1);
     });
 
     it("without fresh, keeps the test account's sentences", async () => {
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student" });
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
       const student = await Profile.findOne({ id: "test-student" }).orFail();
       await createSentence(student);
 
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student" });
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
 
       expect(await Sentence.countDocuments({ GID: "test-student" })).toBe(1);
     });
 
-    it("refuses fresh: true with a wrong secret, deleting nothing", async () => {
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student" });
+    it("refuses fresh: true with a wrong pass, deleting nothing", async () => {
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
       const student = await Profile.findOne({ id: "test-student" }).orFail();
       await createSentence(student);
 
@@ -117,7 +120,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
       expect(await Sentence.countDocuments({ GID: "test-student" })).toBe(1);
     });
 
-    it("refuses a wrong secret", async () => {
+    it("refuses a wrong pass", async () => {
       const res = await request(app)
         .post("/auth/test")
         .send({ secret: "wrong", role: "student" });
@@ -126,21 +129,21 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
       expect(res.headers["set-cookie"]).toBeUndefined();
     });
 
-    it("refuses a missing secret or body", async () => {
+    it("refuses a missing pass or body", async () => {
       const res = await request(app).post("/auth/test");
       expect(res.status).toBe(401);
     });
 
-    // A secret that isn't text is just a wrong one, checked before the role
-    it("refuses a secret that isn't text with 401, even with a bad role", async () => {
+    // A pass that isn't text is just a wrong one, checked before the role
+    it("refuses a pass that isn't text with 401, even with a bad role", async () => {
       const res = await request(app)
         .post("/auth/test")
         .send({ secret: 12345, role: "superuser" });
       expect(res.status).toBe(401);
     });
 
-    it("refuses a right secret without a role", async () => {
-      const res = await request(app).post("/auth/test").send({ secret: SECRET });
+    it("refuses a valid pass without a role", async () => {
+      const res = await request(app).post("/auth/test").send({ secret: pass() });
       expect(res.status).toBe(400);
       expect(res.body.message).toMatch(/^role must be one of: student, /);
     });
@@ -148,13 +151,13 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
     // Only fresh: true starts over; anything else (like the text "true")
     // keeps the sentences, as it always has
     it("treats fresh other than true as keeping the sentences", async () => {
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student" });
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
       const student = await Profile.findOne({ id: "test-student" }).orFail();
       await createSentence(student);
 
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student", fresh: "true" });
+        .send({ secret: pass(), role: "student", fresh: "true" });
 
       expect(res.status).toBe(200);
       expect(await Sentence.countDocuments({ GID: "test-student" })).toBe(1);
@@ -163,14 +166,14 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
     it("refuses an unknown role", async () => {
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "superuser" });
+        .send({ secret: pass(), role: "superuser" });
       expect(res.status).toBe(400);
     });
 
     it("refuses built-in object names as roles", async () => {
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "toString" });
+        .send({ secret: pass(), role: "toString" });
       expect(res.status).toBe(400);
     });
 
@@ -187,7 +190,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
         ["student-likes", "test-student-likes"],
         ["student-likes-own", "test-student-likes-own"],
       ]) {
-        const res = await request(app).post("/auth/test").send({ secret: SECRET, role });
+        const res = await request(app).post("/auth/test").send({ secret: pass(), role });
 
         expect(res.status).toBe(200);
         // Exactly these fields, as for a Google login (see the contract)
@@ -202,7 +205,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
     });
 
     it("with fresh: true, takes back the account's likes, and only its likes", async () => {
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student-likes" });
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student-likes" });
       const tester = await Profile.findOne({ id: "test-student-likes" }).orFail();
       const ada = await createUser();
       const alan = await createUser({ id: "google-user-2", email: "alan@example.com" });
@@ -213,7 +216,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
 
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student-likes", fresh: true });
+        .send({ secret: pass(), role: "student-likes", fresh: true });
 
       expect(res.status).toBe(200);
       const after = await Sentence.findById(sentence._id).orFail();
@@ -223,33 +226,33 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
     it("with fresh: true on a first login, starts the account with nothing", async () => {
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student-likes", fresh: true });
+        .send({ secret: pass(), role: "student-likes", fresh: true });
 
       expect(res.status).toBe(200);
       expect(await Profile.countDocuments({ id: "test-student-likes" })).toBe(1);
     });
 
     it("keeps the two likes accounts apart: a fresh student-likes login leaves student-likes-own's sentence", async () => {
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student-likes-own" });
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student-likes-own" });
       const owner = await Profile.findOne({ id: "test-student-likes-own" }).orFail();
       await createSentence(owner, { approved: true });
 
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student-likes", fresh: true });
+        .send({ secret: pass(), role: "student-likes", fresh: true });
 
       expect(res.status).toBe(200);
       expect(await Sentence.countDocuments({ GID: "test-student-likes-own" })).toBe(1);
     });
 
     it("with fresh: true, only wipes the sentences of the student role that asked", async () => {
-      await request(app).post("/auth/test").send({ secret: SECRET, role: "student" });
+      await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
       const student = await Profile.findOne({ id: "test-student" }).orFail();
       await createSentence(student);
 
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "student-approve", fresh: true });
+        .send({ secret: pass(), role: "student-approve", fresh: true });
 
       expect(res.status).toBe(200);
       expect(await Sentence.countDocuments({ GID: "test-student" })).toBe(1);
@@ -257,8 +260,8 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
   });
 
   describe("when the door must stay shut", () => {
-    it("doesn't exist when no secret is configured (production never gets one)", async () => {
-      vi.stubEnv("TEST_LOGIN_SECRET", "");
+    it("doesn't exist when no key is configured (production never gets one)", async () => {
+      vi.stubEnv("TEST_LOGIN_KEY", "");
       vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
       const res = await request(app)
@@ -267,23 +270,23 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
       expect(res.status).toBe(404);
     });
 
-    it("stays shut on the production project even if a secret is set by mistake", async () => {
-      vi.stubEnv("TEST_LOGIN_SECRET", SECRET);
+    it("stays shut on the production project even if a key is set by mistake", async () => {
+      vi.stubEnv("TEST_LOGIN_KEY", KEY);
       vi.stubEnv("GCLOUD_PROJECT", "showme-backend-789");
 
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: SECRET, role: "admin" });
+        .send({ secret: pass(), role: "admin" });
       expect(res.status).toBe(404);
     });
 
-    it("stays shut when the secret is too short to be safe", async () => {
-      vi.stubEnv("TEST_LOGIN_SECRET", "short");
+    it("stays shut when the key is too short to be safe", async () => {
+      vi.stubEnv("TEST_LOGIN_KEY", "short");
       vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: "short", role: "admin" });
+        .send({ secret: pass("short"), role: "admin" });
       expect(res.status).toBe(404);
     });
   });

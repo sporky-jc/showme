@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { TestLoginBody } from "../contract/api.js";
 import Profile from "../models/profile.js";
@@ -9,8 +8,8 @@ import { isValidTestPass } from "../utils/testPass.js";
 
 // A login door for automated browser tests (QA Wolf) on the STAGING backend.
 // A robot can't click through "Sign in with Google", so instead it sends a
-// short-lived pass (or, while it is still set, a fixed shared secret) and
-// gets logged in as one of a few fixed test accounts.
+// short-lived pass (see utils/testPass.ts) and gets logged in as one of a few
+// fixed test accounts.
 // With `fresh: true` it first deletes that test account's own sentences, and
 // takes back every like it gave, so a test starts from a clean slate (Day 1,
 // nothing liked) every run; the app itself has no way to delete a sentence.
@@ -20,12 +19,12 @@ import { isValidTestPass } from "../utils/testPass.js";
 //
 // The door is shut (the route answers 404, as if it didn't exist) unless ALL
 // of these hold:
-//   - TEST_LOGIN_KEY or TEST_LOGIN_SECRET is set (only the staging deploy
-//     writes them), and is at least 32 characters long, so it can't be guessed
+//   - TEST_LOGIN_KEY is set (only the staging deploy writes it), and is at
+//     least 32 characters long, so it can't be guessed
 //   - the code is not running in the production Firebase project, so even a
-//     secret copied there by mistake can't open it
+//     key copied there by mistake can't open it
 const PRODUCTION_PROJECT = "showme-backend-789";
-const MIN_SECRET_LENGTH = 32;
+const MIN_KEY_LENGTH = 32;
 
 // Every test account's id starts with this. Real accounts' ids are Google
 // account ids, which are all digits, so none can.
@@ -85,37 +84,20 @@ const currentProject = () => {
   }
 };
 
-// What can open the door. TEST_LOGIN_KEY signs the short-lived passes the
-// deploy workflows give QA Wolf (see utils/testPass.ts). TEST_LOGIN_SECRET is
-// the older fixed secret, accepted only while it is still set, so the switch
-// to passes can be made without a gap; leave it unset to accept only passes.
-// Each counts only if it's long enough not to be guessed.
-const longEnough = (value: string | undefined) =>
-  (value ?? "").length >= MIN_SECRET_LENGTH ? value : undefined;
-const testLoginKey = () => longEnough(process.env.TEST_LOGIN_KEY);
-const fixedSecret = () => longEnough(process.env.TEST_LOGIN_SECRET);
-
-const doorIsOpen = () =>
-  (testLoginKey() !== undefined || fixedSecret() !== undefined) &&
-  currentProject() !== PRODUCTION_PROJECT;
-
-// A valid pass, or (while it is still set) the fixed secret
-const opensTheDoor = (given: string) => {
-  const key = testLoginKey();
-  const secret = fixedSecret();
-  return (
-    (key !== undefined && isValidTestPass(given, key)) ||
-    (secret !== undefined && sameSecret(given, secret))
-  );
+// The key that signs the short-lived passes GitHub gives QA Wolf (see
+// utils/testPass.ts). It counts only if it's long enough not to be guessed.
+const testLoginKey = () => {
+  const key = process.env.TEST_LOGIN_KEY ?? "";
+  return key.length >= MIN_KEY_LENGTH ? key : undefined;
 };
 
-// Compare secrets in constant time, so an attacker can't learn the secret one
-// character at a time by measuring how fast wrong guesses are rejected.
-// (Hashing first makes both sides the same length, which the compare needs.)
-const sameSecret = (given: unknown, expected: string) => {
-  const hash = (text: unknown) =>
-    crypto.createHash("sha256").update(String(text)).digest();
-  return crypto.timingSafeEqual(hash(given), hash(expected));
+const doorIsOpen = () =>
+  testLoginKey() !== undefined && currentProject() !== PRODUCTION_PROJECT;
+
+// Only a pass signed with the key that hasn't expired
+const opensTheDoor = (given: string) => {
+  const key = testLoginKey();
+  return key !== undefined && isValidTestPass(given, key);
 };
 
 export const testLogin = async (req: Request, res: Response) => {
@@ -123,9 +105,9 @@ export const testLogin = async (req: Request, res: Response) => {
     return res.status(404).json({ message: "Not found" });
   }
 
-  // The secret first: if it's missing, isn't text or is wrong, that's all the
+  // The pass first: if it's missing, isn't text or isn't valid, that's all the
   // sender learns (401), whatever else the request holds.
-  // ("Secret" is the request's name for it: a pass, or the fixed secret.)
+  // (The request calls it "secret", the name QA Wolf's flows send it under.)
   const secret = TestLoginBody.shape.secret.safeParse(req.body?.secret);
   if (!secret.success || !opensTheDoor(secret.data)) {
     return res.status(401).json({ message: "Invalid test login secret" });

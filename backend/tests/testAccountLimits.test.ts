@@ -3,6 +3,7 @@ import request from "supertest";
 import app from "../app.js";
 import { Sentence } from "../models/sentences.js";
 import { TEST_LOGINS_PER_MINUTE } from "../middlewares/rateLimit.js";
+import { mintTestPass } from "../utils/testPass.js";
 import {
   createAdmin,
   createSentence,
@@ -89,8 +90,8 @@ describe("the test admin only reviews test accounts' sentences", () => {
 });
 
 describe("the test login's rate limit", () => {
-  it(`refuses test logins beyond ${TEST_LOGINS_PER_MINUTE} a minute (429), counting wrong secrets too`, async () => {
-    vi.stubEnv("TEST_LOGIN_SECRET", "s".repeat(40));
+  it(`refuses test logins beyond ${TEST_LOGINS_PER_MINUTE} a minute (429), counting wrong passes too`, async () => {
+    vi.stubEnv("TEST_LOGIN_KEY", "k".repeat(64));
     vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
     for (let i = 0; i < TEST_LOGINS_PER_MINUTE; i++) {
@@ -101,7 +102,7 @@ describe("the test login's rate limit", () => {
     }
     const over = await request(app)
       .post("/auth/test")
-      .send({ secret: "s".repeat(40), role: "admin" });
+      .send({ secret: mintTestPass("k".repeat(64), Math.floor(Date.now() / 1000) + 3600), role: "admin" });
 
     expect(over.status).toBe(429);
     vi.unstubAllEnvs();
