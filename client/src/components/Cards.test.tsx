@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { screen } from "@testing-library/react";
 import Cards from "./Cards";
 import { renderWithApp } from "../test/testUtils";
 import type { SentenceWithAuthor } from "../api/types";
 
-// Characterization tests for the Collections cards, written before reworking
-// how they track which pictures are still loading.
+// The gallery's cards: one per approved sentence, under its Tell sentence's
+// photo.
 
 const tellsentences = [
   { key: 1, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" },
@@ -30,11 +30,6 @@ const renderCards = (sentences: SentenceWithAuthor[]) =>
   });
 
 const pictures = () => screen.queryAllByRole("img");
-const placeholders = () => document.querySelectorAll(".MuiSkeleton-root");
-
-afterEach(() => {
-  vi.useRealTimers();
-});
 
 describe("Cards", () => {
   it("shows each sentence with its tell sentence and the author's first name and initial", () => {
@@ -60,41 +55,34 @@ describe("Cards", () => {
     expect(second).toHaveAttribute("src", "/hot.jpg");
   });
 
-  it("shows a gray placeholder until a picture loads, then the picture", () => {
-    renderCards(approved(2));
-    expect(placeholders()).toHaveLength(2);
-    expect(pictures()).toHaveLength(0); // hidden pictures aren't visible to users
-
-    fireEvent.load(document.querySelectorAll("img")[0]);
-
-    expect(placeholders()).toHaveLength(1);
-    expect(pictures()).toHaveLength(1);
-  });
-
-  it("shows all pictures after 4 seconds, even if they never finish loading", () => {
-    vi.useFakeTimers();
+  // The photos are scenery: the sentences under them say everything
+  it("hides the pictures from screen readers, and lets cards down the page wait to download theirs", () => {
     renderCards(approved(2));
 
-    act(() => vi.advanceTimersByTime(4000));
-
-    expect(placeholders()).toHaveLength(0);
-    expect(pictures()).toHaveLength(2);
+    expect(pictures()).toHaveLength(0);
+    document.querySelectorAll("img").forEach((img) => {
+      expect(img).toHaveAttribute("alt", "");
+      expect(img).toHaveAttribute("loading", "lazy");
+    });
   });
 
-  it("goes back to placeholders when the list of sentences changes", () => {
-    const { rerender } = renderCards(approved(2));
-    document.querySelectorAll("img").forEach((img) => fireEvent.load(img));
-    expect(placeholders()).toHaveLength(0);
+  it("is a list with one card per sentence", () => {
+    renderCards(approved(3));
 
-    rerender(<Cards displaySentences={approved(2, "Newer")} />);
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getAllByRole("article")).toHaveLength(3);
+  });
 
-    expect(screen.getByText("Newer 1")).toBeInTheDocument();
-    expect(placeholders()).toHaveLength(2);
+  it("shows no likes without any to show", () => {
+    renderCards(approved(2));
+
+    expect(screen.queryByRole("button", { name: "Like" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/\blikes?\b/)).not.toBeInTheDocument();
   });
 
   // The database doesn't require a last name: older accounts, and Google
   // accounts without one, have none (or an empty one). One such card used to
-  // stop the whole Collections page from drawing.
+  // stop the whole gallery from drawing.
   it("shows just the first name when the author has no last name", () => {
     const [ada, bo, cy] = approved(3);
     renderCards([

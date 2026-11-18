@@ -82,7 +82,7 @@ const renderCollection = ({
 
 // The card showing `show`
 const card = async (show: string) =>
-  (await screen.findByText(show)).closest(".MuiCard-root") as HTMLElement;
+  (await screen.findByText(show)).closest("article") as HTMLElement;
 
 const likeRequests = (requests: Request[]) =>
   requests.filter((r) => r.url?.endsWith("/like"));
@@ -121,6 +121,23 @@ describe("Collections likes, signed in", () => {
     const own = await card("Sentence 3");
     expect(await within(own).findByText("2 likes")).toBeInTheDocument();
     expect(within(own).queryByRole("button", { name: "Like" })).not.toBeInTheDocument();
+  });
+
+  it("has Scribbles tell a student when one of theirs is on show", async () => {
+    renderCollection({ user: alan });
+
+    expect(await screen.findByText(`I taped yours up, ${alan.firstName}!`)).toBeInTheDocument();
+  });
+
+  it("has Scribbles say what the page is when none of the student's are on show", async () => {
+    renderCollection({
+      user: alan,
+      likes: () => ({ status: 200, data: serverLikes().map((entry) => ({ ...entry, mine: false })) }),
+    });
+
+    await card("Sentence 1");
+    expect(await screen.findByText("Look what the class made!")).toBeInTheDocument();
+    expect(screen.queryByText(/I taped yours up/)).not.toBeInTheDocument();
   });
 
   it("likes a sentence, then takes the like back", async () => {

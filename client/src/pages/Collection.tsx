@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Button from "@mui/material/Button";
 import Cards from "../components/Cards";
+import Scribbles from "../components/Scribbles";
 import { useLikes } from "../components/useLikes";
-import FadeMenu from "../components/FadeMenu";
 import LoadingOverlay from "react-loading-overlay-ts";
 import { fetchApprovedSentences } from "../actions/approvedsentences";
+import { DisplayCollectionSentences } from "../config";
 import type { SentenceWithAuthor } from "../api/types";
 import type { AppDispatch, RootState } from "../reducers/types";
 
@@ -24,6 +24,7 @@ function Collection() {
   // last request failed. Bumping `attempt` asks the server again.
   const [sentences, setSentences] = useState<SentenceWithAuthor[]>([]);
   const [displaySentences, setDisplay] = useState<SentenceWithAuthor[]>([]);
+  const [order, setOrder] = useState<"shuffle" | "newest">("shuffle");
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -44,6 +45,7 @@ function Collection() {
       if (fresh) {
         setSentences(fresh);
         setDisplay(shuffle(fresh));
+        setOrder("shuffle");
       } else {
         setFailed(true);
       }
@@ -61,11 +63,24 @@ function Collection() {
     setAttempt((n) => n + 1);
   };
 
-  // The sort menu's choices
-  const randomizeSentences = () => setDisplay(shuffle(sentences));
-  const displayNewestSentences = () => setDisplay(sentences);
+  // The two orders. Shuffle again deals the cards afresh.
+  const showShuffled = () => {
+    setDisplay(shuffle(sentences));
+    setOrder("shuffle");
+  };
+  const showNewest = () => {
+    setDisplay(sentences);
+    setOrder("newest");
+  };
 
-  // collection page to display approved sentences
+  // Scribbles taped the cards up. He tells a signed-in student when one of
+  // theirs is among the ones showing.
+  const firstName = useSelector((state: RootState) => state.user.firstName);
+  const mineIsUp = displaySentences
+    .slice(0, DisplayCollectionSentences)
+    .some((sentence) => likes?.[sentence._id]?.mine);
+
+  // The class gallery: the approved sentences
   return (
     <LoadingOverlay
       active={loading}
@@ -76,35 +91,44 @@ function Collection() {
       {failed ? (
         <div className="page-message" role="alert">
           <p>
-            We couldn&apos;t load the collection. Check your internet
+            We couldn&apos;t load the gallery. Check your internet
             connection, then try again.
           </p>
-          <Button variant="contained" onClick={tryAgain}>
+          <button type="button" className="paper-btn paper-btn--action" onClick={tryAgain}>
             Try again
-          </Button>
+          </button>
         </div>
       ) : (
-        <>
-          <div className="dropdown">
-            <FadeMenu
-              newest={displayNewestSentences}
-              randomize={randomizeSentences}
-            />
+        <div className="paper-gallery">
+          <div className="paper-gallery__top">
+            <div className="paper-gallery__title">
+              <h1>Class gallery</h1>
+              <Scribbles prop="tape" size={80} decorative />
+              <p className="paper-bubble">
+                {mineIsUp ? `I taped yours up, ${firstName}!` : "Look what the class made!"}
+              </p>
+            </div>
+            <div className="paper-toggle paper-gallery__order" role="group" aria-label="Order">
+              <button type="button" aria-pressed={order === "shuffle"} onClick={showShuffled}>
+                Shuffle
+              </button>
+              <button type="button" aria-pressed={order === "newest"} onClick={showNewest}>
+                Newest
+              </button>
+            </div>
           </div>
           {!loading && sentences.length === 0 ? (
             <p className="page-message">
               No sentences have been approved yet.
             </p>
           ) : (
-            <div>
-              <Cards
-                displaySentences={displaySentences}
-                likes={likes}
-                onToggleLike={toggle}
-              />
-            </div>
+            <Cards
+              displaySentences={displaySentences}
+              likes={likes}
+              onToggleLike={toggle}
+            />
           )}
-        </>
+        </div>
       )}
     </LoadingOverlay>
   );

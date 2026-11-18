@@ -7,7 +7,7 @@ import { renderWithApp } from "../test/testUtils";
 import type { Outcome } from "../test/testUtils";
 import type { SentenceWithAuthor } from "../api/types";
 
-// Characterization tests for the Collections page: what a visitor sees.
+// The class gallery (the Collections page): what a visitor sees.
 
 const tellsentences = [{ key: 1, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" }];
 
@@ -48,10 +48,10 @@ const renderCollection = ({
   });
 };
 
-const pickSort = async (user: UserEvent, choice: string) => {
-  await user.click(screen.getByRole("button", { name: /random|newest/i }));
-  await user.click(within(await screen.findByRole("menu")).getByText(choice));
-};
+// The two orders, in a group of their own
+const order = (name: "Shuffle" | "Newest") =>
+  within(screen.getByRole("group", { name: "Order" })).getByRole("button", { name });
+const pickSort = (user: UserEvent, choice: "Shuffle" | "Newest") => user.click(order(choice));
 
 afterEach(() => {
   delete window.earlyRequests;
@@ -87,41 +87,45 @@ describe("Collection", () => {
     expect(screen.queryByText("Sentence 99")).not.toBeInTheDocument();
   });
 
-  it("starts on Random, and Newest shows the server's newest-first order", async () => {
+  it("starts shuffled, and Newest shows the server's newest-first order", async () => {
     const user = userEvent.setup();
     renderCollection({ server: fromServer(6) });
     await waitFor(() => expect(shownOrder()).toHaveLength(6));
-    expect(screen.getByRole("button", { name: /random/i })).toBeInTheDocument();
+    expect(order("Shuffle")).toHaveAttribute("aria-pressed", "true");
+    expect(order("Newest")).toHaveAttribute("aria-pressed", "false");
 
     await pickSort(user, "Newest");
+
+    expect(order("Newest")).toHaveAttribute("aria-pressed", "true");
+    expect(order("Shuffle")).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() =>
       expect(shownOrder()).toEqual(fromServer(6).map((s) => s.show))
     );
   });
 
-  it("Random keeps the same sentences, in some order", async () => {
+  it("Shuffle keeps the same sentences, in some order", async () => {
     const user = userEvent.setup();
     renderCollection({ server: fromServer(6) });
     await waitFor(() => expect(shownOrder()).toHaveLength(6));
 
     await pickSort(user, "Newest");
-    await pickSort(user, "Random");
+    await pickSort(user, "Shuffle");
 
     await waitFor(() => expect(shownOrder()).toHaveLength(6));
     expect(shownOrder().sort()).toEqual(fromServer(6).map((s) => s.show).sort());
   });
 
-  it("says so, with a Try again button, when the collection can't be loaded", async () => {
+  it("says so, with a Try again button, when the gallery can't be loaded", async () => {
     renderCollection({ server: () => "offline" });
 
     const message = await screen.findByRole("alert");
-    expect(message).toHaveTextContent(/couldn't load the collection/i);
+    expect(message).toHaveTextContent(/couldn't load the gallery/i);
     expect(within(message).getByRole("button", { name: /try again/i })).toBeInTheDocument();
     expect(shownOrder()).toHaveLength(0);
   });
 
-  it("Try again loads the collection again", async () => {
+  it("Try again loads the gallery again", async () => {
     const user = userEvent.setup();
     renderCollection({ server: (call) => (call === 1 ? 500 : { status: 200, data: fromServer(3) }) });
 
@@ -137,7 +141,17 @@ describe("Collection", () => {
 
     await screen.findByRole("alert");
     expect(screen.queryByText("Sentence 99")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /random|newest/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Order" })).not.toBeInTheDocument();
+  });
+
+  it("has one heading, and Scribbles saying what the page is", async () => {
+    renderCollection();
+
+    await waitFor(() => expect(shownOrder()).toHaveLength(6));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Class gallery");
+    expect(screen.getByText("Look what the class made!")).toBeInTheDocument();
+    // His speech bubble says it, so he is hidden from screen readers
+    expect(screen.queryByRole("img", { name: "Scribbles the pencil" })).not.toBeInTheDocument();
   });
 
   it("says when no sentences have been approved yet", async () => {

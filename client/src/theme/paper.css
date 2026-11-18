@@ -1019,6 +1019,226 @@ h3,
   }
 }
 
+/* ---- Gallery ---- */
+
+.paper-gallery {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 20px 56px;
+  text-align: left;
+}
+
+.paper-gallery__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 20px;
+}
+
+.paper-gallery__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.paper-gallery__title h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+}
+
+.paper-gallery__title .scribbles {
+  flex: none;
+  width: 56px;
+  height: auto;
+}
+
+/* Scribbles says it on screens with room for a speech bubble */
+.paper-gallery__title .paper-bubble {
+  display: none;
+}
+
+/* On the sky, so it needs an edge of its own */
+.paper-gallery__order {
+  background: var(--paper-white);
+  box-shadow: 0 4px 0 var(--paper-edge);
+}
+
+.paper-gallery__cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.paper-gallery__cards > li {
+  display: flex;
+}
+
+/* A white card on a sheet of colored paper: orange and blue take turns */
+.paper-gallery__card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 10px;
+  background: var(--paper-white);
+  border-radius: 18px;
+  box-shadow: 4px 5px 0 #ffd8bd;
+}
+
+.paper-gallery__cards > li:nth-child(even) .paper-gallery__card {
+  box-shadow: 4px 5px 0 var(--paper-edge);
+}
+
+/* An arch, like Today's photo */
+.paper-gallery__photo {
+  display: block;
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 60px 60px 10px 10px;
+  background: var(--paper-sky);
+}
+
+.paper-gallery__tell {
+  margin: 4px 2px 0;
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b93a0a; /* 5.9:1 on white */
+}
+
+.paper-gallery__show {
+  margin: 0 2px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* At the bottom of the card, however long the sentence */
+.paper-gallery__foot {
+  margin: auto 2px 0;
+  padding-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px 8px;
+  min-height: 44px;
+}
+
+.paper-gallery__author {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--paper-muted);
+}
+
+/* A sentence's heart and how many likes it has */
+.paper-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px; /* the same with a heart to press or without */
+  color: var(--paper-muted);
+}
+
+.paper-like__count {
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.paper-like__heart {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 -6px 0 -11px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--paper-muted);
+}
+
+.paper-like__heart[aria-pressed="true"] {
+  color: #c81e54; /* 5.6:1 on white */
+}
+
+.paper-like__heart:hover {
+  background: var(--paper-sky);
+}
+
+.paper-like__heart:focus-visible {
+  outline: 3px solid var(--paper-ink);
+  outline-offset: -3px;
+}
+
+/* On the student's own sentence the heart can't be pressed */
+.paper-like--mine {
+  gap: 6px;
+}
+
+@media (max-width: 359px) {
+  .paper-gallery__cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 576px) {
+  .paper-gallery__title .scribbles {
+    width: 80px;
+  }
+
+  .paper-gallery__title .paper-bubble {
+    display: block;
+  }
+
+  .paper-gallery__cards {
+    gap: 20px;
+  }
+
+  .paper-gallery__card {
+    padding: 10px;
+    border-radius: 22px;
+    box-shadow: 6px 7px 0 #ffd8bd;
+  }
+
+  .paper-gallery__cards > li:nth-child(even) .paper-gallery__card {
+    box-shadow: 6px 7px 0 var(--paper-edge);
+  }
+
+  .paper-gallery__photo {
+    height: 124px;
+    border-radius: 70px 70px 12px 12px;
+  }
+
+  .paper-gallery__tell {
+    margin-top: 8px;
+    font-size: 0.75rem;
+  }
+
+  .paper-gallery__show {
+    font-size: 0.95rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .paper-gallery__cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .paper-gallery__cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 /* Someone who asked their device for less motion gets everything still:
    the logo's underline and Scribbles' squiggle already drawn. */
 @media (prefers-reduced-motion: reduce) {
