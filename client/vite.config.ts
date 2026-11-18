@@ -21,13 +21,13 @@ const addedByLibraries = [
   /^active$/, /^fade$/, /^show$/, /^showing$/, /^hiding$/,
   /^collaps/, /^disabled$/, /^visually-hidden/, // menus, pop-ups
   /^navbar/, /^nav$/, /^nav-/, /^container/, /^row$/, /^col/, // Navbar, Nav, Container, MDBRow/MDBCol
-  /^modal/, // Modal (the sign-in pop-up)
+  /^modal/, /^tooltip/, /^bs-tooltip/, // Modal (the sign-in pop-up), Admin's MDBTooltip
   // Only the variants our code picks (each library has dozens): Button
   // variant="primary"/"secondary" and Modal's close button
   /^btn$/, /^btn-(primary|secondary|close)$/,
   /^bg-/, /^text-/,
   /^spinner/, /^card/, /^table/, /^ripple/, // Spinner, MDBCard, MDBTable, MDB's click ripple
-  /^fa[srb]?$/, /^fa-(list-check|check|rotate-right|width-auto)$/, // Admin's MDBIcons
+  /^fa[srb]?$/, /^fa-(list-check|check|rotate-right|lg|width-auto)$/, // Admin's MDBIcons (size="lg")
 ];
 // Tags and attributes that only the libraries' code writes (e.g. <table>, or
 // a menu's data-bs-target and a tooltip's data-popper-placement, with

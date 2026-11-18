@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router";
 import Write from "./Write";
@@ -260,6 +260,39 @@ describe("Write", () => {
     await user.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(await box()).toBeInTheDocument();
+  });
+
+  // A shared tablet: the login runs out while Ada writes, and Ben signs in
+  // from the prompt, which keeps him on this page
+  it("after the login runs out and someone signs in, waits for their list and doesn't keep the last student's words", async () => {
+    const user = userEvent.setup();
+    let release!: (outcome: Outcome) => void;
+    let lists = 0;
+    const { store } = renderWrite({
+      list: () => {
+        lists += 1;
+        if (lists === 1) return { status: 200, data: shows(2) };
+        return new Promise<Outcome>((resolve) => (release = resolve)); // Ben's, held back
+      },
+    });
+    await user.type(await box(), "Ada's unsent words");
+
+    act(() => {
+      store.dispatch({ type: "LOGOUT" });
+    });
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    act(() => {
+      store.dispatch({ type: "FIND_USER", payload: { id: "g-ben", firstName: "Ben", lastName: "Bit" } });
+    });
+
+    // Ben's list isn't here yet: no box that would save as "day 1"
+    await waitFor(() => expect(lists).toBe(2));
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+
+    release({ status: 200, data: shows(4) });
+
+    expect(await box()).toHaveValue("");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Tell 5");
   });
 
   describe("editing (/Write/<id>)", () => {

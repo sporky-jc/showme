@@ -49,6 +49,14 @@ body {
   min-height: 84vh;
 }
 
+/* Admin's Approve and Redo tooltips */
+.tooltip {
+  font-size: 0.1rem !important;
+  font-weight: 200 !important;
+  line-height: 0.5 !important;
+  font-style: italic !important;
+}
+
 /* The sign-in pop-up's body */
 .modal-body {
   display: block;

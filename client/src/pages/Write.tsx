@@ -70,7 +70,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
   const dispatch = useDispatch<AppDispatch>();
   const signedIn = Object.keys(user).length !== 0;
 
-  const { loaded, retry } = useStudentData(signedIn);
+  const { loaded, retry } = useStudentData();
 
   // What the student is typing (null until they type: an edit starts from
   // the sentence as it is), the sense Scribbles is asking about, whether the
@@ -315,9 +315,12 @@ function WriteSentence({ id }: { id: string | undefined }) {
 // With an id in the address, that sentence is being edited. Each sentence
 // gets a page of its own (the key), so nothing typed for one carries over to
 // another.
+// The same goes for each student: if the login runs out and someone else
+// signs in here (a shared tablet), they don't get the last student's words.
 function Write() {
   const { id } = useParams();
-  return <WriteSentence key={id ?? "new"} id={id} />;
+  const who = useSelector((state: RootState) => state.user.id);
+  return <WriteSentence key={`${who ?? ""}/${id ?? "new"}`} id={id} />;
 }
 
 export default Write;

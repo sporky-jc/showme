@@ -17,7 +17,7 @@ function MyPage() {
   const userSentences = useSelector((state: RootState) => state.usersentences);
   const signedIn = Object.keys(user).length !== 0;
 
-  const { loaded, retry } = useStudentData(signedIn);
+  const { loaded, retry } = useStudentData();
   const [activePage, setActivePage] = useState(1);
 
   if (!signedIn) {
