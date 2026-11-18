@@ -171,7 +171,6 @@ describe("the test login with passes", () => {
 
   it("lets a valid pass in when TEST_LOGIN_KEY is set", async () => {
     vi.stubEnv("TEST_LOGIN_KEY", KEY);
-    vi.stubEnv("TEST_LOGIN_SECRET", "");
     vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
     const res = await login(mintTestPass(KEY, inAnHour()));
@@ -181,7 +180,6 @@ describe("the test login with passes", () => {
 
   it("refuses an expired pass (401)", async () => {
     vi.stubEnv("TEST_LOGIN_KEY", KEY);
-    vi.stubEnv("TEST_LOGIN_SECRET", "");
     vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
     const res = await login(mintTestPass(KEY, now() - 1));
@@ -191,27 +189,26 @@ describe("the test login with passes", () => {
 
   it("refuses the key itself: only signed passes open the door", async () => {
     vi.stubEnv("TEST_LOGIN_KEY", KEY);
-    vi.stubEnv("TEST_LOGIN_SECRET", "");
     vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
     expect((await login(KEY)).status).toBe(401);
   });
 
-  it("still takes the fixed secret while it is set, so the switch has no gap", async () => {
+  it("refuses the old fixed secret, even if TEST_LOGIN_SECRET is still set", async () => {
     vi.stubEnv("TEST_LOGIN_KEY", KEY);
     vi.stubEnv("TEST_LOGIN_SECRET", SECRET);
     vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
-    expect((await login(SECRET)).status).toBe(200);
+    expect((await login(SECRET)).status).toBe(401);
     expect((await login(mintTestPass(KEY, inAnHour()))).status).toBe(200);
   });
 
-  it("refuses the old fixed secret once it is unset", async () => {
-    vi.stubEnv("TEST_LOGIN_KEY", KEY);
-    vi.stubEnv("TEST_LOGIN_SECRET", "");
+  it("doesn't exist with only the old fixed secret set and no key", async () => {
+    vi.stubEnv("TEST_LOGIN_KEY", "");
+    vi.stubEnv("TEST_LOGIN_SECRET", SECRET);
     vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
-    expect((await login(SECRET)).status).toBe(401);
+    expect((await login(SECRET)).status).toBe(404);
   });
 
   it("stays shut on production, even with a key and a valid pass", async () => {
@@ -223,7 +220,6 @@ describe("the test login with passes", () => {
 
   it("stays shut when the key is too short to be safe", async () => {
     vi.stubEnv("TEST_LOGIN_KEY", "short");
-    vi.stubEnv("TEST_LOGIN_SECRET", "");
     vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
     expect((await login(mintTestPass("short", inAnHour()))).status).toBe(404);

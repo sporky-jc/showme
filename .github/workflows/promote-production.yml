@@ -142,7 +142,7 @@ jobs:
         run: npm test
 
       # Production settings: the real database, the production JWT secret,
-      # and no test login secret, so the test login door stays shut
+      # and no test-login key, so the test login door stays shut
       - name: Write runtime settings (.env) from GitHub secrets
         env:
           DATABASE_ACCESS: ${{ secrets.DATABASE_ACCESS }}

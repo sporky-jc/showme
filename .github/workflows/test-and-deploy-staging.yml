@@ -161,14 +161,13 @@ jobs:
       # Firebase uploads the .env file as the function's runtime settings.
       # Staging has its own secrets: a database login that can only reach the
       # practice database (ShowME-dev), its own JWT secret (so a staging login
-      # is worthless on production), and the test login secret, which
-      # production never gets. APP_VERSION records which commit this is.
+      # is worthless on production), and the key that signs test-login passes,
+      # which production never gets. APP_VERSION records which commit this is.
       - name: Write runtime settings (.env) from GitHub secrets
         env:
           DATABASE_ACCESS: ${{ secrets.STAGING_DATABASE_ACCESS }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
-          TEST_LOGIN_SECRET: ${{ secrets.TEST_LOGIN_SECRET }}
           TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
         run: |
           for name in DATABASE_ACCESS GOOGLE_CLIENT_ID JWT_SECRET; do
@@ -178,16 +177,11 @@ jobs:
             fi
           done
           # The test login takes short-lived passes signed with TEST_LOGIN_KEY
-          # and, while it is still set, the older fixed TEST_LOGIN_SECRET
-          # (see backend/controllers/testLogin.ts). It needs at least one.
-          if [ -z "$TEST_LOGIN_KEY" ] && [ -z "$TEST_LOGIN_SECRET" ]; then
-            echo "::error::Neither TEST_LOGIN_KEY nor TEST_LOGIN_SECRET is set"
-            exit 1
-          fi
-          # The backend ignores a key under 32 characters (which would shut
-          # the door), and the .env line below is double-quoted, so only
-          # letters, digits, _ and - are safe (e.g. `openssl rand -hex 32`)
-          if [ -n "$TEST_LOGIN_KEY" ] && ! [[ "$TEST_LOGIN_KEY" =~ ^[A-Za-z0-9_-]{32,}$ ]]; then
+          # (see backend/controllers/testLogin.ts). The backend ignores a key
+          # under 32 characters (which would shut the door), and the .env line
+          # below is double-quoted, so only letters, digits, _ and - are safe
+          # (e.g. `openssl rand -hex 32`)
+          if ! [[ "$TEST_LOGIN_KEY" =~ ^[A-Za-z0-9_-]{32,}$ ]]; then
             echo "::error::TEST_LOGIN_KEY must be at least 32 letters, digits, _ or - (e.g. openssl rand -hex 32)"
             exit 1
           fi
@@ -196,7 +190,6 @@ jobs:
             echo "DATABASE_NAME=\"ShowME-dev\""
             echo "GOOGLE_CLIENT_ID=\"$GOOGLE_CLIENT_ID\""
             echo "JWT_SECRET=\"$JWT_SECRET\""
-            echo "TEST_LOGIN_SECRET=\"$TEST_LOGIN_SECRET\""
             echo "TEST_LOGIN_KEY=\"$TEST_LOGIN_KEY\""
             echo "APP_VERSION=\"$GITHUB_SHA\""
           } > .env
