@@ -1,4 +1,5 @@
-// The Welcome screen's examples: fixed, they don't change.
+// The Welcome screen's examples: fixed, they don't change. Each Show
+// sentence describes what its photo shows; change them together.
 // picture: the photo; phonePicture: its middle, for phones held upright (see
 // phonePhotoMedia in config.ts). Replacing a photo? Replace both.
 
@@ -18,36 +19,36 @@ const tell: Slide[] = [
   {
     key: 1,
     tell: "It is cold outside.",
-    show: "My breath puffed out like a little cloud, and the crunchy grass snapped under my boots.",
+    show: "Every tree wore a thick white coat, and my boots left a lonely trail across the frozen hill.",
     short: "Cold",
-    alt: "Someone walking through snowy trees",
+    alt: "A lone hiker crossing a snowy hill of frosted trees",
     picture: "/images/winter.jpg",
     phonePicture: "/images/winter-phone.jpg",
   },
   {
     key: 2,
     tell: "It is hot outside.",
-    show: "The sun pressed on my shoulders like a heavy blanket, and my ice cream dripped faster than I could lick it.",
+    show: "Golden sand stretched to the sky with nowhere to hide, and every step burned through my shoes.",
     short: "Hot",
-    alt: "A hot sunny day",
+    alt: "Sand dunes under a cloudless blue sky",
     picture: "/images/summer.jpg",
     phonePicture: "/images/summer-phone.jpg",
   },
   {
     key: 3,
     tell: "His room is messy.",
-    show: "Socks hid under pizza boxes, and the floor crunched with every step.",
+    show: "His blanket had tumbled halfway to the floor, and the pillows looked like they had lost a pillow fight.",
     short: "Messy room",
-    alt: "A very messy room",
+    alt: "An unmade bed with a crumpled blanket sliding off",
     picture: "/images/messy.jpg",
     phonePicture: "/images/messy-phone.jpg",
   },
   {
     key: 4,
     tell: "Her room is clean.",
-    show: "The floor shone so brightly that I could see my own face smiling back at me.",
+    show: "Every pillow stood in a neat row, and her blanket lay so smooth that not one wrinkle dared to show.",
     short: "Clean room",
-    alt: "A very clean room",
+    alt: "A neatly made bed with its pillows in a row",
     picture: "/images/clean.jpg",
     phonePicture: "/images/clean-phone.jpg",
   },

@@ -617,6 +617,13 @@ h3,
   gap: 6px;
 }
 
+/* The narrowest phones wrap the sentences onto more lines */
+@media (max-width: 359px) {
+  .paper-welcome__words {
+    min-height: 200px;
+  }
+}
+
 .paper-welcome__sentence {
   margin: 0;
   font-family: var(--paper-font-display);
