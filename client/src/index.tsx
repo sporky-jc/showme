@@ -1,8 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "../src/components/App";
-import "bootstrap/dist/css/bootstrap.min.css";
-// After the UI libraries, so the paper theme's colors and fonts win
+// Bootstrap's reset only (Reboot: box sizes, margins, fonts), which every
+// page is laid out on; the rest of Bootstrap isn't used any more
+import "bootstrap/dist/css/bootstrap-reboot.min.css";
+// After the reset, so the paper theme's colors and fonts win
 import "./theme/paper.css";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";

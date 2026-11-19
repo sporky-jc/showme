@@ -7,33 +7,22 @@ import purgeCSSPlugin from "@fullhuman/postcss-purgecss";
 import tell from "./src/tellData";
 import { phonePhotoMedia } from "./src/config";
 
-// The style library (Bootstrap: about 230 KB) styles
-// far more than this site uses, and browsers download all of it before they
-// can draw anything. When building, keep only the rules for the classes, tags
-// and attributes this site uses: the ones written in its code, plus the ones
-// the libraries' own code adds while you use the site, which never appear in
-// our code as written (e.g. "show" while the sign-in pop-up opens).
-// Using a new react-bootstrap component, or a new variant (e.g.
-// <Button variant="success">)? Add its class names here: `npm start` keeps
-// every rule, so it looks fine there, but the built site would leave it
-// unstyled. (public/styles.css is not touched.)
+// Bootstrap's reset (Reboot) styles tags, and the libraries' own code adds
+// class names that never appear in our code as written. When building, keep
+// only the rules for the classes, tags and attributes this site uses: the
+// ones written in its code, plus those. `npm start` keeps every rule, so a
+// class only a library adds looks fine there but would be unstyled in the
+// built site: add it here. (public/styles.css is not touched.)
 const addedByLibraries = [
-  /^active$/, /^fade$/, /^show$/, /^showing$/, /^hiding$/,
-  /^disabled$/, /^visually-hidden/, // pop-ups
-  /^container/,
-  /^modal/, // Modal (the sign-in pop-up)
-  // Only the variants our code picks (each library has dozens): Button
-  // variant="primary"/"secondary" and Modal's close button
-  /^btn$/, /^btn-(primary|secondary|close)$/,
-  /^bg-/, /^text-/,
-  /^spinner/, // Spinner
+  /^visually-hidden/,
+  /^active$/, // NavLink, on the current page's link
 ];
 // Tags and attributes the libraries' rules select on (some are only written
 // by the libraries' own code, never ours)
 const tagsAndAttributes =
   "html body div span a p h1 h2 h3 h4 h5 h6 img picture source svg path i b strong small " +
   "button input textarea select option label form ol ul li nav " +
-  "footer header main section hr " +
+  "footer header main section hr dialog " +
   "hidden type role tabindex disabled readonly multiple size list title href class " +
   "submit reset checkbox radio";
 const removeUnusedStyles = () =>

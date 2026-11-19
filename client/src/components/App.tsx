@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import "bootstrap/dist/css/bootstrap.min.css";
 import NavbarComp from "./NavbarComp";
 import Footer from "./Footer";
 import { useDispatch } from "react-redux";

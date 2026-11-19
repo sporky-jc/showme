@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from "react";
-import Button from "react-bootstrap/Button";
-import Modal from "react-bootstrap/Modal";
+import React, { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { fetchUser } from "../actions/user";
 import { useLocation, useNavigate } from "react-router";
-import LoadingSpinner from "../components/LoadingSpinner";
+import Scribbles from "../components/Scribbles";
 import { loginUser } from "../api";
 import type { AppDispatch } from "../reducers/types";
 
@@ -18,7 +16,7 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
   // stays there; from anywhere else it opens Today, the student's home
   const onMyPage = /^\/(mysentences|mypage|write)(\/|$)/i.test(useLocation().pathname);
 
-  // state to show login modal
+  // Whether a sign-in is being finished (Google has answered, our backend hasn't)
   const [loading, setLoading] = useState(false);
 
   // Set up Google's sign-in button. The function Google calls after a sign-in
@@ -45,14 +43,14 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
       }
     }
 
-    // setup for Google identity service, once the modal has drawn its box
+    // setup for Google identity service, once the pop-up has drawn its box
     const timer = setTimeout(() => {
       google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleCallbackResponse,
       });
-      // The box is there: the modal draws it straight away, and the spinner
-      // only replaces it after a sign-in, which needs the button first
+      // The box is there: the pop-up draws it straight away, and "Signing
+      // you in" only replaces it after a sign-in, which needs the button first
       google.accounts.id.renderButton(document.getElementById("signInDiv")!, {
         type: "standard", // Google's default, which its types ask to spell out
         theme: "outline",
@@ -65,31 +63,70 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
     return () => clearTimeout(timer);
   }, [dispatch, navigate, onHide, onMyPage]);
 
-  // login modal with React and google identity service
-  return (
-    <>
-      {/* <Home /> */}
+  // The pop-up is the browser's own modal dialog: it keeps the keyboard
+  // inside, closes on Escape (its "cancel" event), and hides the page from
+  // screen readers while it's open. (Test browsers may lack showModal: then
+  // it just opens.)
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const box = dialog.current;
+    if (!box || !show) return;
+    if (typeof box.showModal === "function") box.showModal();
+    else box.setAttribute("open", "");
+    // The keyboard starts on the greeting (read out first), not with a ring
+    // on the close button, which the dialog would pick
+    box.querySelector<HTMLElement>("#signin-title")?.focus();
+    return () => {
+      if (typeof box.close === "function") box.close();
+      else box.removeAttribute("open");
+    };
+  }, [show]);
 
-      <Modal show={show} onHide={onHide}>
-        <Modal.Header closeButton>
-          <Modal.Title>Sign in with Google</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {loading ? (
-            <div className="spinner">
-              <LoadingSpinner />
-            </div>
-          ) : (
-            <div id="signInDiv"></div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </>
+  if (!show) return null;
+
+  // A wide-screen card with Scribbles waving on top; on a phone, a sheet
+  // that slides up from the bottom (see .paper-signin in paper.css)
+  return (
+    <dialog
+      ref={dialog}
+      className="paper-signin"
+      aria-labelledby="signin-title"
+      onCancel={(event) => {
+        event.preventDefault(); // close through onHide, like the buttons
+        onHide?.();
+      }}
+      // A press on the dimmed page around the card (the dialog itself, not
+      // anything inside it) closes it too
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onHide?.();
+      }}
+    >
+      <div className="paper-signin__card">
+        <div className="paper-signin__scribbles">
+          <Scribbles mood="happy" size={110} decorative />
+        </div>
+        <button type="button" className="paper-signin__close" aria-label="Close" onClick={onHide}>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 18 18">
+            <path d="M4 4 L14 14 M14 4 L4 14" />
+          </svg>
+        </button>
+        <h2 id="signin-title" tabIndex={-1}>
+          Hi! Ready to write?
+        </h2>
+        <p>Sign in to save your Show sentences and get them into the gallery.</p>
+        {/* Google draws its own button in here (it can't be restyled) */}
+        {loading ? (
+          <p className="paper-signin__busy" role="status">
+            Signing you in…
+          </p>
+        ) : (
+          <div id="signInDiv" className="paper-signin__google"></div>
+        )}
+        <button type="button" className="paper-signin__later" onClick={onHide}>
+          Not now
+        </button>
+      </div>
+    </dialog>
   );
 }
 

@@ -2504,3 +2504,206 @@ h3,
     gap: 48px;
   }
 }
+
+/* ---- The sign-in pop-up (pages/Login.tsx) ----
+   A native <dialog>. Wide screens: a paper card with an orange shadow and
+   Scribbles waving on top. Phones: a sheet that slides up from the bottom,
+   standing on the same green hill as the bottom bar. */
+
+.paper-signin {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  overflow: visible;
+  color: var(--paper-ink);
+  width: min(440px, calc(100vw - 32px));
+  max-width: none;
+  max-height: none;
+}
+
+.paper-signin::backdrop {
+  background: rgba(45, 42, 50, 0.45);
+}
+
+.paper-signin__card {
+  position: relative;
+  margin-top: 64px; /* room for Scribbles above the card */
+  background: var(--paper-white);
+  border-radius: 32px;
+  box-shadow: 12px 12px 0 #ffb27a;
+  padding: 64px 40px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.paper-signin__scribbles {
+  position: absolute;
+  top: -70px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.paper-signin h2 {
+  margin: 0;
+  font-size: 2.1rem;
+  line-height: 1.05;
+}
+
+.paper-signin p {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--paper-muted);
+}
+
+.paper-signin__google {
+  min-height: 44px; /* Google's button, once its script has drawn it */
+  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+}
+
+.paper-signin__busy {
+  min-height: 44px;
+  margin-top: 6px;
+}
+
+.paper-signin__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: #f1eefa;
+  color: var(--paper-ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.paper-signin__close svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.paper-signin__later {
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font-family: var(--paper-font-body);
+  font-weight: 800;
+  font-size: 1rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.paper-signin__close:focus-visible,
+.paper-signin__later:focus-visible {
+  outline: 3px solid var(--paper-ink);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767.98px) {
+  /* A sheet along the bottom edge */
+  .paper-signin {
+    width: 100%;
+    margin: auto 0 0;
+  }
+
+  .paper-signin__card {
+    margin-top: 0;
+    border-radius: 30px 30px 0 0;
+    box-shadow: none;
+    padding: 24px 24px calc(76px + env(safe-area-inset-bottom));
+    text-align: left;
+    /* the green hill along the bottom, like the bottom bar's */
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 90' preserveAspectRatio='none'%3E%3Cpath d='M0 40 C 80 10, 160 70, 240 34 S 360 12, 390 34 V90 H0 Z' fill='%239fdcae'/%3E%3Cpath d='M0 64 C 100 40, 200 88, 300 58 S 370 54, 390 60 V90 H0 Z' fill='%235fbf7d'/%3E%3C/svg%3E")
+        bottom / 100% 70px no-repeat,
+      var(--paper-white);
+    animation: paper-signin-up 0.25s ease-out;
+  }
+
+  /* Scribbles stands beside the heading instead of on top */
+  .paper-signin__card {
+    display: grid;
+    grid-template-columns: 76px 1fr;
+    align-items: center;
+    column-gap: 12px;
+  }
+
+  .paper-signin__card > * {
+    grid-column: 1 / -1;
+  }
+
+  .paper-signin__scribbles {
+    position: static;
+    transform: none;
+    grid-column: 1;
+    width: 76px;
+    height: 80px;
+  }
+
+  .paper-signin__scribbles > * {
+    transform: scale(0.69);
+    transform-origin: top left;
+  }
+
+  .paper-signin h2 {
+    grid-column: 2;
+    font-size: 1.75rem;
+    padding-right: 48px; /* clear of the close button */
+  }
+
+  .paper-signin p {
+    font-size: 1rem;
+  }
+
+  .paper-signin__google,
+  .paper-signin__busy,
+  .paper-signin__later {
+    justify-self: center;
+  }
+}
+
+@keyframes paper-signin-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-signin__card {
+    animation: none;
+  }
+}
+
+/* Read by screen readers, not shown (it was Bootstrap's) */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.paper-signin h2:focus {
+  outline: none; /* it only holds the keyboard's starting point */
+}

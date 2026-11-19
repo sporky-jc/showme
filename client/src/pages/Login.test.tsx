@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import type { InternalAxiosRequestConfig } from "axios";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router";
 import Login from "./Login";
 import { renderWithApp } from "../test/testUtils";
@@ -111,6 +112,45 @@ describe("Login", () => {
 
     expect(onHide).not.toHaveBeenCalled();
     expect(screen.getByTestId("where")).toHaveTextContent("/Collections");
+  });
+
+  it("is a dialog that says why to sign in, with Google's button in it", async () => {
+    renderLogin();
+
+    const dialog = await screen.findByRole("dialog", { name: "Hi! Ready to write?" });
+    expect(dialog).toHaveTextContent("Sign in to save your Show sentences and get them into the gallery.");
+    expect(dialog).toContainElement(document.getElementById("signInDiv"));
+  });
+
+  it("closes with Not now, the close button, Escape, or a press outside the card", async () => {
+    const { onHide } = renderLogin();
+    const dialog = await screen.findByRole("dialog", { name: "Hi! Ready to write?" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Not now" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent(dialog, new Event("cancel", { cancelable: true })); // Escape
+    fireEvent.click(dialog); // the dimmed page around the card
+    expect(onHide).toHaveBeenCalledTimes(4);
+
+    // A press inside the card doesn't
+    fireEvent.click(screen.getByRole("heading", { name: "Hi! Ready to write?" }));
+    expect(onHide).toHaveBeenCalledTimes(4);
+  });
+
+  it("says it's signing in while our backend answers", async () => {
+    let answer: (value: number) => void = () => {};
+    renderLogin({
+      respond: (c) => (c.url === "/auth" ? new Promise<number>((resolve) => (answer = resolve)) : 200),
+    });
+    await waitFor(() => expect(google.accounts.id.initialize).toHaveBeenCalled());
+    const { callback } = google.accounts.id.initialize.mock.calls[0][0];
+
+    act(() => {
+      void callback!({ credential: "google-id-token", select_by: "btn" });
+    });
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Signing you in…");
+    await act(async () => answer(200));
   });
 
   it("doesn't set up Google's button if the popup closes within 300ms", () => {
