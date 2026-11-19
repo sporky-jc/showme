@@ -1,14 +1,57 @@
 {
   "permissions": {
     "allow": [
-      "mcp__QA_Wolf"
+      "mcp__QA_Wolf",
+      "mcp__QA_Wolf__whoami",
+      "mcp__QA_Wolf__skill_list",
+      "mcp__QA_Wolf__skill_get",
+      "mcp__QA_Wolf__environment_find",
+      "mcp__QA_Wolf__environment_get",
+      "mcp__QA_Wolf__environment_listVariableNames",
+      "mcp__QA_Wolf__flow_list",
+      "mcp__QA_Wolf__flow_update",
+      "mcp__QA_Wolf__flow_addTag",
+      "mcp__QA_Wolf__flow_removeTag",
+      "mcp__QA_Wolf__flow_getHistory",
+      "mcp__QA_Wolf__run_create",
+      "mcp__QA_Wolf__run_get",
+      "mcp__QA_Wolf__run_find",
+      "mcp__QA_Wolf__run_reattempt",
+      "mcp__QA_Wolf__run_stop",
+      "mcp__QA_Wolf__run_diagnose",
+      "mcp__QA_Wolf__run_optOutOfInvestigation",
+      "mcp__QA_Wolf__attempt_get",
+      "mcp__QA_Wolf__investigation_get",
+      "mcp__QA_Wolf__investigation_question_find",
+      "mcp__QA_Wolf__suggestion_find",
+      "mcp__QA_Wolf__suggestion_get",
+      "mcp__QA_Wolf__suggestion_decide",
+      "mcp__QA_Wolf__promotion_find",
+      "mcp__QA_Wolf__promotion_get",
+      "mcp__QA_Wolf__agent_send",
+      "mcp__QA_Wolf__agent_get",
+      "mcp__QA_Wolf__propose_outline",
+      "mcp__QA_Wolf__activity_wait",
+      "mcp__QA_Wolf__runner_launch",
+      "mcp__QA_Wolf__runner_list",
+      "mcp__QA_Wolf__runner_get",
+      "mcp__QA_Wolf__runner_performAction",
+      "mcp__QA_Wolf__runner_performActions",
+      "mcp__QA_Wolf__runner_takeScreenshot",
+      "mcp__QA_Wolf__runner_inspect",
+      "mcp__QA_Wolf__runner_evaluateSnippet",
+      "mcp__QA_Wolf__runner_runFlow",
+      "mcp__QA_Wolf__runner_readJournal",
+      "mcp__QA_Wolf__runner_terminate",
+      "mcp__QA_Wolf__runner_stopRun"
     ],
     "ask": [
       "mcp__QA_Wolf__environment_deleteVariable",
       "mcp__QA_Wolf__environment_setVariable",
       "mcp__QA_Wolf__environment_terminate",
       "mcp__QA_Wolf__build_delete",
-      "mcp__QA_Wolf__trigger_delete"
+      "mcp__QA_Wolf__trigger_delete",
+      "mcp__QA_Wolf__workspace_setUp"
     ]
   }
 }
