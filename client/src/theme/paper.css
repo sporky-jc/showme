@@ -1,7 +1,7 @@
 /* The "paper cut-out" theme: sky, paper cards with a solid shadow, orange
    for anything you can press, and one color per sentence status.
 
-   Imported in src/index.tsx after Bootstrap and MDB, so equal-strength rules
+   Imported in src/index.tsx after Bootstrap, so equal-strength rules
    here win over theirs. Pages still use public/styles.css for their layout. */
 
 :root {
@@ -58,8 +58,7 @@ h3,
 .paper-display {
   font-family: var(--paper-font-display);
   font-weight: 800;
-  /* No color here: headings take their section's color (pages like About
-     put white headings on a dark panel) */
+  /* No color here: headings take their section's color */
 }
 
 /* ---- Building blocks ---- */
@@ -2135,5 +2134,366 @@ h3,
 
   .paper-review__decide .paper-btn {
     min-width: 150px;
+  }
+}
+
+/* ---- About ---- */
+
+/* What Show ME is, how it works and what teachers do. On a wide screen the
+   pitch and an example sit side by side, then the steps in a row; on a phone
+   everything stacks. */
+.paper-about {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px 20px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  text-align: left;
+}
+
+.paper-about__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 36px;
+  align-items: center;
+}
+
+.paper-about__pitch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.paper-about__badge {
+  background: var(--paper-white);
+  border-radius: 10px;
+  padding: 4px 14px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 3px 0 var(--paper-edge);
+}
+
+.paper-about__badge--ink {
+  background: var(--paper-ink);
+  color: var(--paper-white);
+  box-shadow: none;
+}
+
+.paper-about__title {
+  margin: 0;
+  font-size: clamp(2.4rem, 5.5vw, 4rem);
+  line-height: 1.05;
+}
+
+.paper-about__lead {
+  margin: 0;
+  max-width: 34em;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.paper-about__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.paper-about__join {
+  font-size: 1.5rem;
+  border-radius: 18px;
+}
+
+.paper-about__more {
+  font-family: var(--paper-font-body);
+  font-size: 1.1rem;
+}
+
+/* The Tell and its Show sentence, under the photo */
+.paper-about__example {
+  margin: 0 12px 12px 0; /* room for the orange sheet behind */
+}
+
+.paper-about__example-card {
+  padding: 16px;
+}
+
+.paper-about__photo {
+  display: block;
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  border-radius: 200px 200px 22px 22px;
+}
+
+.paper-about__pair {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 6px 4px;
+}
+
+.paper-about__tell {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--paper-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--paper-action);
+}
+
+.paper-about__show {
+  margin: 0;
+  font-family: var(--paper-font-display);
+  font-weight: 700;
+  font-size: 1.45rem;
+  line-height: 1.25;
+}
+
+.paper-about__heading {
+  margin: 0;
+  font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+  line-height: 1.15;
+}
+
+/* How it works: three cards, Scribbles beside the heading */
+.paper-about__how {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.paper-about__how-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.paper-about__scribbles {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.paper-about__scribbles .paper-bubble {
+  max-width: 240px;
+}
+
+.paper-about__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.paper-about__step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--paper-white);
+  border-radius: 26px;
+  padding: 24px 26px;
+  box-shadow: 0 7px 0 var(--paper-edge);
+}
+
+.paper-about__step h3 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.paper-about__step p {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--paper-muted);
+}
+
+.paper-about__number {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+}
+
+.paper-about__step--turn {
+  box-shadow: 0 7px 0 var(--paper-turn-edge);
+}
+
+.paper-about__step--turn .paper-about__number {
+  background: var(--paper-turn-bg);
+  color: var(--paper-turn-ink);
+}
+
+.paper-about__step--action {
+  box-shadow: 0 7px 0 #ffb27a;
+}
+
+.paper-about__step--action .paper-about__number {
+  background: var(--paper-action);
+  color: var(--paper-action-ink);
+}
+
+.paper-about__step--done {
+  box-shadow: 0 7px 0 var(--paper-done-edge);
+}
+
+.paper-about__step--done .paper-about__number {
+  background: var(--paper-done-bg);
+  color: var(--paper-done-ink);
+}
+
+.paper-about__senses {
+  margin: 0;
+  padding: 4px 0 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.paper-about__senses li {
+  background: var(--paper-sky);
+  border-radius: 10px;
+  padding: 4px 11px;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+/* For teachers, with a small picture of the review page */
+.paper-about__teachers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  border-radius: 32px;
+  padding: 28px 24px;
+  box-shadow: 0 8px 0 var(--paper-edge);
+}
+
+.paper-about__teachers-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.paper-about__points {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--paper-muted);
+}
+
+.paper-about__review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--paper-sky);
+  border-radius: 24px;
+  padding: 20px 22px;
+}
+
+.paper-about__review-label {
+  margin: 0;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper-muted);
+}
+
+.paper-about__review-sentence {
+  margin: 0;
+  font-family: var(--paper-font-display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  line-height: 1.3;
+}
+
+.paper-about__review-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.paper-about__approve,
+.paper-about__redo {
+  flex: 1;
+  border-radius: 14px;
+  padding: 10px;
+  text-align: center;
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+/* The same colors as the real buttons on the review page */
+.paper-about__approve {
+  background: var(--paper-done-ink);
+  box-shadow: 0 4px 0 #14562b;
+  color: var(--paper-white);
+}
+
+.paper-about__redo {
+  background: var(--paper-retry-bg);
+  box-shadow: 0 4px 0 var(--paper-retry-edge);
+}
+
+.paper-about__closing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .paper-about {
+    gap: 64px;
+    padding-top: 36px;
+  }
+
+  .paper-about__steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .paper-about__teachers {
+    padding: 36px 40px;
+  }
+}
+
+@media (min-width: 992px) {
+  .paper-about__hero {
+    grid-template-columns: minmax(0, 1fr) 460px;
+    gap: 56px;
+  }
+
+  .paper-about__photo {
+    height: 220px;
+  }
+
+  .paper-about__teachers {
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 48px;
   }
 }

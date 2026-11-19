@@ -46,4 +46,27 @@ describe("About", () => {
     expect(screen.getByTestId("where")).toHaveTextContent(/^\/MySentences$/);
     expect(openLogin).not.toHaveBeenCalled();
   });
+
+  it("Start writing at the bottom does what Join Us! does", async () => {
+    const openLogin = renderAbout({});
+
+    await userEvent.click(screen.getByRole("link", { name: "Start writing" }));
+
+    expect(openLogin).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/about$/);
+  });
+
+  it("shows how it works and what teachers do", () => {
+    renderAbout({});
+
+    expect(screen.getByRole("heading", { level: 1, name: "Write sentences that paint pictures." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How it works" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
+      "Get today's Tell",
+      "Show it your way",
+      "Join the gallery",
+    ]);
+    expect(screen.getByRole("heading", { name: "You decide what reaches the gallery." })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Gallery");
+  });
 });

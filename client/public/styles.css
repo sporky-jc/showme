@@ -37,10 +37,6 @@ body {
   justify-content: center;
 }
 
-/* About page height */
-.contentmypage {
-  min-height: 87.5vh;
-}
 .content {
   min-height: 84vh;
 }
@@ -68,54 +64,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* About page styles */
-.about {
-  min-height: 87.5vh;
-}
-
-/* Mobile phone styles */
-@media (max-width: 480px) and (orientation: portrait) {
-  .contentmypage {
-    min-height: 79vh;
-  }
-
-  .about {
-    font-size: medium !important;
-  }
-}
-
-/* Tablet styles */
-@media (max-width: 1024px) and (orientation: portrait) {
-  .contentmypage {
-    min-height: 89vh;
-  }
-
-  .about {
-    min-height: 91.5vh;
-    font-size: xx-large;
-  }
-  .joinbutton {
-    min-width: 13rem;
-    min-height: 3rem;
-    font-size: x-large !important;
-  }
-}
-@media (max-width: 1366px) and (orientation: landscape) {
-  .contentmypage {
-    min-height: 88.5vh;
-  }
-
-  .about {
-    min-height: 88.5vh;
-    font-size: xx-large;
-  }
-  .joinbutton {
-    min-width: 13rem;
-    min-height: 3rem;
-    font-size: x-large !important;
-  }
 }
 
 /* Styles for collection page */
