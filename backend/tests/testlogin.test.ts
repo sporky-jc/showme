@@ -53,6 +53,32 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
       expect(adminPage.status).toBe(200);
     });
 
+    it("logs in as the account-menu test admin, a teacher of its own", async () => {
+      const res = await request(app)
+        .post("/auth/test")
+        .send({ secret: pass(), role: "admin-menu" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.isAdmin).toBe(true);
+      expect(await Profile.countDocuments({ id: "test-admin-menu" })).toBe(1);
+      const adminPage = await request(app)
+        .get("/Admin")
+        .set("Cookie", `session=${tokenFromLogin(res)}`);
+      expect(adminPage.status).toBe(200);
+    });
+
+    it("keeps the test admins apart: logging out as admin-menu leaves admin signed in", async () => {
+      const admin = await request(app).post("/auth/test").send({ secret: pass(), role: "admin" });
+      const menu = await request(app).post("/auth/test").send({ secret: pass(), role: "admin-menu" });
+
+      await request(app).post("/Logout").set("Cookie", `session=${tokenFromLogin(menu)}`);
+
+      const adminPage = await request(app)
+        .get("/Admin")
+        .set("Cookie", `session=${tokenFromLogin(admin)}`);
+      expect(adminPage.status).toBe(200);
+    });
+
     it("reuses the same test account on every login instead of creating new ones", async () => {
       await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
       await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
