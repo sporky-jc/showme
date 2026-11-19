@@ -7,7 +7,7 @@ import purgeCSSPlugin from "@fullhuman/postcss-purgecss";
 import tell from "./src/tellData";
 import { phonePhotoMedia } from "./src/config";
 
-// The style libraries (MDB, Bootstrap and Font Awesome: about 570 KB) style
+// The style libraries (MDB and Bootstrap: about 500 KB) style
 // far more than this site uses, and browsers download all of it before they
 // can draw anything. When building, keep only the rules for the classes, tags
 // and attributes this site uses: the ones written in its code, plus the ones
@@ -20,14 +20,13 @@ import { phonePhotoMedia } from "./src/config";
 const addedByLibraries = [
   /^active$/, /^fade$/, /^show$/, /^showing$/, /^hiding$/,
   /^disabled$/, /^visually-hidden/, // pop-ups
-  /^container/, /^row$/, /^col/, // MDBContainer, MDBRow/MDBCol
-  /^modal/, /^tooltip/, /^bs-tooltip/, // Modal (the sign-in pop-up), Admin's MDBTooltip
+  /^container/,
+  /^modal/, // Modal (the sign-in pop-up)
   // Only the variants our code picks (each library has dozens): Button
   // variant="primary"/"secondary" and Modal's close button
   /^btn$/, /^btn-(primary|secondary|close)$/,
   /^bg-/, /^text-/,
-  /^spinner/, /^card/, /^table/, /^ripple/, // Spinner, MDBCard, MDBTable, MDB's click ripple
-  /^fa[srb]?$/, /^fa-(list-check|check|rotate-right|lg|width-auto)$/, // Admin's MDBIcons (size="lg")
+  /^spinner/, // Spinner
 ];
 // Tags and attributes that only the libraries' code writes (e.g. <table>, or
 // a menu's data-bs-target and a tooltip's data-popper-placement, with

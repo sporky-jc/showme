@@ -113,7 +113,7 @@ describe("an admin opening the review page", () => {
     // Waiting for the server's answer: no redirect, no queue yet
     await settle();
     expect(where()).toBe("/admin");
-    expect(screen.queryByText("Sentences Awaiting Approval")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs your eyes")).not.toBeInTheDocument();
 
     login.release({ status: 200, data: admin });
 
@@ -158,10 +158,10 @@ describe("an admin opening the review page", () => {
       },
     });
     await screen.findByText("Leo Student");
-    const rowOf = (name: string) => screen.getByText(name).closest("tr")!;
-    const leosApprove = rowOf("Leo Student").querySelector(".fa-check")!; // aimed at Leo's row
+    const approve = (name: string) => screen.getByRole("button", { name: `Approve: ${name}'s sentence` });
+    const leosApprove = approve("Leo Student"); // aimed at Leo's card
 
-    fireEvent.click(rowOf("Mia Student").querySelector(".fa-check")!);
+    fireEvent.click(approve("Mia Student"));
     await screen.findByText("Sam Student"); // the queue has changed
     fireEvent.click(leosApprove);
 
@@ -184,7 +184,7 @@ describe("pages that need a login", () => {
     });
 
     await waitFor(() => expect(where()).toBe("/"));
-    expect(screen.queryByText("Sentences Awaiting Approval")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs your eyes")).not.toBeInTheDocument();
   });
 
   it("a logged-out visitor opening /admin is sent home once the server says nobody is logged in", async () => {
@@ -194,7 +194,7 @@ describe("pages that need a login", () => {
     });
 
     await waitFor(() => expect(where()).toBe("/"));
-    expect(screen.queryByText("Sentences Awaiting Approval")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs your eyes")).not.toBeInTheDocument();
   });
 });
 
