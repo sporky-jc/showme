@@ -23,6 +23,7 @@ function MyPage() {
   if (!signedIn) {
     return (
       <div className="paper-mine">
+        <h1 className="visually-hidden">My sentences</h1>
         <SignInPrompt>Sign in to write your own sentences and see them here.</SignInPrompt>
       </div>
     );
@@ -32,6 +33,7 @@ function MyPage() {
   if (loaded === "failed") {
     return (
       <div className="paper-mine">
+        <h1 className="visually-hidden">My sentences</h1>
         <div className="page-message" role="alert">
           <p>
             We couldn&apos;t load your sentences. Check your internet

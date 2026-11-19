@@ -256,6 +256,8 @@ describe("Write", () => {
     renderWrite({ list: () => (online ? { status: 200, data: shows(2) } : "offline") });
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't load your sentence/i);
+    // A message-only state still has the page's name as a heading
+    expect(screen.getByRole("heading", { level: 1, name: "Write" })).toBeInTheDocument();
     online = true;
     await user.click(screen.getByRole("button", { name: "Try again" }));
 

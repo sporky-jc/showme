@@ -63,6 +63,8 @@ const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).le
 // The Write page: today's Tell sentence and a big box to show it in, with
 // Scribbles beside it. Also where a sentence is edited (/Write/<its id>).
 // Once the server has the sentence, the page says Scribbles is checking it.
+// States that show only a message (sign in, couldn't load, not found, all
+// done) still have the page's name as a heading, for screen readers.
 function WriteSentence({ id }: { id: string | undefined }) {
   const user = useSelector((state: RootState) => state.user);
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
@@ -90,6 +92,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
   if (!signedIn) {
     return (
       <div className="paper-write">
+        <h1 className="visually-hidden">Write</h1>
         <SignInPrompt>Sign in to write your own sentences.</SignInPrompt>
       </div>
     );
@@ -133,6 +136,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
   if (loaded === "failed") {
     return (
       <div className="paper-write">
+        <h1 className="visually-hidden">Write</h1>
         <div className="page-message" role="alert">
           <p>
             We couldn&apos;t load your sentence. Check your internet
@@ -156,6 +160,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
   if (id && !editing) {
     return (
       <div className="paper-write">
+        <h1 className="visually-hidden">Write</h1>
         <div className="page-message">
           <p>We couldn&apos;t find that sentence.</p>
           <Link to="/MySentences" className="paper-btn paper-btn--action">
@@ -170,6 +175,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
     // Every Tell sentence there is has been written for
     return (
       <div className="paper-write">
+        <h1 className="visually-hidden">Write</h1>
         <div className="page-message">
           <p>You showed every sentence! Come back later for more.</p>
           <Link to="/Gallery" className="paper-btn paper-btn--action">
