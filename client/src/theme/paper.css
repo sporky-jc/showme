@@ -2512,13 +2512,16 @@ h3,
 
 .paper-signin {
   border: 0;
-  padding: 0;
+  /* room for the card's orange shadow, inside the dialog's scroll box */
+  padding: 0 14px 14px 0;
   background: transparent;
-  overflow: visible;
   color: var(--paper-ink);
-  width: min(440px, calc(100vw - 32px));
+  width: min(454px, calc(100vw - 32px));
   max-width: none;
-  max-height: none;
+  /* A short screen (a phone on its side) scrolls the pop-up, so nothing in
+     it is out of reach */
+  max-height: 100dvh;
+  overflow-y: auto;
 }
 
 .paper-signin::backdrop {
@@ -2527,7 +2530,7 @@ h3,
 
 .paper-signin__card {
   position: relative;
-  margin-top: 64px; /* room for Scribbles above the card */
+  margin-top: 72px; /* room for Scribbles above the card */
   background: var(--paper-white);
   border-radius: 32px;
   box-shadow: 12px 12px 0 #ffb27a;
@@ -2570,6 +2573,10 @@ h3,
 .paper-signin__busy {
   min-height: 44px;
   margin-top: 6px;
+}
+
+.paper-signin__google[hidden] {
+  display: none;
 }
 
 .paper-signin__close {
@@ -2618,6 +2625,7 @@ h3,
   .paper-signin {
     width: 100%;
     margin: auto 0 0;
+    padding: 0;
   }
 
   .paper-signin__card {

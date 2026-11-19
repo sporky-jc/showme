@@ -137,6 +137,49 @@ describe("Login", () => {
     expect(onHide).toHaveBeenCalledTimes(4);
   });
 
+  it("stays open when a press starts inside the card and is let go outside it", async () => {
+    const { onHide } = renderLogin();
+    const dialog = await screen.findByRole("dialog", { name: "Hi! Ready to write?" });
+
+    // e.g. selecting the card's text: the browser "clicks" the dialog itself
+    fireEvent.pointerDown(screen.getByText(/Sign in to save/));
+    fireEvent.click(dialog);
+    expect(onHide).not.toHaveBeenCalled();
+
+    // A press from start to finish on the dimmed page still closes it
+    fireEvent.pointerDown(dialog);
+    fireEvent.click(dialog);
+    expect(onHide).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Google's button after a sign-in our backend refuses", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    renderLogin({ respond: (c) => (c.url === "/auth" ? 401 : 200) });
+    await waitFor(() => expect(google.accounts.id.initialize).toHaveBeenCalled());
+    const box = document.getElementById("signInDiv");
+    const { callback } = google.accounts.id.initialize.mock.calls[0][0];
+
+    await act(() => callback!({ credential: "bad", select_by: "btn" }));
+
+    // The same box Google drew into, shown again
+    expect(document.getElementById("signInDiv")).toBe(box);
+    expect(box).toBeVisible();
+  });
+
+  it("gives the keyboard back to what opened it when it closes", async () => {
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    const view = renderLogin();
+    await screen.findByRole("dialog", { name: "Hi! Ready to write?" });
+    expect(screen.getByRole("heading", { name: "Hi! Ready to write?" })).toHaveFocus();
+
+    view.unmount();
+
+    expect(opener).toHaveFocus();
+    opener.remove();
+  });
+
   it("says it's signing in while our backend answers", async () => {
     let answer: (value: number) => void = () => {};
     renderLogin({

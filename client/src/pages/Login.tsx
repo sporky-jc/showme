@@ -49,8 +49,7 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleCallbackResponse,
       });
-      // The box is there: the pop-up draws it straight away, and "Signing
-      // you in" only replaces it after a sign-in, which needs the button first
+      // The box is there: the pop-up draws it straight away
       google.accounts.id.renderButton(document.getElementById("signInDiv")!, {
         type: "standard", // Google's default, which its types ask to spell out
         theme: "outline",
@@ -71,6 +70,10 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
   useEffect(() => {
     const box = dialog.current;
     if (!box || !show) return;
+    // What had the keyboard (e.g. the Sign in button), to give it back on
+    // closing: the pop-up closes by leaving the page, which the browser
+    // doesn't count as closing a dialog, so it wouldn't do this itself
+    const opener = document.activeElement as HTMLElement | null;
     if (typeof box.showModal === "function") box.showModal();
     else box.setAttribute("open", "");
     // The keyboard starts on the greeting (read out first), not with a ring
@@ -79,8 +82,14 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
     return () => {
       if (typeof box.close === "function") box.close();
       else box.removeAttribute("open");
+      if (opener?.isConnected) opener.focus();
     };
   }, [show]);
+
+  // Where the last press began: a press that starts inside the card and is
+  // let go outside it (e.g. selecting its text) still "clicks" the dialog
+  // itself, and mustn't close it
+  const pressStart = useRef<EventTarget | null>(null);
 
   if (!show) return null;
 
@@ -96,9 +105,16 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
         onHide?.();
       }}
       // A press on the dimmed page around the card (the dialog itself, not
-      // anything inside it) closes it too
+      // anything inside it), from start to finish, closes it too
+      onPointerDown={(event) => {
+        pressStart.current = event.target;
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onHide?.();
+        const outside = event.target === event.currentTarget;
+        // No pointer press (a keyboard "click") counts by where it landed
+        const startedOutside = pressStart.current === null || pressStart.current === event.currentTarget;
+        pressStart.current = null;
+        if (outside && startedOutside) onHide?.();
       }}
     >
       <div className="paper-signin__card">
@@ -114,13 +130,14 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
           Hi! Ready to write?
         </h2>
         <p>Sign in to save your Show sentences and get them into the gallery.</p>
-        {/* Google draws its own button in here (it can't be restyled) */}
-        {loading ? (
+        {/* Google draws its own button in here (it can't be restyled).
+            Hidden, not removed, while signing in: Google draws it once, so
+            it must still be there if the sign-in fails */}
+        <div id="signInDiv" className="paper-signin__google" hidden={loading}></div>
+        {loading && (
           <p className="paper-signin__busy" role="status">
             Signing you in…
           </p>
-        ) : (
-          <div id="signInDiv" className="paper-signin__google"></div>
         )}
         <button type="button" className="paper-signin__later" onClick={onHide}>
           Not now
