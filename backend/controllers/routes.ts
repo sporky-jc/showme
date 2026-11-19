@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import {
   EditSentenceBody,
   NewSentenceBody,
+  REVIEW_STALE,
   ReviewBody,
   Sentence as SentenceAnswer,
   Sentences,
@@ -218,25 +219,34 @@ export const updatePendingApprovalSentences = async (
     const { status, sentence } = body.data;
 
     // The test admin may only review test accounts' sentences (see reviewQueue)
-    const checkedSentence = await Sentence.findOne({
+    const which = {
       _id: sentence._id,
       ...(isTestAccount(req.userId) ? { GID: TEST_SENTENCES } : {}),
-    });
+    };
 
-    if (!checkedSentence) {
-      return res.status(404).json({ message: "Sentence not found" });
-    }
+    // One step, and only if the sentence is still waiting and still has the
+    // date the reviewer's page showed (see ReviewBody): otherwise a stale page
+    // could undo another decision, or approve words the reviewer never read
+    const decided = await Sentence.findOneAndUpdate(
+      {
+        ...which,
+        approved: false,
+        toRedo: false,
+        createdAt: new Date(sentence.createdAt),
+      },
+      // approve, or "redo", the only other decision the contract allows
+      status === "approve"
+        ? { approved: true, toRedo: false }
+        : { approved: false, toRedo: true }
+    );
 
-    // update status depending if approve or needs redo
-    if (status === "approve") {
-      checkedSentence.approved = true;
-      checkedSentence.toRedo = false; // Ensure redo flag is cleared if approved
-    } else {
-      // "redo", the only other decision the contract allows
-      checkedSentence.toRedo = true;
-      checkedSentence.approved = false; // Ensure approved flag is cleared if redo
+    if (!decided) {
+      const exists = await Sentence.exists(which);
+      if (!exists) {
+        return res.status(404).json({ message: "Sentence not found" });
+      }
+      return res.status(409).json({ message: REVIEW_STALE });
     }
-    await checkedSentence.save();
 
     // send back the updated queue, newest first
     const awaitingApproval = await sentencesWithAuthorNames(

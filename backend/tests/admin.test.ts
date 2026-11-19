@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import app from "../app.js";
+import { REVIEW_STALE } from "../contract/api.js";
 import { Sentence } from "../models/sentences.js";
 import {
+  asReviewed,
   authorsIn,
   createAdmin,
   createSentence,
@@ -71,7 +73,7 @@ describe("GET /Admin", () => {
     const after = await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "approve", sentence: { _id: target._id } });
+      .send({ status: "approve", sentence: asReviewed(target) });
 
     const fields = [...SENTENCE_FIELDS, "author"].sort();
     expect(listed.body.map(fieldsOf)).toEqual([fields, fields]);
@@ -119,7 +121,7 @@ describe("PATCH /Admin", () => {
     const res = await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "approve", sentence: { _id: target._id } });
+      .send({ status: "approve", sentence: asReviewed(target) });
 
     expect(showsIn(res)).toEqual(["newer", "older"]);
   });
@@ -133,7 +135,7 @@ describe("PATCH /Admin", () => {
     const res = await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "approve", sentence: { _id: target._id } });
+      .send({ status: "approve", sentence: asReviewed(target) });
 
     expect(res.status).toBe(201);
     expect(showsIn(res)).toEqual(["still waiting"]);
@@ -148,12 +150,12 @@ describe("PATCH /Admin", () => {
   it("sends a sentence back for a redo", async () => {
     const admin = await createAdmin();
     const user = await createUser();
-    const target = await createSentence(user, { approved: true });
+    const target = await createSentence(user);
 
     await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "redo", sentence: { _id: target._id } });
+      .send({ status: "redo", sentence: asReviewed(target) });
 
     const saved = await Sentence.findById(target._id).orFail();
     expect(saved.toRedo).toBe(true);
@@ -172,7 +174,7 @@ describe("PATCH /Admin", () => {
       const res = await request(app)
         .patch("/Admin")
         .set("Cookie", sessionCookie(admin))
-        .send({ status, sentence: { _id: target._id } });
+        .send({ status, sentence: asReviewed(target) });
 
       expect(res.status).toBe(400);
       expect(res.body.message).toBe("The status must be approve or redo");
@@ -194,12 +196,96 @@ describe("PATCH /Admin", () => {
       const res = await request(app)
         .patch("/Admin")
         .set("Cookie", sessionCookie(admin))
-        .send({ status: "approve", sentence: { _id: id } });
+        .send({ status: "approve", sentence: { _id: id, createdAt: new Date().toISOString() } });
 
       expect(res.status).toBe(400);
       expect(await Sentence.countDocuments({ approved: true })).toBe(0);
     }
   );
+
+  // A decision counts only for the sentence the reviewer's page showed: still
+  // waiting, with the same date (see ReviewBody). Anything else is refused
+  // with 409 and changes nothing.
+  describe("a decision from a page that is out of date", () => {
+    it("can't approve words the student changed after the page loaded", async () => {
+      const admin = await createAdmin();
+      const user = await createUser();
+      const target = await createSentence(user, { show: "The old words." });
+      const seen = asReviewed(target);
+
+      // The student edits it while it's on the reviewer's page
+      await request(app)
+        .patch("/MyPage")
+        .set("Cookie", sessionCookie(user))
+        .send({ title: target.title, show: "Words nobody has read." });
+      const res = await request(app)
+        .patch("/Admin")
+        .set("Cookie", sessionCookie(admin))
+        .send({ status: "approve", sentence: seen });
+
+      expect(res.status).toBe(409);
+      expect(res.body.message).toBe(REVIEW_STALE);
+      const saved = await Sentence.findById(target._id).orFail();
+      expect(saved.approved).toBe(false);
+      expect(saved.show).toBe("Words nobody has read.");
+    });
+
+    it.each([
+      ["redo", "already approved", { approved: true, toRedo: false }],
+      ["approve", "already sent back", { approved: false, toRedo: true }],
+      ["approve", "already approved", { approved: true, toRedo: false }],
+    ] as const)("can't %s a sentence that was %s", async (status, _was, state) => {
+      const admin = await createAdmin();
+      const user = await createUser();
+      const target = await createSentence(user, state);
+
+      const res = await request(app)
+        .patch("/Admin")
+        .set("Cookie", sessionCookie(admin))
+        .send({ status, sentence: asReviewed(target) });
+
+      expect(res.status).toBe(409);
+      const saved = await Sentence.findById(target._id).orFail();
+      expect(saved.approved).toBe(state.approved);
+      expect(saved.toRedo).toBe(state.toRedo);
+    });
+
+    it("lets only the first of two reviewers decide", async () => {
+      const admin = await createAdmin();
+      const other = await createAdmin({ id: "google-admin-2", email: "admin2@example.com" });
+      const user = await createUser();
+      const target = await createSentence(user);
+
+      const first = await request(app)
+        .patch("/Admin")
+        .set("Cookie", sessionCookie(admin))
+        .send({ status: "approve", sentence: asReviewed(target) });
+      const second = await request(app)
+        .patch("/Admin")
+        .set("Cookie", sessionCookie(other))
+        .send({ status: "redo", sentence: asReviewed(target) });
+
+      expect(first.status).toBe(201);
+      expect(second.status).toBe(409);
+      const saved = await Sentence.findById(target._id).orFail();
+      expect(saved.approved).toBe(true);
+      expect(saved.toRedo).toBe(false);
+    });
+
+    it("refuses a decision with no date (400), changing nothing", async () => {
+      const admin = await createAdmin();
+      const user = await createUser();
+      const target = await createSentence(user);
+
+      const res = await request(app)
+        .patch("/Admin")
+        .set("Cookie", sessionCookie(admin))
+        .send({ status: "approve", sentence: { _id: String(target._id) } });
+
+      expect(res.status).toBe(400);
+      expect((await Sentence.findById(target._id).orFail()).approved).toBe(false);
+    });
+  });
 
   it("returns 404 for a sentence that doesn't exist", async () => {
     const admin = await createAdmin();
@@ -207,7 +293,7 @@ describe("PATCH /Admin", () => {
     const res = await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "approve", sentence: { _id: "65f000000000000000000000" } });
+      .send({ status: "approve", sentence: { _id: "65f000000000000000000000", createdAt: new Date().toISOString() } });
 
     expect(res.status).toBe(404);
   });

@@ -239,6 +239,30 @@ describe("Admin", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  // The student edited it after the page loaded, or someone already reviewed
+  // it: the server refuses (409), and the page says so and shows the latest,
+  // so the new words get read before anyone approves them
+  it("when the sentence changed or was already reviewed, says so and shows the latest words", async () => {
+    let lists = 0;
+    const edited = { ...waiting[0], show: "Words the reviewer hasn't read yet." };
+    renderAdmin({
+      list: () => {
+        lists += 1;
+        return { status: 200, data: lists === 1 ? waiting : [edited, waiting[1]] };
+      },
+      update: () => 409,
+    });
+    await screen.findByText("Mia Torres");
+
+    fireEvent.click(approve("Mia Torres"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This sentence changed or someone already reviewed it. Here's the latest."
+    );
+    expect(await screen.findByText("Words the reviewer hasn't read yet.")).toBeInTheDocument();
+    expect(lists).toBe(2);
+  });
+
   // The sentence is gone on the server (say, someone else handled it): its
   // card mustn't stay behind to fail again and again
   it("when the server no longer has the sentence, asks for the queue again so its card goes", async () => {

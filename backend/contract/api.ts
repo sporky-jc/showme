@@ -53,10 +53,17 @@ const sentenceId = z
 // goes into a database query, so it must be a real id written as text (24
 // hexadecimal digits): an object like {"$ne": null} would be read as "any
 // sentence".
+// createdAt is the sentence's date as the reviewer's page got it. Editing a
+// sentence gives it a new date, so the decision only counts if the sentence
+// still has this one: the reviewer approves the words they read, never words
+// the student changed after their page loaded.
+export const REVIEW_STALE =
+  "This sentence changed or was already reviewed. Here is the latest list.";
 export const ReviewBody = z.object({
   sentence: z.object(
     {
       _id: sentenceId,
+      createdAt: z.iso.datetime({ error: "The sentence's date is missing" }),
     },
     { error: INVALID_ID }
   ),

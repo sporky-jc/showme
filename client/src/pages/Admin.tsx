@@ -51,7 +51,9 @@ function Admin() {
   const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState<string | null>(null);
   const [said, setSaid] = useState("");
-  const [failed, setFailed] = useState(false);
+  // Why the last decision didn't count, if it didn't: it couldn't be saved,
+  // or the sentence had changed or was already reviewed ("stale")
+  const [failed, setFailed] = useState<false | "failed" | "stale">(false);
   // "Now", for how long each sentence has waited: read once, when the page
   // opens, so the cards don't change while they're being read
   const [now] = useState(() => Date.now());
@@ -107,14 +109,15 @@ function Admin() {
     if (saving) return;
     setSaving(sentence._id);
     setFailed(false);
-    const saved = await dispatch(updatePendingApprovalSentences(status, sentence));
-    if (!saved) {
+    const outcome = await dispatch(updatePendingApprovalSentences(status, sentence));
+    if (outcome !== "saved") {
       // Ask for the queue again: the sentence may be gone (someone else
-      // handled it), and its card shouldn't stay to fail again
+      // handled it) or changed (the student edited it, so it comes back with
+      // its new words to read), and its old card shouldn't stay to fail again
       await dispatch(fetchApprovalSentences());
       focusNext.current = { id: sentence._id };
       setSaving(null);
-      setFailed(true);
+      setFailed(outcome);
       return;
     }
     focusNext.current = { place };
@@ -189,8 +192,9 @@ function Admin() {
         <>
           {failed && (
             <p className="paper-review__failed" role="alert">
-              That didn&apos;t save. If the sentence is still here, press the
-              button again.
+              {failed === "stale"
+                ? "This sentence changed or someone already reviewed it. Here's the latest."
+                : "That didn't save. If the sentence is still here, press the button again."}
             </p>
           )}
           <ol className="paper-review__queue" ref={list}>

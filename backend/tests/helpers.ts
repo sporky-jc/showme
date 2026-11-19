@@ -95,3 +95,10 @@ export const createSentence = (
     GID: user.id,
     ...overrides,
   });
+
+// The sentence as a reviewer's page sends it with a decision (PATCH /Admin):
+// its id, and the date the page got with it (see ReviewBody)
+export const asReviewed = (sentence: { _id: unknown; createdAt: Date }) => ({
+  _id: String(sentence._id),
+  createdAt: sentence.createdAt.toISOString(),
+});
