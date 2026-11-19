@@ -84,6 +84,9 @@ const TEST_ACCOUNTS: Record<string, TestAccount> = {
   "student-tablet-b": testStudent("student-tablet-b"),
   // The Write page's sense tips and word count
   "student-senses": testStudent("student-senses"),
+  // Edits a sentence while a teacher's page still shows the old words, so
+  // the teacher's out-of-date Approve is refused (see ReviewBody)
+  "student-stale-approval": testStudent("student-stale-approval"),
   admin: testAdmin("admin"),
   // Logs out, which ends every session of its account (see logout in
   // routes.ts), so it needs its own: logging out as "admin" would sign out
