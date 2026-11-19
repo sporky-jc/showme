@@ -4,32 +4,32 @@
 // A pass is "v1.<expiry, in Unix seconds>.<HMAC-SHA256 of 'v1.<expiry>'
 // keyed with TEST_LOGIN_KEY, in hex>", exactly as backend/utils/testPass.ts
 // builds and checks it. Only GitHub's secrets and the staging backend hold
-// TEST_LOGIN_KEY; QA Wolf only ever gets passes, which expire.
+// TEST_LOGIN_KEY; QA Wolf only ever gets passes, which expire. So a pass
+// that leaks soon stops working, and no one can make a new one without the
+// key. And one does leak: QA Wolf's pull request comments carry a "run
+// tests" link holding the run's variables, all of them (a deployment's and
+// the environment's), and this repository is public. A deployment's pass
+// takes the place of the environment's in that link, so the deployment
+// pass is kept as short as a run allows: 1 hour.
 //
-// A pass is only ever saved as a QA Wolf environment variable, never sent
-// with a deployment: QA Wolf writes a deployment's variables into the "run
-// tests" link of its pull request comment, and this repository is public.
-// Environment variables stay inside QA Wolf.
-//
-// Two modes, both saving a pass as the flows' TEST_LOGIN_SECRET:
+// Two ways to hand QA Wolf a pass, both as the flows' TEST_LOGIN_SECRET:
 //
 //   node test-login-pass.mjs save
-//     Saves a 24-hour pass in QA Wolf's staging environment, so every run
-//     there can sign in, however it was started: by a deploy, by hand, or by
-//     the QA Wolf AI. Run every hour (refresh-qawolf-test-pass.yml) and after
-//     each staging deploy. Needs TEST_LOGIN_KEY and QAWOLF_API_KEY.
+//     Saves a 24-hour pass as the TEST_LOGIN_SECRET variable of QA Wolf's
+//     staging environment, so every run there can sign in, however it was
+//     started: by a deploy, by hand, or by the QA Wolf AI. Run every hour
+//     (refresh-qawolf-test-pass.yml) and after each staging deploy.
+//     Needs TEST_LOGIN_KEY and QAWOLF_API_KEY.
 //
-//   node test-login-pass.mjs pr
-//     For a pull request preview, just before telling QA Wolf about it. QA
-//     Wolf gives each pull request its own environment, copied from staging
-//     when the first preview of it is tested. If that environment exists
-//     (PR_ENVIRONMENT_NAME), a 24-hour pass is saved in it; if not yet, in
-//     staging, so the copy starts with a fresh one. Then writes to
-//     GITHUB_OUTPUT, as `variables`, the JSON for the deployment: only
-//     TEST_LOGIN_APPROVED_PREVIEW_URL (from APPROVED_PREVIEW_URL), which some
-//     flows check before using the test login on a preview. Not secret.
-//     Needs TEST_LOGIN_KEY and QAWOLF_API_KEY: without them the step fails
-//     rather than send a pass anywhere it would show.
+//   node test-login-pass.mjs output
+//     Writes a 1-hour pass to GITHUB_OUTPUT as `variables`, the JSON the
+//     notify-qawolf-on-deploy action passes to the runs that deployment
+//     starts (used for pull request previews, whose environments are copies
+//     made when the pull request opened). Without TEST_LOGIN_KEY it leaves
+//     the pass out and warns, so the runs fall back to the environment's
+//     variable. With APPROVED_PREVIEW_URL it also sends that address as
+//     TEST_LOGIN_APPROVED_PREVIEW_URL, which some flows check before using
+//     the test login on a preview.
 //
 // The key is read from the environment, never from the command line, where
 // it would show in the runner's process list. In GitHub Actions the pass is
@@ -45,13 +45,15 @@ const WORKSPACE_ID = "xoniuprcn2am5nh63rx8fn6cotea"; // not a secret
 const QAWOLF_HOST = process.env.QAWOLF_HOST_URL ?? "https://app.qawolf.com";
 const QAWOLF_ENVIRONMENT = "staging"; // the QA Wolf environment's alias
 const VARIABLE = "TEST_LOGIN_SECRET"; // the name the flows read
-// The preview the pass is for (pr mode, from APPROVED_PREVIEW_URL)
+// The preview the pass is for (output mode, from APPROVED_PREVIEW_URL)
 const PREVIEW_VARIABLE = "TEST_LOGIN_APPROVED_PREVIEW_URL";
 const MIN_KEY_LENGTH = 32; // as the backend requires
 // The refresh is scheduled hourly, but GitHub has run it only every 6 to 10
-// hours, so a saved pass has to outlast the longest gap between runs. (The
-// backend refuses passes over 26 hours.)
+// hours, so a saved pass has to outlast the longest gap between runs
 const SAVED_PASS_HOURS = 24;
+// A pull request's runs take a few minutes; 1 hour leaves room for QA Wolf's
+// own retries. (The backend refuses passes over 26 hours.)
+const DEPLOY_PASS_HOURS = 1;
 
 const fail = (message) => {
   console.log(`::error::${message}`);
@@ -82,13 +84,14 @@ const keyOrUndefined = () => {
 // `qawolf environment setVariable`). Retries network errors and server
 // errors a few times; a refusal (4xx) is final. QA Wolf never sends the
 // value back, so nothing secret is printed.
-const apiKey = () => process.env.QAWOLF_API_KEY || fail("QAWOLF_API_KEY is not set");
+const saveToQaWolf = async (pass) => {
+  const apiKey = process.env.QAWOLF_API_KEY;
+  if (!apiKey) fail("QAWOLF_API_KEY is not set");
 
-const saveToQaWolf = async (pass, environmentId) => {
   const body = JSON.stringify({
     json: {
       workspaceId: WORKSPACE_ID,
-      environmentId,
+      environmentId: QAWOLF_ENVIRONMENT,
       name: VARIABLE,
       value: pass,
     },
@@ -101,7 +104,7 @@ const saveToQaWolf = async (pass, environmentId) => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${apiKey()}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body,
@@ -122,84 +125,31 @@ const saveToQaWolf = async (pass, environmentId) => {
   fail("Could not save the test-login pass in QA Wolf");
 };
 
-
-// A read call to QA Wolf's public API (the input goes in the address as
-// { json }), with the same retries as saving
-const readQaWolf = async (procedure, input) => {
-  const url = `${QAWOLF_HOST}/api/trpc/public.${procedure}?input=${encodeURIComponent(JSON.stringify({ json: input }))}`;
-  const attempts = 3;
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${apiKey()}` },
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (response.ok) {
-        const body = await response.json();
-        return body.result?.data?.json ?? body.result?.data;
-      }
-      const reason = `QA Wolf answered ${response.status}: ${(await response.text()).slice(0, 300)}`;
-      if (response.status < 500) fail(reason);
-      console.log(`::warning::${reason} (attempt ${attempt})`);
-    } catch (error) {
-      console.log(`::warning::Could not reach QA Wolf: ${error.message} (attempt ${attempt})`);
-    }
-    if (attempt < attempts) {
-      await new Promise((resolve) => setTimeout(resolve, attempt * 5_000));
-    }
-  }
-  fail(`Could not read ${procedure} from QA Wolf`);
-};
-
-// The id of the pull request's own QA Wolf environment (named like
-// "Sporky-jc-showme-pr-115"), or undefined if QA Wolf hasn't made it yet
-const findPrEnvironment = async (name) => {
-  let cursor;
-  for (let page = 0; page < 5; page++) {
-    const { environments = [], nextCursor } = await readQaWolf("environment.find", {
-      workspaceId: WORKSPACE_ID,
-      kind: "preview",
-      limit: 100,
-      ...(cursor ? { cursor } : {}),
-    });
-    const match = environments.find(
-      (environment) =>
-        environment.name?.toLowerCase() === name.toLowerCase() && !environment.terminatedAt
-    );
-    if (match) return match.id;
-    if (!nextCursor) return undefined;
-    cursor = nextCursor;
-  }
-  return undefined;
-};
-
 const mode = process.argv[2];
 if (mode === "save") {
   const key = keyOrUndefined();
   if (!key) fail("TEST_LOGIN_KEY is not set");
-  await saveToQaWolf(mintPass(key, SAVED_PASS_HOURS), QAWOLF_ENVIRONMENT);
+  await saveToQaWolf(mintPass(key, SAVED_PASS_HOURS));
   console.log(
     `Saved a ${SAVED_PASS_HOURS}-hour test-login pass as ${VARIABLE} in QA Wolf's ${QAWOLF_ENVIRONMENT} environment.`
   );
-} else if (mode === "pr") {
+} else if (mode === "output") {
   const outputFile = process.env.GITHUB_OUTPUT;
   if (!outputFile) fail("GITHUB_OUTPUT is not set");
   const key = keyOrUndefined();
-  if (!key) fail("TEST_LOGIN_KEY is not set");
-  const name = process.env.PR_ENVIRONMENT_NAME;
-  if (!name) fail("PR_ENVIRONMENT_NAME is not set");
-  const prEnvironment = await findPrEnvironment(name);
-  await saveToQaWolf(mintPass(key, SAVED_PASS_HOURS), prEnvironment ?? QAWOLF_ENVIRONMENT);
-  console.log(
-    prEnvironment
-      ? `Saved a ${SAVED_PASS_HOURS}-hour test-login pass as ${VARIABLE} in QA Wolf's ${name} environment.`
-      : `QA Wolf has no ${name} environment yet: saved a ${SAVED_PASS_HOURS}-hour test-login pass in ${QAWOLF_ENVIRONMENT}, which it is copied from.`
-  );
-  // Only what isn't secret goes with the deployment (see the top of this file)
   const variables = {};
+  if (key) {
+    variables[VARIABLE] = mintPass(key, DEPLOY_PASS_HOURS);
+  } else {
+    console.log(
+      `::warning::No TEST_LOGIN_KEY secret: the runs use the ${VARIABLE} saved in QA Wolf`
+    );
+  }
+  // Some flows only use the test login on a preview whose address is also
+  // given here, so a pass can't be pointed at some other site by mistake
   const previewUrl = process.env.APPROVED_PREVIEW_URL;
   if (previewUrl) variables[PREVIEW_VARIABLE] = previewUrl;
   appendFileSync(outputFile, `variables=${JSON.stringify(variables)}\n`);
 } else {
-  fail("Usage: node test-login-pass.mjs save|pr");
+  fail("Usage: node test-login-pass.mjs save|output");
 }

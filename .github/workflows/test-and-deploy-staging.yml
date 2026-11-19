@@ -278,19 +278,28 @@ jobs:
       # A fresh pass in QA Wolf's staging environment, where this
       # deployment's runs, and runs started there by hand or by the QA Wolf
       # AI, all read it (the hourly refresh-qawolf-test-pass.yml keeps it
-      # fresh after that, so a run re-tried hours later still signs in).
-      # Never sent with the deployment instead: QA Wolf can show a
-      # deployment's variables in public, see test-login-pass.mjs. If saving
-      # fails, the runs still start, with the pass saved last time (24 hours,
-      # refreshed hourly). Time-boxed, so a slow QA Wolf can't use up the
-      # job's time before the runs are requested.
+      # fresh after that, so a run re-tried hours later still signs in). If
+      # saving fails, it only warns: the step below then hands this
+      # deployment's runs a pass of their own. Time-boxed, so a slow QA Wolf
+      # can't use up the job's time before the runs are requested.
       - name: Save a fresh test-login pass in QA Wolf
+        id: save
         continue-on-error: true
         timeout-minutes: 2
         env:
           TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
           QAWOLF_API_KEY: ${{ secrets.QAWOLF_API_KEY }}
         run: node .github/scripts/test-login-pass.mjs save
+
+      # Only if saving failed: a pass handed over with this deployment, for
+      # the runs it starts. (Not otherwise: a pass pinned to the deployment
+      # would expire under a run re-tried more than 1 hour later.)
+      - name: Mint a short-lived test-login pass for this deployment's runs
+        id: pass
+        if: steps.save.outcome != 'success'
+        env:
+          TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
+        run: node .github/scripts/test-login-pass.mjs output
 
       - name: Tell QA Wolf staging was deployed
         uses: qawolf/notify-qawolf-on-deploy-action@v3
@@ -301,3 +310,4 @@ jobs:
           workspace-id: xoniuprcn2am5nh63rx8fn6cotea # not a secret
           environment: staging # the QA Wolf environment's alias
           deployment-url: ${{ env.STAGING_URL }}
+          variables: ${{ steps.pass.outputs.variables || '{}' }}

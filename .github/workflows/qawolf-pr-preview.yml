@@ -77,21 +77,18 @@ jobs:
         with:
           node-version: '24'
 
-      # A fresh test-login pass for this pull request's QA Wolf environment
-      # (or for staging, which that environment is copied from, if QA Wolf
-      # hasn't made it yet). Saved in QA Wolf, not sent with the deployment:
-      # QA Wolf writes a deployment's variables into its pull request comment,
-      # and this repository is public. See .github/scripts/test-login-pass.mjs.
-      - name: Save a fresh test-login pass in QA Wolf
+      # A short-lived test-login pass for the runs this deployment starts: the
+      # pull request's QA Wolf environment is a copy made when it opened, so
+      # its saved pass may have expired (see test-login-pass.mjs). A run
+      # re-tried more than 1 hour later needs a new push (or re-labelling).
+      # Kept short because QA Wolf's pull request comment shows it in public.
+      - name: Mint a short-lived test-login pass for this deployment's runs
         id: pass
         env:
           TEST_LOGIN_KEY: ${{ secrets.TEST_LOGIN_KEY }}
-          QAWOLF_API_KEY: ${{ secrets.QAWOLF_API_KEY }}
-          # The environment QA Wolf makes for this pull request
-          PR_ENVIRONMENT_NAME: ${{ github.repository_owner }}-${{ github.event.repository.name }}-pr-${{ github.event.pull_request.number }}
           # Some flows only use the test login on the preview named here
           APPROVED_PREVIEW_URL: ${{ env.PREVIEW_URL }}
-        run: node .github/scripts/test-login-pass.mjs pr
+        run: node .github/scripts/test-login-pass.mjs output
 
       # No environment given: QA Wolf puts the run in this pull request's own
       # short-lived environment (sporky-jc-showme-pr-<number>, copied from
@@ -104,4 +101,4 @@ jobs:
           qawolf-api-key: ${{ secrets.QAWOLF_API_KEY }}
           workspace-id: xoniuprcn2am5nh63rx8fn6cotea # not a secret
           deployment-url: ${{ env.PREVIEW_URL }}
-          variables: ${{ steps.pass.outputs.variables }}
+          variables: ${{ steps.pass.outputs.variables || '{}' }}
