@@ -272,6 +272,63 @@ describe("PATCH /Admin", () => {
       expect(saved.toRedo).toBe(false);
     });
 
+    // Some early sentences hold their date as text, and a few have none.
+    // Their reviewer's page must still be able to decide on them.
+    it.each([
+      ["a date stored as text (ISO)", "2023-05-01T12:00:00.000Z"],
+      ["a date stored as text (old style)", "Mon May 01 2023 12:00:00 GMT+0000"],
+      ["no stored date", undefined],
+    ])("can decide on a sentence with %s, as the page shows it", async (_kind, createdAt) => {
+      const admin = await createAdmin();
+      const user = await createUser();
+      const { insertedId } = await Sentence.collection.insertOne({
+        title: "Day 1",
+        tell: "The room was messy.",
+        show: "Old words.",
+        author: user._id,
+        GID: user.id,
+        approved: false,
+        toRedo: false,
+        ...(createdAt === undefined ? {} : { createdAt }),
+      });
+
+      const queue = await request(app).get("/Admin").set("Cookie", sessionCookie(admin));
+      const shown = queue.body.find((s: { _id: string }) => s._id === String(insertedId));
+      const res = await request(app)
+        .patch("/Admin")
+        .set("Cookie", sessionCookie(admin))
+        .send({ status: "approve", sentence: { _id: shown._id, createdAt: shown.createdAt } });
+
+      expect(res.status).toBe(201);
+      expect((await Sentence.collection.findOne({ _id: insertedId }))?.approved).toBe(true);
+    });
+
+    it("refuses an old page's date for a sentence stored with a text date", async () => {
+      const admin = await createAdmin();
+      const user = await createUser();
+      const { insertedId } = await Sentence.collection.insertOne({
+        title: "Day 1",
+        tell: "The room was messy.",
+        show: "Old words.",
+        author: user._id,
+        GID: user.id,
+        approved: false,
+        toRedo: false,
+        createdAt: "2023-05-01T12:00:00.000Z",
+      });
+
+      const res = await request(app)
+        .patch("/Admin")
+        .set("Cookie", sessionCookie(admin))
+        .send({
+          status: "approve",
+          sentence: { _id: String(insertedId), createdAt: "2023-04-30T12:00:00.000Z" },
+        });
+
+      expect(res.status).toBe(409);
+      expect((await Sentence.collection.findOne({ _id: insertedId }))?.approved).toBe(false);
+    });
+
     it("refuses a decision with no date (400), changing nothing", async () => {
       const admin = await createAdmin();
       const user = await createUser();

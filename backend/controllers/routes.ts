@@ -10,6 +10,7 @@ import {
   TellSentences,
   User,
 } from "../contract/api.js";
+import { Types } from "mongoose";
 import { Sentence } from "../models/sentences.js";
 import Profile from "../models/profile.js";
 import tellList from "../public/tellList.js";
@@ -111,26 +112,30 @@ export const editUserSentence = async (req: Request, res: Response) => {
       return res.status(400).json({ message: firstProblem(body.error) });
     }
     const { title, show } = body.data;
-    // find sentence to replace
-    const updateSentence = await Sentence.findOne({
-      GID: req.userId,
-      title: title,
-    });
+    // Replace it in one write: reading it, changing it and saving it would
+    // leave a gap in which a reviewer's approval could land and then stay on
+    // the new words (Mongoose saves only the fields it sees change). It goes
+    // back to waiting, with a new date (so a reviewer's page showing the old
+    // words is now out of date, see ReviewBody), and its likes start again
+    // from the 1 like for passing review once approved (see
+    // controllers/likes.ts): they were for the old text.
+    const updateSentence = await Sentence.findOneAndUpdate(
+      { GID: req.userId, title: title },
+      {
+        $set: {
+          show,
+          createdAt: new Date(),
+          toRedo: false,
+          approved: false,
+          likedBy: [],
+        },
+      },
+      { new: true }
+    );
 
     if (!updateSentence) {
       return res.status(404).json({ message: "Sentence not found" });
     }
-
-    // update with new sentence
-    updateSentence.show = show;
-    updateSentence.createdAt = new Date();
-    updateSentence.toRedo = false;
-    updateSentence.approved = false;
-    // Its likes were for the old text: it starts again from the 1 like for
-    // passing review once approved (see controllers/likes.ts)
-    updateSentence.likedBy = [];
-    await updateSentence.save();
-    // send back updated sentence
 
     answer(res, 201, SentenceAnswer, updateSentence);
   } catch (error) {
@@ -224,27 +229,51 @@ export const updatePendingApprovalSentences = async (
       ...(isTestAccount(req.userId) ? { GID: TEST_SENTENCES } : {}),
     };
 
-    // One step, and only if the sentence is still waiting and still has the
-    // date the reviewer's page showed (see ReviewBody): otherwise a stale page
-    // could undo another decision, or approve words the reviewer never read
-    const decided = await Sentence.findOneAndUpdate(
+    // The sentence as it is stored, without Mongoose's conversions: some early
+    // sentences hold their date as text (see newestFirst), and a few have none
+    const stored = await Sentence.findOne(which, {
+      approved: 1,
+      toRedo: 1,
+      createdAt: 1,
+    }).lean<{ approved?: boolean; toRedo?: boolean; createdAt?: Date | string }>();
+    if (!stored) {
+      return res.status(404).json({ message: "Sentence not found" });
+    }
+
+    // The decision counts only if the sentence is still waiting and still has
+    // the date the reviewer's page showed (see ReviewBody): otherwise a stale
+    // page could undo another decision, or approve words the reviewer never
+    // read. A sentence with no stored date gets a new one each time it's read,
+    // so its page can't send it back: only its state is checked (editing it
+    // gives it a real date, so an edit still makes the page stale).
+    const sameDate =
+      stored.createdAt === undefined ||
+      new Date(stored.createdAt).getTime() === new Date(sentence.createdAt).getTime();
+    if (stored.approved || stored.toRedo || !sameDate) {
+      return res.status(409).json({ message: REVIEW_STALE });
+    }
+
+    // One write, matching the stored date exactly as stored (the database
+    // driver, unlike Mongoose, doesn't turn text dates into real ones), so
+    // nothing can change the sentence between the check above and the update
+    const { matchedCount } = await Sentence.collection.updateOne(
       {
-        ...which,
+        _id: new Types.ObjectId(sentence._id),
+        ...(isTestAccount(req.userId) ? { GID: TEST_SENTENCES } : {}),
         approved: false,
         toRedo: false,
-        createdAt: new Date(sentence.createdAt),
+        createdAt: stored.createdAt ?? { $exists: false },
       },
-      // approve, or "redo", the only other decision the contract allows
-      status === "approve"
-        ? { approved: true, toRedo: false }
-        : { approved: false, toRedo: true }
-    );
-
-    if (!decided) {
-      const exists = await Sentence.exists(which);
-      if (!exists) {
-        return res.status(404).json({ message: "Sentence not found" });
+      {
+        // approve, or "redo", the only other decision the contract allows
+        $set:
+          status === "approve"
+            ? { approved: true, toRedo: false }
+            : { approved: false, toRedo: true },
       }
+    );
+    if (matchedCount === 0) {
+      // It changed between the check and the update
       return res.status(409).json({ message: REVIEW_STALE });
     }
 
@@ -256,7 +285,8 @@ export const updatePendingApprovalSentences = async (
     answer(res, 201, SentencesWithAuthors, awaitingApproval);
   } catch (error) {
     res.locals.error = error;
-    res.status(409).json({ message: messageOf(error) });
+    // 500, not 409: the page reads 409 as "changed or already reviewed"
+    res.status(500).json({ message: messageOf(error) });
   }
 };
 

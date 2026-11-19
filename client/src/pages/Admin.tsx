@@ -114,10 +114,11 @@ function Admin() {
       // Ask for the queue again: the sentence may be gone (someone else
       // handled it) or changed (the student edited it, so it comes back with
       // its new words to read), and its old card shouldn't stay to fail again
-      await dispatch(fetchApprovalSentences());
+      const reloaded = await dispatch(fetchApprovalSentences());
       focusNext.current = { id: sentence._id };
       setSaving(null);
-      setFailed(outcome);
+      // "Here's the latest" only if the latest did arrive
+      setFailed(outcome === "stale" && reloaded ? "stale" : "failed");
       return;
     }
     focusNext.current = { place };
@@ -161,6 +162,15 @@ function Admin() {
       <p className="visually-hidden" role="status">
         {said}
       </p>
+      {/* Above the queue, and above "All caught up!" too: the sentence that
+          didn't count may have been the last one */}
+      {failed && loaded !== "failed" && (
+        <p className="paper-review__failed" role="alert">
+          {failed === "stale"
+            ? "This sentence changed or someone already reviewed it. Here's the latest."
+            : "That didn't save. If the sentence is still here, press the button again."}
+        </p>
+      )}
 
       {loaded === "failed" ? (
         <div className="page-message" role="alert">
@@ -190,13 +200,6 @@ function Admin() {
         </div>
       ) : (
         <>
-          {failed && (
-            <p className="paper-review__failed" role="alert">
-              {failed === "stale"
-                ? "This sentence changed or someone already reviewed it. Here's the latest."
-                : "That didn't save. If the sentence is still here, press the button again."}
-            </p>
-          )}
           <ol className="paper-review__queue" ref={list}>
             {queue.map((sentence, place) => {
               const name = nameOf(sentence);
