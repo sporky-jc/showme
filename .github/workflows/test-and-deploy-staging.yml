@@ -293,7 +293,7 @@ jobs:
 
       # Only if saving failed: a pass handed over with this deployment, for
       # the runs it starts. (Not otherwise: a pass pinned to the deployment
-      # would expire under a run re-tried more than 3 hours later.)
+      # would expire under a run re-tried more than 1 hour later.)
       - name: Mint a short-lived test-login pass for this deployment's runs
         id: pass
         if: steps.save.outcome != 'success'

@@ -97,6 +97,14 @@ describe("isValidTestPass", () => {
     return JSON.parse(line.slice("variables=".length));
   };
 
+  // QA Wolf shows a deployment's pass in its public pull request comment
+  it("makes the deployment's pass last only an hour", () => {
+    const pass = outputVariables({ TEST_LOGIN_KEY: KEY }).TEST_LOGIN_SECRET;
+    const hours = (Number(pass.split(".")[1]) - now()) / 3600;
+    expect(hours).toBeGreaterThan(0.99);
+    expect(hours).toBeLessThanOrEqual(1);
+  });
+
   it("sends the preview's address with the pass, for flows that check it", () => {
     const url = "https://deploy-preview-7--show-me-not-tell.netlify.app";
     const variables = outputVariables({ TEST_LOGIN_KEY: KEY, APPROVED_PREVIEW_URL: url });

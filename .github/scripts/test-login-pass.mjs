@@ -5,8 +5,12 @@
 // keyed with TEST_LOGIN_KEY, in hex>", exactly as backend/utils/testPass.ts
 // builds and checks it. Only GitHub's secrets and the staging backend hold
 // TEST_LOGIN_KEY; QA Wolf only ever gets passes, which expire. So a pass
-// that leaks (QA Wolf's pull request comments have shown run variables)
-// soon stops working, and no one can make a new one without the key.
+// that leaks soon stops working, and no one can make a new one without the
+// key. And one does leak: QA Wolf's pull request comments carry a "run
+// tests" link holding the run's variables, all of them (a deployment's and
+// the environment's), and this repository is public. A deployment's pass
+// takes the place of the environment's in that link, so the deployment
+// pass is kept as short as a run allows: 1 hour.
 //
 // Two ways to hand QA Wolf a pass, both as the flows' TEST_LOGIN_SECRET:
 //
@@ -18,7 +22,7 @@
 //     Needs TEST_LOGIN_KEY and QAWOLF_API_KEY.
 //
 //   node test-login-pass.mjs output
-//     Writes a 3-hour pass to GITHUB_OUTPUT as `variables`, the JSON the
+//     Writes a 1-hour pass to GITHUB_OUTPUT as `variables`, the JSON the
 //     notify-qawolf-on-deploy action passes to the runs that deployment
 //     starts (used for pull request previews, whose environments are copies
 //     made when the pull request opened). Without TEST_LOGIN_KEY it leaves
@@ -47,7 +51,9 @@ const MIN_KEY_LENGTH = 32; // as the backend requires
 // The refresh is scheduled hourly, but GitHub has run it only every 6 to 10
 // hours, so a saved pass has to outlast the longest gap between runs
 const SAVED_PASS_HOURS = 24;
-const DEPLOY_PASS_HOURS = 3; // the backend refuses passes over 26 hours
+// A pull request's runs take a few minutes; 1 hour leaves room for QA Wolf's
+// own retries. (The backend refuses passes over 26 hours.)
+const DEPLOY_PASS_HOURS = 1;
 
 const fail = (message) => {
   console.log(`::error::${message}`);
