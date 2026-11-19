@@ -13,7 +13,7 @@ import { phonePhotoMedia } from "./src/config";
 // and attributes this site uses: the ones written in its code, plus the ones
 // the libraries' own code adds while you use the site, which never appear in
 // our code as written (e.g. "show" while the sign-in pop-up opens).
-// Using a new react-bootstrap or MDB component, or a new variant (e.g.
+// Using a new react-bootstrap component, or a new variant (e.g.
 // <Button variant="success">)? Add its class names here: `npm start` keeps
 // every rule, so it looks fine there, but the built site would leave it
 // unstyled. (public/styles.css is not touched.)
@@ -28,16 +28,14 @@ const addedByLibraries = [
   /^bg-/, /^text-/,
   /^spinner/, // Spinner
 ];
-// Tags and attributes that only the libraries' code writes (e.g. <table>, or
-// a menu's data-bs-target and a tooltip's data-popper-placement, with
-// its values). MDB writes a few tag names in capitals.
+// Tags and attributes the libraries' rules select on (some are only written
+// by the libraries' own code, never ours)
 const tagsAndAttributes =
   "html body div span a p h1 h2 h3 h4 h5 h6 img picture source svg path i b strong small " +
-  "button input textarea select option label form ol ul li table thead tbody tr th td nav " +
-  "footer header main section hr INPUT SELECT TEXTAREA " +
+  "button input textarea select option label form ol ul li nav " +
+  "footer header main section hr " +
   "hidden type role tabindex disabled readonly multiple size list title href class " +
-  "submit reset checkbox radio data-bs-target data-bs-popper data-mdb-popper " +
-  "data-popper-placement top bottom start end left right auto";
+  "submit reset checkbox radio";
 const removeUnusedStyles = () =>
   purgeCSSPlugin({
     content: ["./index.html", "./src/**/*.{ts,tsx}", { raw: tagsAndAttributes, extension: "html" }],

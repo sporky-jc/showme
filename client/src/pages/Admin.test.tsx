@@ -127,7 +127,7 @@ describe("Admin", () => {
   // The server sends the newest first; nobody should be left at the bottom
   it("puts the longest wait first, and says how long each has waited", async () => {
     const day = 86_400_000;
-    const sent = (daysAgo: number) => new Date(Date.now() - daysAgo * day - 60_000).toISOString();
+    const sent = (daysAgo: number) => new Date(Date.now() - daysAgo * day).toISOString();
     renderAdmin({
       queue: [
         { ...waiting[0], _id: "new", author: { firstName: "Newest" }, createdAt: sent(0) },
@@ -141,6 +141,29 @@ describe("Admin", () => {
     expect(cards()[0]).toHaveTextContent("Sent 5 days ago");
     expect(cards()[1]).toHaveTextContent("Sent yesterday");
     expect(cards()[2]).toHaveTextContent("Sent today");
+  });
+
+  // By the calendar, not by 24-hour blocks: the usual morning review of
+  // what was written the afternoon before
+  it("calls a sentence sent late yesterday 'yesterday', even if that was only minutes ago", async () => {
+    const lastNight = new Date();
+    lastNight.setHours(0, 0, 0, 0);
+    lastNight.setMinutes(-1); // 23:59 yesterday
+    renderAdmin({ queue: [{ ...waiting[0], createdAt: lastNight.toISOString() }] });
+
+    await screen.findByText("Mia Torres");
+    expect(cards()[0]).toHaveTextContent("Sent yesterday");
+  });
+
+  it("the last decision leaves the keyboard on the heading and says all caught up", async () => {
+    renderAdmin({ queue: [waiting[0]], afterUpdate: [] });
+    await screen.findByText("Mia Torres");
+
+    fireEvent.click(approve("Mia Torres"));
+
+    expect(await screen.findByText("All caught up!")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Approved Mia Torres's sentence. All caught up!");
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveFocus());
   });
 
   it("approving a card sends that card's sentence, then shows the updated queue and says so", async () => {
@@ -158,9 +181,9 @@ describe("Admin", () => {
     await waitFor(() => expect(screen.queryByText("Mia Torres")).not.toBeInTheDocument());
     expect(cards()).toHaveLength(1);
     expect(screen.getByText("1 waiting")).toBeInTheDocument();
-    // For screen readers, and the keyboard goes back to the top of the queue
-    expect(screen.getByRole("status")).toHaveTextContent("Approved Mia Torres's sentence.");
-    expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+    // For screen readers; the keyboard goes to the card that took its place
+    expect(screen.getByRole("status")).toHaveTextContent("Approved Mia Torres's sentence. 1 waiting.");
+    await waitFor(() => expect(approve("Leo Chen")).toHaveFocus());
   });
 
   it("Try again sends 'redo' with that card's sentence", async () => {
@@ -176,7 +199,7 @@ describe("Admin", () => {
     });
     expect(JSON.parse(patch.data)).toEqual({ status: "redo", sentence: waiting[1] });
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Sent Leo Chen's sentence back to try again.")
+      expect(screen.getByRole("status")).toHaveTextContent("Sent Leo Chen's sentence back to try again. 1 waiting.")
     );
   });
 
@@ -188,7 +211,7 @@ describe("Admin", () => {
 
     fireEvent.click(approve("Mia Torres"));
 
-    expect(await screen.findByRole("button", { name: "Approve: Mia Torres's sentence" })).toHaveTextContent("Saving…");
+    expect(await screen.findByRole("button", { name: "Saving: Mia Torres's sentence" })).toHaveTextContent("Saving…");
     screen.getAllByRole("button").forEach((button) => expect(button).toBeDisabled());
     fireEvent.click(tryAgain("Leo Chen"));
     expect(requests.filter((r) => r.method === "patch")).toHaveLength(1);
@@ -198,7 +221,7 @@ describe("Admin", () => {
   });
 
   // Before, a decision the server didn't take failed without a word
-  it("when a decision can't be saved, says so and keeps the card for another try", async () => {
+  it("when a decision can't be saved, says so and keeps the card and the keyboard on it for another try", async () => {
     let online = false;
     renderAdmin({ update: () => (online ? { status: 201, data: [waiting[1]] } : "offline") });
     await screen.findByText("Mia Torres");
@@ -207,12 +230,34 @@ describe("Admin", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/didn't save/i);
     expect(screen.getByText("Mia Torres")).toBeInTheDocument();
+    await waitFor(() => expect(approve("Mia Torres")).toHaveFocus());
 
     online = true;
     fireEvent.click(approve("Mia Torres"));
 
     await waitFor(() => expect(screen.queryByText("Mia Torres")).not.toBeInTheDocument());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  // The sentence is gone on the server (say, someone else handled it): its
+  // card mustn't stay behind to fail again and again
+  it("when the server no longer has the sentence, asks for the queue again so its card goes", async () => {
+    let lists = 0;
+    renderAdmin({
+      list: () => {
+        lists += 1;
+        return { status: 200, data: lists === 1 ? waiting : [waiting[1]] };
+      },
+      update: () => 404,
+    });
+    await screen.findByText("Mia Torres");
+
+    fireEvent.click(approve("Mia Torres"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/didn't save/i);
+    await waitFor(() => expect(screen.queryByText("Mia Torres")).not.toBeInTheDocument());
+    expect(screen.getByText("Leo Chen")).toBeInTheDocument();
+    expect(lists).toBe(2);
   });
 
   it("with nothing waiting, says all caught up and points to the gallery", async () => {

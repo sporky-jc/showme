@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector, useDispatch, useStore } from "react-redux";
 import Scribbles from "../components/Scribbles";
 import PageLoading from "../components/PageLoading";
 import {
@@ -14,9 +14,11 @@ import type { AppDispatch, RootState } from "../reducers/types";
 const nameOf = ({ author }: SentenceWithAuthor) =>
   author.lastName ? `${author.firstName} ${author.lastName}` : author.firstName;
 
-// How long a sentence has waited, in words ("today", "2 days ago")
+// How long a sentence has waited, in words ("today", "2 days ago"), by the
+// calendar: one sent yesterday afternoon reads "yesterday" this morning
 const waitedSince = (createdAt: string, now: number) => {
-  const days = Math.floor((now - new Date(createdAt).getTime()) / 86_400_000);
+  const midnight = (time: number) => new Date(time).setHours(0, 0, 0, 0);
+  const days = Math.round((midnight(now) - midnight(new Date(createdAt).getTime())) / 86_400_000);
   if (!(days >= 1)) return "today"; // also a missing or future date
   return days === 1 ? "yesterday" : `${days} days ago`;
 };
@@ -37,6 +39,7 @@ function Admin() {
   );
 
   const dispatch = useDispatch<AppDispatch>();
+  const store = useStore<RootState>();
   const navigate = useNavigate();
   const isAdmin = user.isAdmin === true;
 
@@ -74,26 +77,56 @@ function Admin() {
     if (sessionChecked && !isAdmin) navigate("/");
   }, [sessionChecked, isAdmin, navigate]);
 
+  // Where the keyboard goes once a decision has been answered: back to the
+  // pressed button if it didn't save, or to the card that took its place.
+  // Set just before the redraw that turns the buttons back on, and used
+  // (once) right after it.
+  const focusNext = useRef<{ id: string } | { place: number } | null>(null);
+  const list = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const target = focusNext.current;
+    if (!target) return;
+    focusNext.current = null;
+    const cards = list.current?.querySelectorAll("li") ?? [];
+    const card =
+      "id" in target
+        ? list.current?.querySelector(`li[data-sentence="${CSS.escape(target.id)}"]`)
+        : cards[Math.min(target.place, cards.length - 1)];
+    const button = card?.querySelector("button");
+    // No card left to go to (the queue is empty, or it couldn't be loaded):
+    // the heading
+    if (button) button.focus();
+    else heading.current?.focus();
+  });
+
   // `sentence` is the one on the card that was pressed, passed in directly:
   // looking it up by position could pick another one if the queue changed
-  // between drawing the card and the press.
-  async function decide(sentence: SentenceWithAuthor, status: ReviewDecision) {
+  // between drawing the card and the press. `place` is where its card was.
+  async function decide(sentence: SentenceWithAuthor, status: ReviewDecision, place: number) {
     if (saving) return;
     setSaving(sentence._id);
     setFailed(false);
     const saved = await dispatch(updatePendingApprovalSentences(status, sentence));
-    setSaving(null);
     if (!saved) {
+      // Ask for the queue again: the sentence may be gone (someone else
+      // handled it), and its card shouldn't stay to fail again
+      await dispatch(fetchApprovalSentences());
+      focusNext.current = { id: sentence._id };
+      setSaving(null);
       setFailed(true);
       return;
     }
+    focusNext.current = { place };
+    setSaving(null);
+    // How many are left, so two decisions in a row never read the same
+    // (a screen reader stays silent when the words don't change)
+    const left = store.getState().approvalsentences.length;
     setSaid(
-      status === "approve"
+      (status === "approve"
         ? `Approved ${nameOf(sentence)}'s sentence.`
-        : `Sent ${nameOf(sentence)}'s sentence back to try again.`
+        : `Sent ${nameOf(sentence)}'s sentence back to try again.`) +
+        (left === 0 ? " All caught up!" : ` ${left} waiting.`)
     );
-    // The card is gone: put the keyboard back at the top of the queue
-    heading.current?.focus();
   }
 
   // Only render page if logged in user is admin; while the server is still
@@ -155,18 +188,18 @@ function Admin() {
         <>
           {failed && (
             <p className="paper-review__failed" role="alert">
-              That didn&apos;t save. Check your internet connection, then
-              press the button again.
+              That didn&apos;t save. If the sentence is still here, press the
+              button again.
             </p>
           )}
-          <ol className="paper-review__queue">
-            {queue.map((sentence) => {
+          <ol className="paper-review__queue" ref={list}>
+            {queue.map((sentence, place) => {
               const name = nameOf(sentence);
               return (
                 // Keyed by the sentence, so a card always stays that
                 // sentence's card when the queue changes, instead of being
                 // reused to show another one
-                <li className="paper-review__card" key={sentence._id}>
+                <li className="paper-review__card" key={sentence._id} data-sentence={sentence._id}>
                   <div className="paper-review__who">
                     <h2>{name}</h2>
                     <span className="paper-review__waited">
@@ -179,9 +212,11 @@ function Admin() {
                     <button
                       type="button"
                       className="paper-btn paper-review__approve"
-                      aria-label={`Approve: ${name}'s sentence`}
+                      aria-label={
+                        saving === sentence._id ? `Saving: ${name}'s sentence` : `Approve: ${name}'s sentence`
+                      }
                       disabled={saving !== null}
-                      onClick={() => decide(sentence, "approve")}
+                      onClick={() => decide(sentence, "approve", place)}
                     >
                       {saving === sentence._id ? "Saving…" : "Approve"}
                     </button>
@@ -190,7 +225,7 @@ function Admin() {
                       className="paper-btn paper-review__again"
                       aria-label={`Try again: ${name}'s sentence`}
                       disabled={saving !== null}
-                      onClick={() => decide(sentence, "redo")}
+                      onClick={() => decide(sentence, "redo", place)}
                     >
                       Try again
                     </button>
