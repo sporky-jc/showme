@@ -35,7 +35,7 @@ const prefetchPages = () => {
     (load) => load().catch(() => {}) // a failure here is retried on the click
   );
 };
-// Returns a function that cancels the wait, for when the navbar goes away first
+// Returns a function that cancels the wait, for when the nav bar goes away first
 const whenIdle = (callback: () => void) => {
   if (window.requestIdleCallback) {
     const id = window.requestIdleCallback(callback, { timeout: 3000 });
@@ -46,7 +46,7 @@ const whenIdle = (callback: () => void) => {
 };
 
 // Going to /login directly (an old bookmark, or typing the address): open the
-// sign-in pop-up over the home page, just like the Login link does. Login is
+// sign-in pop-up over the home page, just like the Sign in button does. Login is
 // a pop-up, so showing it on a page of its own left that page empty.
 function OpenLogin({ onOpen }: { onOpen: () => void }) {
   const navigate = useNavigate();
@@ -98,7 +98,14 @@ function AccountMenu({
   }, [open]);
 
   return (
-    <div className="paper-account" ref={wrapper}>
+    <div
+      className="paper-account"
+      ref={wrapper}
+      // Tabbing out of the menu closes it too
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
       <button
         type="button"
         ref={button}
@@ -113,7 +120,14 @@ function AccountMenu({
       {open && (
         <div className="paper-account__menu" id="account-menu">
           <p className="paper-account__name">{name}</p>
-          <Link to="/about" onClick={() => setOpen(false)}>
+          <Link
+            to="/about"
+            onClick={() => {
+              // The link is about to go away: keep the keyboard on the button
+              button.current?.focus();
+              setOpen(false);
+            }}
+          >
             About
           </Link>
           <button
@@ -154,13 +168,13 @@ function NavbarComp() {
 
   // Function to handle hiding the login modal. useCallback keeps it the same
   // function between draws, so Login doesn't set up Google's button again
-  // every time this navbar redraws.
+  // every time this nav bar redraws.
   const handleHideLoginModal = useCallback(() => {
     setShowLoginModal(false);
   }, []);
 
   // Sign out whoever is signed in, or open the sign-in pop-up
-  const signInorOut = () => authService(user, setLoading, handleShowLoginModal, () => {});
+  const signInorOut = () => authService(user, setLoading, handleShowLoginModal);
 
   // On a phone the main links are a bar along the bottom of the screen. It
   // steps aside on the Write page, where the keyboard needs the room (the

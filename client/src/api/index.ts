@@ -51,7 +51,7 @@ export const updatePendingApprovalSentences = (
     sentence,
   } satisfies ReviewBody);
 
-// Likes on the Collections page, for signed-in users only: every approved
+// Likes on the gallery page, for signed-in users only: every approved
 // sentence's likes, and liking or unliking one (each answers with that
 // sentence's likes after the change)
 export const fetchLikes = () => API.get<SentenceLikes[]>("/Collections/likes");

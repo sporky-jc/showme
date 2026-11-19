@@ -315,6 +315,12 @@ h3,
     line-height: 1.15;
   }
 
+  /* The page you're on, on the green: orange alone doesn't stand out from
+     it, so it also gets an ink outline */
+  .paper-nav__links a[aria-current="page"] {
+    box-shadow: 0 0 0 3px var(--paper-ink);
+  }
+
   /* Room for the bar under the last thing on the page */
   .paper-page {
     padding-bottom: calc(84px + env(safe-area-inset-bottom));
@@ -339,6 +345,20 @@ h3,
     text-align: center;
     font-weight: 700;
     color: var(--paper-muted);
+  }
+}
+
+/* The narrowest phones: a teacher's four links still fit their buttons */
+@media (max-width: 359.98px) {
+  .paper-nav__links {
+    gap: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .paper-nav__links a {
+    padding: 0 2px;
+    font-size: 0.82rem;
   }
 }
 
@@ -1440,7 +1460,6 @@ h3,
   .scribbles__arm,
   .scribbles__eye,
   .paper-btn,
-  .paper-nav .nav-link,
   .paper-welcome__photo img,
   .paper-note,
   .paper-gallery__card,

@@ -201,14 +201,29 @@ describe("the account button", () => {
     expect(screen.queryByRole("button", { name: "Log out" })).not.toBeInTheDocument();
   });
 
-  it("About closes the menu and opens the page", async () => {
+  it("About closes the menu and opens the page, keeping the keyboard on the button", async () => {
     renderNav("/", maya);
+    const button = screen.getByRole("button", { name: "Account: Maya Rivera" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Account: Maya Rivera" }));
+    await userEvent.click(button);
     await userEvent.click(screen.getByRole("link", { name: "About" }));
 
     expect(screen.getByTestId("where")).toHaveTextContent(/^\/about$/);
     expect(screen.queryByRole("button", { name: "Log out" })).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+  });
+
+  it("closes when the keyboard tabs out of it", async () => {
+    const user = userEvent.setup();
+    renderNav("/", maya);
+    const button = screen.getByRole("button", { name: "Account: Maya Rivera" });
+
+    await user.click(button);
+    await user.tab({ shift: true }); // back to the Gallery link
+
+    expect(screen.getByRole("link", { name: "Gallery" })).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Log out" })).not.toBeInTheDocument();
+    expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
   it("Log out signs the student out and goes home", async () => {

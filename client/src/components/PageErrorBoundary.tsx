@@ -20,7 +20,7 @@ interface State {
 
 // A safety net around the page area. If a page crashes or its code can't be
 // downloaded (e.g. the network dropped), show a message there instead of
-// React removing the whole app and leaving a blank screen. The navbar stays,
+// React removing the whole app and leaving a blank screen. The nav bar stays,
 // so the visitor can still go somewhere else.
 // Pass the current address as `resetKey`: moving to another page clears the
 // message. (Unlike a `key`, this keeps the same boundary, so React Router can

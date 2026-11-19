@@ -137,7 +137,7 @@ body {
 
 /* A short message instead of a page's usual content, in a light box that's
    readable on the sky: "couldn't load, try again" and "nothing approved
-   yet" on the gallery, "sign in" on MyPage */
+   yet" on the gallery, "sign in" on a student's pages */
 .page-message {
   max-width: 34rem;
   margin: 3rem auto;
