@@ -51,7 +51,9 @@ function Admin() {
   const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState<string | null>(null);
   const [said, setSaid] = useState("");
-  const [failed, setFailed] = useState(false);
+  // Why the last decision didn't count, if it didn't: it couldn't be saved,
+  // or the sentence had changed or was already reviewed ("stale")
+  const [failed, setFailed] = useState<false | "failed" | "stale">(false);
   // "Now", for how long each sentence has waited: read once, when the page
   // opens, so the cards don't change while they're being read
   const [now] = useState(() => Date.now());
@@ -107,14 +109,16 @@ function Admin() {
     if (saving) return;
     setSaving(sentence._id);
     setFailed(false);
-    const saved = await dispatch(updatePendingApprovalSentences(status, sentence));
-    if (!saved) {
+    const outcome = await dispatch(updatePendingApprovalSentences(status, sentence));
+    if (outcome !== "saved") {
       // Ask for the queue again: the sentence may be gone (someone else
-      // handled it), and its card shouldn't stay to fail again
-      await dispatch(fetchApprovalSentences());
+      // handled it) or changed (the student edited it, so it comes back with
+      // its new words to read), and its old card shouldn't stay to fail again
+      const reloaded = await dispatch(fetchApprovalSentences());
       focusNext.current = { id: sentence._id };
       setSaving(null);
-      setFailed(true);
+      // "Here's the latest" only if the latest did arrive
+      setFailed(outcome === "stale" && reloaded ? "stale" : "failed");
       return;
     }
     focusNext.current = { place };
@@ -158,6 +162,15 @@ function Admin() {
       <p className="visually-hidden" role="status">
         {said}
       </p>
+      {/* Above the queue, and above "All caught up!" too: the sentence that
+          didn't count may have been the last one */}
+      {failed && loaded !== "failed" && (
+        <p className="paper-review__failed" role="alert">
+          {failed === "stale"
+            ? "This sentence changed or someone already reviewed it. Here's the latest."
+            : "That didn't save. If the sentence is still here, press the button again."}
+        </p>
+      )}
 
       {loaded === "failed" ? (
         <div className="page-message" role="alert">
@@ -187,12 +200,6 @@ function Admin() {
         </div>
       ) : (
         <>
-          {failed && (
-            <p className="paper-review__failed" role="alert">
-              That didn&apos;t save. If the sentence is still here, press the
-              button again.
-            </p>
-          )}
           <ol className="paper-review__queue" ref={list}>
             {queue.map((sentence, place) => {
               const name = nameOf(sentence);

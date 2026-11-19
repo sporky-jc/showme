@@ -5,6 +5,7 @@ import { Sentence } from "../models/sentences.js";
 import { TEST_LOGINS_PER_MINUTE } from "../middlewares/rateLimit.js";
 import { mintTestPass } from "../utils/testPass.js";
 import {
+  asReviewed,
   createAdmin,
   createSentence,
   createUser,
@@ -50,7 +51,7 @@ describe("the test admin only reviews test accounts' sentences", () => {
     const res = await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "approve", sentence: { _id: String(testSentence._id) } });
+      .send({ status: "approve", sentence: asReviewed(testSentence) });
 
     expect(res.status).toBe(201);
     expect((await Sentence.findById(testSentence._id).orFail()).approved).toBe(true);
@@ -65,7 +66,7 @@ describe("the test admin only reviews test accounts' sentences", () => {
       const res = await request(app)
         .patch("/Admin")
         .set("Cookie", sessionCookie(admin))
-        .send({ status, sentence: { _id: String(realSentence._id) } });
+        .send({ status, sentence: asReviewed(realSentence) });
 
       expect(res.status).toBe(404);
       const after = await Sentence.findById(realSentence._id).orFail();
@@ -82,7 +83,7 @@ describe("the test admin only reviews test accounts' sentences", () => {
     const res = await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "approve", sentence: { _id: String(realSentence._id) } });
+      .send({ status: "approve", sentence: asReviewed(realSentence) });
 
     expect(showsIn(queue).sort()).toEqual(["Real sentence", "Test sentence"]);
     expect(res.status).toBe(201);

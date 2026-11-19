@@ -6,6 +6,7 @@ import { LIKE_REQUESTS_PER_MINUTE } from "../middlewares/rateLimit.js";
 import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
 import {
+  asReviewed,
   createAdmin,
   createSentence,
   createUser,
@@ -172,7 +173,7 @@ describe("GET /Collections/likes", () => {
     await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "approve", sentence: { _id: String(sentence._id) } });
+      .send({ status: "approve", sentence: asReviewed(sentence) });
 
     const after = await request(app)
       .get("/Collections/likes")
@@ -193,10 +194,12 @@ describe("editing a liked sentence", () => {
       .patch("/MyPage")
       .set("Cookie", sessionCookie(ada))
       .send({ title: sentence.title, show: "A completely new sentence." });
+    // The reviewer's page has the edited sentence, with its new date
+    const edited = await Sentence.findById(sentence._id).orFail();
     await request(app)
       .patch("/Admin")
       .set("Cookie", sessionCookie(admin))
-      .send({ status: "approve", sentence: { _id: String(sentence._id) } });
+      .send({ status: "approve", sentence: asReviewed(edited) });
 
     const res = await request(app)
       .get("/Collections/likes")
