@@ -7,7 +7,7 @@ import purgeCSSPlugin from "@fullhuman/postcss-purgecss";
 import tell from "./src/tellData";
 import { phonePhotoMedia } from "./src/config";
 
-// The style libraries (MDB and Bootstrap: about 500 KB) style
+// The style library (Bootstrap: about 230 KB) styles
 // far more than this site uses, and browsers download all of it before they
 // can draw anything. When building, keep only the rules for the classes, tags
 // and attributes this site uses: the ones written in its code, plus the ones

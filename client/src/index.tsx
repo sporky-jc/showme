@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "../src/components/App";
-import "mdb-react-ui-kit/dist/css/mdb.min.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 // After the UI libraries, so the paper theme's colors and fonts win
 import "./theme/paper.css";
