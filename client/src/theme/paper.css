@@ -2375,8 +2375,8 @@ h3,
   font-size: 0.9rem;
 }
 
-/* For teachers, with a small picture of the review page */
-.paper-about__teachers {
+/* Who checks my sentence (Scribbles), with a small picture of the review page */
+.paper-about__reviewer {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 28px;
@@ -2386,7 +2386,7 @@ h3,
   box-shadow: 0 8px 0 var(--paper-edge);
 }
 
-.paper-about__teachers-text {
+.paper-about__reviewer-text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2402,6 +2402,13 @@ h3,
   font-size: 1.1rem;
   font-weight: 700;
   line-height: 1.45;
+  color: var(--paper-muted);
+}
+
+.paper-about__honest {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--paper-muted);
 }
 
@@ -2477,7 +2484,7 @@ h3,
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .paper-about__teachers {
+  .paper-about__reviewer {
     padding: 36px 40px;
   }
 }
@@ -2492,7 +2499,7 @@ h3,
     height: 220px;
   }
 
-  .paper-about__teachers {
+  .paper-about__reviewer {
     grid-template-columns: minmax(0, 1fr) 420px;
     gap: 48px;
   }

@@ -7,7 +7,7 @@ import { renderWithApp } from "../test/testUtils";
 import type { Outcome } from "../test/testUtils";
 import type { SentenceWithAuthor } from "../api/types";
 
-// The class gallery (the Collections page): what a visitor sees.
+// The Show ME gallery (the Collections page): what a visitor sees.
 
 const tellsentences = [{ key: 1, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" }];
 
@@ -148,8 +148,8 @@ describe("Collection", () => {
     renderCollection();
 
     await waitFor(() => expect(shownOrder()).toHaveLength(6));
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Class gallery");
-    expect(screen.getByText("Look what the class made!")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Show ME gallery");
+    expect(screen.getByText("Look what everyone made!")).toBeInTheDocument();
     // His speech bubble says it, so he is hidden from screen readers
     expect(screen.queryByRole("img", { name: "Scribbles the pencil" })).not.toBeInTheDocument();
   });

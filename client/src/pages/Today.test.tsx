@@ -5,7 +5,7 @@ import { renderWithApp } from "../test/testUtils";
 import type { Outcome, Respond } from "../test/testUtils";
 import type { Sentence, TellSentence } from "../api/types";
 
-// Today: a signed-in student's home. Today's Tell sentence is the one after
+// Today: a signed-in student's home. The next Tell sentence is the one after
 // their last sentence, with the way to start writing and where their latest
 // sentences stand.
 
@@ -76,7 +76,7 @@ describe("Today", () => {
     renderToday();
 
     expect(await screen.findByText("“Tell 1”")).toBeInTheDocument();
-    expect(screen.getByText("Today's Tell")).toBeInTheDocument();
+    expect(screen.getByText("Your next Tell")).toBeInTheDocument();
     expect(document.querySelector(".paper-today__photo")).toHaveAttribute("src", "/day1.jpg");
   });
 
@@ -126,8 +126,8 @@ describe("Today", () => {
         config.url === "/MyPage" ? (online ? { status: 200, data: shows(3) } : "offline") : 200,
     });
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't load today's sentence");
-    expect(screen.queryByText("Today's Tell")).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't load your next sentence");
+    expect(screen.queryByText("Your next Tell")).not.toBeInTheDocument();
     expect(screen.queryByText("You showed every sentence!")).not.toBeInTheDocument();
 
     online = true;
@@ -158,7 +158,7 @@ describe("Today", () => {
       respond: (config) => (config.url === "/MyPage" ? { status: 200, data: [] } : "offline"),
     });
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't load today's sentence");
+    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't load your next sentence");
     expect(screen.queryByText("You showed every sentence!")).not.toBeInTheDocument();
   });
 
@@ -167,7 +167,7 @@ describe("Today", () => {
 
     expect(await screen.findByText("You showed every sentence!")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Start showing" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Gallery");
+    expect(screen.getByRole("link", { name: "See the gallery" })).toHaveAttribute("href", "/Gallery");
   });
 
   it("lists the three latest sentences, newest first, each linked to My sentences", async () => {
@@ -230,7 +230,7 @@ describe("Today", () => {
     await screen.findByText("“Tell 2”");
 
     expect(
-      screen.getByText("Come back later! Once your teacher approves it, it will appear in the gallery.")
+      screen.getByText("Come back later! Once Scribbles approves it, it will appear in the Show ME gallery.")
     ).toBeInTheDocument();
     const scribbles = screen.getByRole("img", { name: "Scribbles the pencil" });
     expect(scribbles).toHaveClass("scribbles--thinking");

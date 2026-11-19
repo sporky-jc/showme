@@ -13,7 +13,7 @@ const SENSES = ["See", "Hear", "Feel", "Smell", "Taste"];
 // The same example the Welcome screen starts with
 const example = examples[0];
 
-// About page: what Show ME is, how it works, and what teachers do
+// About page: what Show ME is, how it works, and who checks the sentences
 const About = () => {
   const navigate = useNavigate();
   const openLogin = useOpenLogin();
@@ -47,7 +47,7 @@ const About = () => {
               Join Us!
             </a>
             <Link to="/Gallery" className="paper-btn paper-about__more">
-              See the class gallery
+              See the gallery
             </Link>
           </div>
         </div>
@@ -83,8 +83,8 @@ const About = () => {
             <span className="paper-about__number" aria-hidden>
               1
             </span>
-            <h3>Get today's Tell</h3>
-            <p>Every day brings a plain sentence that only tells, like “It is hot outside.”</p>
+            <h3>Get your next Tell</h3>
+            <p>Each Tell is a plain sentence that only tells, like “It is hot outside.”</p>
           </li>
           <li className="paper-about__step paper-about__step--action">
             <span className="paper-about__number" aria-hidden>
@@ -104,34 +104,38 @@ const About = () => {
             </span>
             <h3>Join the gallery</h3>
             <p>
-              Your teacher reads it. Once it's approved, it goes up in the class
+              Scribbles reads it. Once it's approved, it goes up in the Show ME
               gallery for everyone to enjoy.
             </p>
           </li>
         </ol>
       </section>
 
-      <section className="paper-card paper-about__teachers" aria-labelledby="about-teachers">
-        <div className="paper-about__teachers-text">
-          <span className="paper-about__badge paper-about__badge--ink">For teachers</span>
-          <h2 id="about-teachers" className="paper-about__heading">
-            You decide what reaches the gallery.
+      <section className="paper-card paper-about__reviewer" aria-labelledby="about-reviewer">
+        <div className="paper-about__reviewer-text">
+          <span className="paper-about__badge paper-about__badge--ink">Who checks my sentence?</span>
+          <h2 id="about-reviewer" className="paper-about__heading">
+            Scribbles reads every one.
           </h2>
           <ul className="paper-about__points">
-            <li>The review page shows the sentence that has waited longest first.</li>
-            <li>Approve it, or send it back with Redo so the student tries again.</li>
-            <li>Nothing goes up in the gallery until you approve it.</li>
+            <li>Every sentence is read before it goes up in the gallery.</li>
+            <li>A great one goes straight in. One that needs a little more comes back with Try again, so you can make it even better.</li>
+            <li>Change a sentence that's already up, and Scribbles reads it again first.</li>
           </ul>
+          {/* True today; change it when the AI teacher takes over as Scribbles */}
+          <p className="paper-about__honest">
+            Right now, a Show ME teacher reads every sentence as Scribbles.
+          </p>
         </div>
-        {/* A picture of the review page, not the real thing */}
+        {/* A picture of Scribbles' review desk, not the real thing */}
         <div className="paper-about__review" aria-hidden>
-          <p className="paper-about__review-label">Waiting for you</p>
+          <p className="paper-about__review-label">Scribbles&apos; desk</p>
           <p className="paper-about__review-sentence">
             Steam curled from my cocoa while the window fogged with my breath.
           </p>
           <div className="paper-about__review-buttons">
             <span className="paper-about__approve">Approve</span>
-            <span className="paper-about__redo">Redo</span>
+            <span className="paper-about__redo">Try again</span>
           </div>
         </div>
       </section>

@@ -243,7 +243,7 @@ describe("the pages' old addresses", () => {
     renderNav("/Collections", {});
 
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/Gallery$/));
-    expect(await screen.findByRole("heading", { name: "Class gallery" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Show ME gallery" })).toBeInTheDocument();
   });
 
   it("/MyPage forwards to /MySentences", async () => {

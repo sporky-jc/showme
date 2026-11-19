@@ -181,7 +181,7 @@ function Admin() {
           <p className="paper-review__caught-up">All caught up!</p>
           <p>No sentences are waiting.</p>
           <Link to="/Gallery" className="paper-btn paper-btn--action">
-            See the class gallery
+            See the gallery
           </Link>
         </div>
       ) : (
