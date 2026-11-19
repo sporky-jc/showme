@@ -7,7 +7,7 @@ import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
 
-// How many of the student's latest sentences to show under today's Tell
+// How many of the student's latest sentences to show under their next Tell
 const LATEST = 3;
 
 // A signed-in student's home: their next Tell sentence with the way to start

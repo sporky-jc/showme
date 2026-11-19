@@ -23,8 +23,9 @@ const waitedSince = (createdAt: string, now: number) => {
   return days === 1 ? "yesterday" : `${days} days ago`;
 };
 
-// The Teacher page: the sentences waiting for a teacher, longest wait first,
-// each on a card with the way to approve it or send it back.
+// The Teacher page, for the reviewer who reads as Scribbles: the sentences
+// waiting for review, longest wait first, each on a card with the way to
+// approve it or send it back.
 function Admin() {
   // grab global state from redux store
   const user = useSelector((state: RootState) => state.user);
