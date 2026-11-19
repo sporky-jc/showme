@@ -60,7 +60,7 @@ const WORD_GOAL = 8;
 
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
-// The Write page: today's Tell sentence and a big box to show it in, with
+// The Write page: the next Tell sentence and a big box to show it in, with
 // Scribbles beside it. Also where a sentence is edited (/Write/<its id>).
 // Once the server has the sentence, the page says Scribbles is checking it.
 // States that show only a message (sign in, couldn't load, not found, all
@@ -108,8 +108,8 @@ function WriteSentence({ id }: { id: string | undefined }) {
               Scribbles is checking!
             </h1>
             <p className="paper-write__later">
-              Come back later! Once your teacher approves it, it will appear
-              in the gallery.
+              Come back later! Once Scribbles approves it, it will appear in
+              the Show ME gallery.
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
         </div>
         <div className="paper-write__next">
           <Link to="/" className="paper-btn paper-btn--action">
-            Back to today
+            Back home
           </Link>
           <Link to="/MySentences" className="paper-btn">
             My sentences
@@ -177,9 +177,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
       <div className="paper-write">
         <h1 className="visually-hidden">Write</h1>
         <div className="page-message">
-          <p>You showed every sentence! Come back later for more.</p>
+          <p>You showed every sentence! Nice work!</p>
           <Link to="/Gallery" className="paper-btn paper-btn--action">
-            See the class gallery
+            See the gallery
           </Link>
         </div>
       </div>
@@ -229,7 +229,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
     <div className="paper-write">
       <div className="paper-write__top">
         <Link to="/" className="paper-write__back">
-          <span aria-hidden>←</span> Back to today
+          <span aria-hidden>←</span> Back home
         </Link>
         <ol className="paper-write__steps" aria-label="Steps">
           <li aria-current="step">1 · Write it</li>
@@ -243,14 +243,14 @@ function WriteSentence({ id }: { id: string | undefined }) {
           <form className="paper-stack__card paper-write__card" onSubmit={send}>
             <h1 className="paper-write__tell">
               <span className="paper-status paper-status--retry">
-                {editing ? `Day ${day} · Tell` : "Today's Tell"}
+                {editing ? `Sentence ${day} · Tell` : "Your next Tell"}
               </span>
               <span className="paper-write__sentence">{tell}</span>
             </h1>
 
             {editing?.approved && (
               <p className="paper-write__notice">
-                This one is in the gallery. If you change it, your teacher
+                This one is in the gallery. If you change it, Scribbles
                 checks it again first.
               </p>
             )}

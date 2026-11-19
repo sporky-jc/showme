@@ -80,7 +80,7 @@ function Collection() {
     .slice(0, DisplayCollectionSentences)
     .some((sentence) => likes?.[sentence._id]?.mine);
 
-  // The class gallery: the approved sentences
+  // The Show ME gallery: every approved sentence, from every student
   return (
     <LoadingOverlay
       active={loading}
@@ -102,10 +102,10 @@ function Collection() {
         <div className="paper-gallery">
           <div className="paper-gallery__top">
             <div className="paper-gallery__title">
-              <h1>Class gallery</h1>
+              <h1>Show ME gallery</h1>
               <Scribbles prop="tape" size={80} decorative />
               <p className="paper-bubble">
-                {mineIsUp ? `I taped yours up, ${firstName}!` : "Look what the class made!"}
+                {mineIsUp ? `I taped yours up, ${firstName}!` : "Look what everyone made!"}
               </p>
             </div>
             <div className="paper-toggle paper-gallery__order" role="group" aria-label="Order">

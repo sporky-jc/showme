@@ -89,7 +89,7 @@ describe("My sentences", () => {
     renderMyPage({ mine: shows(3) });
 
     await waitFor(() => expect(listedShows()).toEqual(["Show 3", "Show 2", "Show 1"]));
-    expect(within(note("Show 3")).getByText("Day 3")).toBeInTheDocument();
+    expect(within(note("Show 3")).getByText("Sentence 3")).toBeInTheDocument();
     expect(within(note("Show 3")).getByText("Tell 3")).toBeInTheDocument();
   });
 
@@ -111,28 +111,28 @@ describe("My sentences", () => {
     mine[1].toRedo = true;
     renderMyPage({ mine });
 
-    expect(await screen.findByRole("link", { name: "Edit: day 1" })).toHaveAttribute("href", "/Write/s1");
-    expect(screen.getByRole("link", { name: "Try again: day 2" })).toHaveAttribute("href", "/Write/s2");
+    expect(await screen.findByRole("link", { name: "Edit: sentence 1" })).toHaveAttribute("href", "/Write/s1");
+    expect(screen.getByRole("link", { name: "Try again: sentence 2" })).toHaveAttribute("href", "/Write/s2");
   });
 
-  it("offers today's sentence while there is one left to write", async () => {
+  it("offers the next sentence while there is one left to write", async () => {
     renderMyPage({ tellCount: 3, mine: shows(2) });
 
-    expect(await screen.findByRole("link", { name: "Write today's sentence" })).toHaveAttribute("href", "/Write");
+    expect(await screen.findByRole("link", { name: "Write your next sentence" })).toHaveAttribute("href", "/Write");
   });
 
   it("doesn't offer writing when every day is done", async () => {
     renderMyPage({ tellCount: 2, mine: shows(2) });
 
     await screen.findByText("Show 2");
-    expect(screen.queryByRole("link", { name: "Write today's sentence" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Write your next sentence" })).not.toBeInTheDocument();
   });
 
   it("with nothing written yet, says so", async () => {
     renderMyPage({ mine: [] });
 
     expect(await screen.findByText(/haven't written a sentence yet/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Write today's sentence" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Write your next sentence" })).toBeInTheDocument();
   });
 
   it("shows 8 sentences per page, with page buttons when there are more", async () => {
@@ -152,7 +152,7 @@ describe("My sentences", () => {
 
     await waitFor(() => expect(listedShows()).toEqual(["Show 2", "Show 1"]));
     // The edit link still belongs to the right day on the second page
-    expect(screen.getByRole("link", { name: "Edit: day 2" })).toHaveAttribute("href", "/Write/s2");
+    expect(screen.getByRole("link", { name: "Edit: sentence 2" })).toHaveAttribute("href", "/Write/s2");
   });
 
   it("has no page buttons for a single page", async () => {

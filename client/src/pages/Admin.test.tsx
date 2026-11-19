@@ -264,7 +264,7 @@ describe("Admin", () => {
     renderAdmin({ queue: [] });
 
     expect(await screen.findByText("All caught up!")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Gallery");
+    expect(screen.getByRole("link", { name: "See the gallery" })).toHaveAttribute("href", "/Gallery");
     expect(cards()).toHaveLength(0);
     expect(screen.queryByText(/waiting$/)).not.toBeInTheDocument();
   });

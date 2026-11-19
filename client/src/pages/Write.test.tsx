@@ -108,8 +108,8 @@ describe("Write", () => {
     renderWrite({ mine: shows(2) });
 
     await box();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Today's TellTell 3");
-    expect(screen.getByRole("link", { name: /Back to today/ })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next TellTell 3");
+    expect(screen.getByRole("link", { name: /Back home/ })).toHaveAttribute("href", "/");
   });
 
   // The day comes from the list, and a save sent while the list is still on
@@ -184,8 +184,8 @@ describe("Write", () => {
     });
     expect(screen.getByText("Brr, my fingers froze.")).toBeInTheDocument();
     expect(screen.getByText("Tell 3")).toBeInTheDocument();
-    expect(screen.getByText(/Once your teacher approves it, it will appear in the gallery/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to today" })).toHaveAttribute("href", "/");
+    expect(screen.getByText(/Once Scribbles approves it, it will appear in the Show ME gallery/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back home" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MySentences");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
@@ -247,7 +247,7 @@ describe("Write", () => {
 
     expect(await screen.findByText(/You showed every sentence!/)).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Gallery");
+    expect(screen.getByRole("link", { name: "See the gallery" })).toHaveAttribute("href", "/Gallery");
   });
 
   it("when the student's sentences can't be loaded, says so and loads them on Try again", async () => {
@@ -302,7 +302,7 @@ describe("Write", () => {
       renderWrite({ route: "/Write/s1", mine: shows(3) });
 
       expect(await box()).toHaveValue("Show 1");
-      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Day 1 · TellTell 1");
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Sentence 1 · TellTell 1");
     });
 
     it("saving sends the change, then says Scribbles is checking", async () => {
@@ -325,20 +325,20 @@ describe("Write", () => {
       expect(screen.getByText("Better 2")).toBeInTheDocument();
     });
 
-    it("warns that changing a sentence in the gallery sends it back to the teacher", async () => {
+    it("warns that changing a sentence in the gallery sends it back to Scribbles", async () => {
       const mine = shows(2);
       mine[0].approved = true;
       renderWrite({ route: "/Write/s1", mine });
 
       await box();
-      expect(screen.getByText(/your teacher checks it again first/)).toBeInTheDocument();
+      expect(screen.getByText(/Scribbles checks it again first/)).toBeInTheDocument();
     });
 
     it("doesn't warn for a sentence that isn't in the gallery", async () => {
       renderWrite({ route: "/Write/s1", mine: shows(2) });
 
       await box();
-      expect(screen.queryByText(/your teacher checks it again first/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Scribbles checks it again first/)).not.toBeInTheDocument();
     });
 
     it("an address for a sentence that isn't the student's says so", async () => {

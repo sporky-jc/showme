@@ -136,7 +136,7 @@ describe("Collections likes, signed in", () => {
     });
 
     await card("Sentence 1");
-    expect(await screen.findByText("Look what the class made!")).toBeInTheDocument();
+    expect(await screen.findByText("Look what everyone made!")).toBeInTheDocument();
     expect(screen.queryByText(/I taped yours up/)).not.toBeInTheDocument();
   });
 

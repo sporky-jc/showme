@@ -88,7 +88,7 @@ function Welcome() {
         </h1>
         <p className="paper-welcome__lead">
           Turn boring sentences into pictures made of words. Write yours,
-          and once your teacher approves it, it joins the class gallery.
+          and once Scribbles approves it, it joins the Show ME gallery.
         </p>
         <button
           type="button"

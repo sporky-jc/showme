@@ -7,16 +7,16 @@ import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
 
-// How many of the student's latest sentences to show under today's Tell
+// How many of the student's latest sentences to show under their next Tell
 const LATEST = 3;
 
-// A signed-in student's home: today's Tell sentence with the way to start
+// A signed-in student's home: their next Tell sentence with the way to start
 // writing, and where their latest sentences stand.
 function Today() {
   const user = useSelector((state: RootState) => state.user);
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
   const userSentences = useSelector((state: RootState) => state.usersentences);
-  // Today's Tell is the one after the student's last sentence, so it's only
+  // The next Tell is the one after the student's last sentence, so it's only
   // known once their list and the Tell sentences have arrived. Without both,
   // say so: a guess would show the wrong day, or "all done".
   const { loaded, retry } = useStudentData();
@@ -27,7 +27,7 @@ function Today() {
       <div className="paper-today">
         <div className="page-message" role="alert">
           <p>
-            We couldn&apos;t load today&apos;s sentence. Check your internet
+            We couldn&apos;t load your next sentence. Check your internet
             connection, then try again.
           </p>
           <button
@@ -44,7 +44,7 @@ function Today() {
 
   const today = tellSentences[userSentences.length];
   const shown = userSentences.filter((sentence) => sentence.approved).length;
-  // Something is waiting for the teacher: Scribbles is "checking" it
+  // Something is waiting for review: Scribbles is "checking" it
   const checking = userSentences.some((sentence) => !sentence.approved && !sentence.toRedo);
   // Newest first; each keeps its place in the list, which is its day
   const latest = userSentences
@@ -67,7 +67,7 @@ function Today() {
         {today ? (
           <div className="paper-stack__card paper-today__card">
             <div className="paper-today__tell">
-              <span className="paper-status paper-status--retry">Today's Tell</span>
+              <span className="paper-status paper-status--retry">Your next Tell</span>
               <p className="paper-today__sentence">“{today.tell}”</p>
               <p className="paper-today__hint">
                 Show it with what you see, hear and feel.
@@ -99,9 +99,9 @@ function Today() {
             <div className="paper-today__tell">
               <span className="paper-status paper-status--done">All done</span>
               <p className="paper-today__sentence">You showed every sentence!</p>
-              <p className="paper-today__hint">Come back later for more.</p>
+              <p className="paper-today__hint">Nice work!</p>
               <Link to="/Gallery" className="paper-btn paper-btn--action paper-today__start">
-                See the class gallery
+                See the gallery
               </Link>
             </div>
           </div>
@@ -120,8 +120,8 @@ function Today() {
           <h2 id="today-mine">My sentences</h2>
           {checking && (
             <p className="paper-today__later">
-              Come back later! Once your teacher approves it, it will appear
-              in the gallery.
+              Come back later! Once Scribbles approves it, it will appear in
+              the Show ME gallery.
             </p>
           )}
           <ul>
@@ -129,7 +129,7 @@ function Today() {
               const { note, label } = standing(sentence);
               return (
                 <li key={sentence._id}>
-                  {/* One the teacher sent back opens ready to rewrite */}
+                  {/* One Scribbles sent back opens ready to rewrite */}
                   <Link to={sentence.toRedo ? `/Write/${sentence._id}` : "/MySentences"} className={note}>
                     <span className="paper-note__status">{label}</span>
                     <span className="paper-note__show">{sentence.show}</span>

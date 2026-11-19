@@ -56,17 +56,19 @@ describe("About", () => {
     expect(screen.getByTestId("where")).toHaveTextContent(/^\/about$/);
   });
 
-  it("shows how it works and what teachers do", () => {
+  it("shows how it works and who checks the sentences", () => {
     renderAbout({});
 
     expect(screen.getByRole("heading", { level: 1, name: "Write sentences that paint pictures." })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "How it works" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
-      "Get today's Tell",
+      "Get your next Tell",
       "Show it your way",
       "Join the gallery",
     ]);
-    expect(screen.getByRole("heading", { name: "You decide what reaches the gallery." })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Gallery");
+    expect(screen.getByRole("heading", { name: "Scribbles reads every one." })).toBeInTheDocument();
+    // Honest about who reads them today
+    expect(screen.getByText("Right now, a Show ME teacher reads every sentence as Scribbles.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See the gallery" })).toHaveAttribute("href", "/Gallery");
   });
 });

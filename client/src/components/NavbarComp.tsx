@@ -197,7 +197,7 @@ function NavbarComp() {
             {signedIn ? (
               <>
                 <NavLink to="/" end>
-                  Today
+                  Home
                 </NavLink>
                 <NavLink to="/MySentences">My sentences</NavLink>
                 <NavLink to="/Gallery">Gallery</NavLink>

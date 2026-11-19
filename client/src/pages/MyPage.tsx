@@ -68,14 +68,14 @@ function MyPage() {
         <h1>My sentences</h1>
         {more && (
           <Link to="/Write" className="paper-btn paper-btn--action">
-            Write today&apos;s sentence
+            Write your next sentence
           </Link>
         )}
       </div>
 
       {userSentences.length === 0 ? (
         <p className="page-message">
-          You haven&apos;t written a sentence yet. Today&apos;s is waiting!
+          You haven&apos;t written a sentence yet. Your first Tell is waiting!
         </p>
       ) : (
         <ol className="paper-mine__list">
@@ -85,7 +85,7 @@ function MyPage() {
               <li key={sentence._id} className={note}>
                 <div className="paper-mine__head">
                   <span className="paper-note__status">{label}</span>
-                  <span className="paper-mine__day">Day {index + 1}</span>
+                  <span className="paper-mine__day">Sentence {index + 1}</span>
                 </div>
                 <p className="paper-mine__show">{sentence.show}</p>
                 <div className="paper-mine__foot">
@@ -93,7 +93,7 @@ function MyPage() {
                   <Link
                     to={`/Write/${sentence._id}`}
                     className="paper-mine__edit"
-                    aria-label={`${sentence.toRedo ? "Try again" : "Edit"}: day ${index + 1}`}
+                    aria-label={`${sentence.toRedo ? "Try again" : "Edit"}: sentence ${index + 1}`}
                   >
                     {sentence.toRedo ? "Try again" : "Edit"}
                   </Link>
