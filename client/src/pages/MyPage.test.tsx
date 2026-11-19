@@ -171,6 +171,8 @@ describe("My sentences", () => {
     });
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't load your sentences/i);
+    // A message-only state still has the page's name as a heading
+    expect(screen.getByRole("heading", { level: 1, name: "My sentences" })).toBeInTheDocument();
     online = true;
     await user.click(screen.getByRole("button", { name: "Try again" }));
 

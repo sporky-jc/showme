@@ -38,12 +38,12 @@ describe("About", () => {
     expect(screen.getByTestId("where")).toHaveTextContent(/^\/about$/);
   });
 
-  it("Join Us! takes a signed-in student to their page", async () => {
+  it("Join Us! takes a signed-in student to their sentences", async () => {
     const openLogin = renderAbout({ id: "g-ada", firstName: "Ada", lastName: "Lovelace" });
 
     await userEvent.click(screen.getByRole("link", { name: "Join Us!" }));
 
-    expect(screen.getByTestId("where")).toHaveTextContent(/^\/MyPage$/);
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/MySentences$/);
     expect(openLogin).not.toHaveBeenCalled();
   });
 });

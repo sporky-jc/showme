@@ -12,8 +12,7 @@ const useAuthService = () => {
   const signInorOut = async (
     user: UserState,
     setLoading: (loading: boolean) => void,
-    handleShowLoginModal: () => void,
-    handleNavCollapse: () => void
+    handleShowLoginModal: () => void
   ) => {
     try {
       // sign out user if there is one signed in
@@ -28,7 +27,6 @@ const useAuthService = () => {
         // Show login modal if no user is currently logged in
         handleShowLoginModal();
       }
-      handleNavCollapse(); // Collapse the navbar after clicking
     } catch (error) {
       setLoading(false); // Stop loading in case of error
       // Handle any logout errors here

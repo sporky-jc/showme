@@ -1,8 +1,5 @@
-import React, { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import Container from "react-bootstrap/Container";
-import Nav from "react-bootstrap/Nav";
-import Navbar from "react-bootstrap/Navbar";
-import { Routes, Route, Link, NavLink, useLocation, useNavigate } from "react-router";
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Routes, Route, Link, Navigate, NavLink, useLocation, useNavigate } from "react-router";
 import Logo from "./Logo";
 import Home from "../pages/Home";
 import PageErrorBoundary from "./PageErrorBoundary";
@@ -38,7 +35,7 @@ const prefetchPages = () => {
     (load) => load().catch(() => {}) // a failure here is retried on the click
   );
 };
-// Returns a function that cancels the wait, for when the navbar goes away first
+// Returns a function that cancels the wait, for when the nav bar goes away first
 const whenIdle = (callback: () => void) => {
   if (window.requestIdleCallback) {
     const id = window.requestIdleCallback(callback, { timeout: 3000 });
@@ -49,7 +46,7 @@ const whenIdle = (callback: () => void) => {
 };
 
 // Going to /login directly (an old bookmark, or typing the address): open the
-// sign-in pop-up over the home page, just like the Login link does. Login is
+// sign-in pop-up over the home page, just like the Sign in button does. Login is
 // a pop-up, so showing it on a page of its own left that page empty.
 function OpenLogin({ onOpen }: { onOpen: () => void }) {
   const navigate = useNavigate();
@@ -60,16 +57,104 @@ function OpenLogin({ onOpen }: { onOpen: () => void }) {
   return null;
 }
 
+// The first and last initial for the account button ("MR" for Maya Rivera)
+const initials = (first?: string, last?: string) =>
+  ((first?.trim()[0] ?? "") + (last?.trim()[0] ?? "")).toUpperCase() || "?";
+
+// The account button (the signed-in person's initials) and its menu: who is
+// signed in, About, and Log out.
+function AccountMenu({
+  firstName,
+  lastName,
+  onLogOut,
+}: {
+  firstName?: string;
+  lastName?: string;
+  onLogOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapper = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const name = [firstName, lastName].filter(Boolean).join(" ");
+
+  // While it's open: a press anywhere else closes it, and so does Escape,
+  // which also puts the keyboard back on the button
+  useEffect(() => {
+    if (!open) return;
+    const pressedOutside = (event: PointerEvent) => {
+      if (!wrapper.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      button.current?.focus();
+    };
+    document.addEventListener("pointerdown", pressedOutside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", pressedOutside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
+  return (
+    <div
+      className="paper-account"
+      ref={wrapper}
+      // Tabbing out of the menu closes it too
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        ref={button}
+        className="paper-account__button"
+        aria-label={`Account: ${name}`}
+        aria-expanded={open}
+        aria-controls="account-menu"
+        onClick={() => setOpen(!open)}
+      >
+        {initials(firstName, lastName)}
+      </button>
+      {open && (
+        <div className="paper-account__menu" id="account-menu">
+          <p className="paper-account__name">{name}</p>
+          <Link
+            to="/about"
+            onClick={() => {
+              // The link is about to go away: keep the keyboard on the button
+              button.current?.focus();
+              setOpen(false);
+            }}
+          >
+            About
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onLogOut();
+            }}
+          >
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NavbarComp() {
   // get user from global react redux store
   const user = useSelector((state: RootState) => state.user);
   const location = useLocation();
+  const signedIn = Object.keys(user).length !== 0;
 
   const authService = useAuthService();
 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState(false);
 
   // In the app the navbar never goes away, but in tests each one is removed
   // after its test; a download still waiting then would land in a later test
@@ -83,95 +168,78 @@ function NavbarComp() {
 
   // Function to handle hiding the login modal. useCallback keeps it the same
   // function between draws, so Login doesn't set up Google's button again
-  // every time this navbar redraws.
+  // every time this nav bar redraws.
   const handleHideLoginModal = useCallback(() => {
     setShowLoginModal(false);
   }, []);
 
-  // Function to handle collapsing the Navbar
-  const handleNavCollapse = () => setExpanded(false);
+  // Sign out whoever is signed in, or open the sign-in pop-up
+  const signInorOut = () => authService(user, setLoading, handleShowLoginModal);
 
-  // Use authService hook to sign in or out
-  const signInorOut = async () => {
-    await authService(
-      user,
-      setLoading,
-      handleShowLoginModal,
-      handleNavCollapse
-    );
-  };
+  // On a phone the main links are a bar along the bottom of the screen. It
+  // steps aside on the Write page, where the keyboard needs the room (the
+  // page has its own way back). The class names are written out in full so
+  // the build keeps their styles (see vite.config.ts).
+  const writing = /^\/write(\/|$)/i.test(location.pathname);
+  const linksClass = writing ? "paper-nav__links paper-nav__links--away" : "paper-nav__links";
+  const pageClass = writing ? "paper-page paper-page--full" : "paper-page";
 
-  // React bootstrap Navbar and different routes for different parts of the website
+  // The top bar (logo, main links, account) and the routes for each page
   return (
     <>
       <LoadingOverlay active={loading} spinner text="Logging out...">
-        <div>
-          {/* Paper buttons on the sky (src/theme/paper.css); NavLink marks
-              the page you're on, which shows in orange */}
-          <Navbar
-            variant="light"
-            className="paper-nav"
-            expand="sm"
-            expanded={expanded}
-          >
-            <Container>
-              <Navbar.Brand as={Link} to={"/"}>
-                <Logo size={24} />
-              </Navbar.Brand>
-              <Navbar.Toggle
-                aria-controls="basic-navbar-nav"
-                onClick={() => setExpanded(!expanded)}
-              />
-              <Navbar.Collapse id="basic-navbar-nav">
-                <Nav className="ms-auto">
-                  <Nav.Link
-                    as={NavLink}
-                    to={"/admin"}
-                    hidden={!user.isAdmin}
-                    onClick={handleNavCollapse}
-                  >
-                    Admin
-                  </Nav.Link>
-                  <Nav.Link
-                    as={NavLink}
-                    to={"/Collections"}
-                    onClick={handleNavCollapse}
-                  >
-                    Collections
-                  </Nav.Link>
-                  <Nav.Link
-                    as={NavLink}
-                    to={"/MyPage"}
-                    hidden={Object.keys(user).length === 0 ? true : false}
-                    onClick={handleNavCollapse}
-                  >
-                    {user ? `${user.firstName}'s Page` : ""}
-                  </Nav.Link>
-                  <Nav.Link onClick={signInorOut}>
-                    {Object.keys(user).length !== 0 ? "Logout" : "Login"}
-                  </Nav.Link>
-                  <Nav.Link as={NavLink} to={"/about"} onClick={handleNavCollapse}>
-                    About
-                  </Nav.Link>
-                </Nav>
-              </Navbar.Collapse>
-            </Container>
-          </Navbar>
-        </div>
-        <div>
+        <header className="paper-nav">
+          <Link to="/" className="paper-nav__logo" aria-label="Show ME: home">
+            <Logo size={24} />
+          </Link>
+          {/* NavLink marks the page you're on, which shows in orange */}
+          <nav className={linksClass} aria-label="Main">
+            {signedIn ? (
+              <>
+                <NavLink to="/" end>
+                  Today
+                </NavLink>
+                <NavLink to="/MySentences">My sentences</NavLink>
+                <NavLink to="/Gallery">Gallery</NavLink>
+                {user.isAdmin && <NavLink to="/admin">Teacher</NavLink>}
+              </>
+            ) : (
+              <>
+                {/* Only in the phone's bottom bar: on a wide screen the logo
+                    is the way home */}
+                <NavLink to="/" end className="paper-nav__phone-only">
+                  Home
+                </NavLink>
+                <NavLink to="/Gallery">Gallery</NavLink>
+                <NavLink to="/about">About</NavLink>
+              </>
+            )}
+          </nav>
+          {signedIn ? (
+            <AccountMenu firstName={user.firstName} lastName={user.lastName} onLogOut={signInorOut} />
+          ) : (
+            <button type="button" className="paper-btn paper-btn--action paper-nav__signin" onClick={signInorOut}>
+              Sign in
+            </button>
+          )}
+        </header>
+        <main className={pageClass}>
           <PageErrorBoundary resetKey={location.pathname}>
             <Suspense fallback={<PageLoading />}>
               {/* Lets pages open the sign-in pop-up (see loginPopup.ts) */}
               <OpenLoginContext.Provider value={handleShowLoginModal}>
                 <Routes>
                   <Route path="/admin" element={<Admin />} />
-                  <Route path="/collections" element={<Collection />} />
+                  <Route path="/Gallery" element={<Collection />} />
                   <Route path="/about" element={<About />} />
                   <Route
                     path="/login"
                     element={<OpenLogin onOpen={handleShowLoginModal} />}
                   />
-                  <Route path="/MyPage" element={<MyPage />} />
+                  <Route path="/MySentences" element={<MyPage />} />
+                  {/* The pages' old addresses (bookmarks, links in old emails) */}
+                  <Route path="/Collections" element={<Navigate to="/Gallery" replace />} />
+                  <Route path="/MyPage" element={<Navigate to="/MySentences" replace />} />
                   {/* A new sentence, or with an id, an edit of that one */}
                   <Route path="/Write/:id?" element={<Write />} />
                   <Route path="/" element={<Home />} />
@@ -179,7 +247,7 @@ function NavbarComp() {
               </OpenLoginContext.Provider>
             </Suspense>
           </PageErrorBoundary>
-        </div>
+        </main>
         {/* Conditionally render the LoginModal */}
         {showLoginModal && (
           <PageErrorBoundary>

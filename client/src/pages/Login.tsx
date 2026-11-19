@@ -16,7 +16,7 @@ function Login({ show, onHide }: { show: boolean; onHide?: () => void }) {
   const navigate = useNavigate();
   // Signing in from a student page's own "Sign in" (My sentences, Write)
   // stays there; from anywhere else it opens Today, the student's home
-  const onMyPage = /^\/(mypage|write)(\/|$)/i.test(useLocation().pathname);
+  const onMyPage = /^\/(mysentences|mypage|write)(\/|$)/i.test(useLocation().pathname);
 
   // state to show login modal
   const [loading, setLoading] = useState(false);

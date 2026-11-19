@@ -16,7 +16,7 @@ interface Loaded {
 const byId = (list: SentenceLikes[]): LikesById =>
   Object.fromEntries(list.map((entry) => [entry._id, entry]));
 
-// The Collections page's likes. Only signed-in users see or give likes, so
+// The gallery's likes. Only signed-in users see or give likes, so
 // with nobody signed in (`userId` undefined) there are none: `likes` is null
 // and nothing is asked of the server. They're kept here, not in the Redux
 // store, so they're never saved in the browser and go as soon as the user
@@ -28,7 +28,7 @@ const byId = (list: SentenceLikes[]): LikesById =>
 // While one request for a sentence is on its way, more clicks on it are
 // ignored, so a double click can't send a like and an unlike.
 //
-// `reload`: changing it asks the server again (Collections' Try again)
+// `reload`: changing it asks the server again (the gallery's Try again)
 export function useLikes(userId: string | undefined, reload = 0) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   // The sentences with a like or unlike on its way. A ref, not state, so

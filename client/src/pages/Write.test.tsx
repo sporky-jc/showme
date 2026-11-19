@@ -186,7 +186,7 @@ describe("Write", () => {
     expect(screen.getByText("Tell 3")).toBeInTheDocument();
     expect(screen.getByText(/Once your teacher approves it, it will appear in the gallery/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to today" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MyPage");
+    expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MySentences");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
@@ -247,7 +247,7 @@ describe("Write", () => {
 
     expect(await screen.findByText(/You showed every sentence!/)).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Collections");
+    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Gallery");
   });
 
   it("when the student's sentences can't be loaded, says so and loads them on Try again", async () => {
@@ -256,6 +256,8 @@ describe("Write", () => {
     renderWrite({ list: () => (online ? { status: 200, data: shows(2) } : "offline") });
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't load your sentence/i);
+    // A message-only state still has the page's name as a heading
+    expect(screen.getByRole("heading", { level: 1, name: "Write" })).toBeInTheDocument();
     online = true;
     await user.click(screen.getByRole("button", { name: "Try again" }));
 
@@ -345,7 +347,7 @@ describe("Write", () => {
       expect(await screen.findByText(/couldn't find that sentence/i)).toBeInTheDocument();
       expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
       await waitFor(() =>
-        expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MyPage")
+        expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MySentences")
       );
     });
   });

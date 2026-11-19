@@ -12,15 +12,15 @@ import { phonePhotoMedia } from "./src/config";
 // can draw anything. When building, keep only the rules for the classes, tags
 // and attributes this site uses: the ones written in its code, plus the ones
 // the libraries' own code adds while you use the site, which never appear in
-// our code as written (e.g. "collapsing" while the phone menu opens).
+// our code as written (e.g. "show" while the sign-in pop-up opens).
 // Using a new react-bootstrap or MDB component, or a new variant (e.g.
 // <Button variant="success">)? Add its class names here: `npm start` keeps
 // every rule, so it looks fine there, but the built site would leave it
 // unstyled. (public/styles.css is not touched.)
 const addedByLibraries = [
   /^active$/, /^fade$/, /^show$/, /^showing$/, /^hiding$/,
-  /^collaps/, /^disabled$/, /^visually-hidden/, // menus, pop-ups
-  /^navbar/, /^nav$/, /^nav-/, /^container/, /^row$/, /^col/, // Navbar, Nav, Container, MDBRow/MDBCol
+  /^disabled$/, /^visually-hidden/, // pop-ups
+  /^container/, /^row$/, /^col/, // MDBContainer, MDBRow/MDBCol
   /^modal/, /^tooltip/, /^bs-tooltip/, // Modal (the sign-in pop-up), Admin's MDBTooltip
   // Only the variants our code picks (each library has dozens): Button
   // variant="primary"/"secondary" and Modal's close button
@@ -75,9 +75,11 @@ const versionFile = (): Plugin => ({
 const pageRoutes = {
   "/about": "About",
   "/admin": "Admin",
-  "/collections": "Collection",
+  "/gallery": "Collection",
+  "/collections": "Collection", // the old address, which forwards to /gallery
   "/login": "Login",
-  "/mypage": "MyPage",
+  "/mysentences": "MyPage",
+  "/mypage": "MyPage", // the old address, which forwards to /mysentences
   "/write": "Write",
 };
 
@@ -164,6 +166,7 @@ const preloadCurrentPage = (): Plugin => ({
         }));
         atTheTop[address] = { links };
       }
+      atTheTop["/gallery"].requests = ["/Collections"];
       atTheTop["/collections"].requests = ["/Collections"];
       // Welcome's photo; a signed-in student sees Today there instead
       const afterTheStylesheets = { "/": { links: homePhoto, visitorsOnly: true } };
