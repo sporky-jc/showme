@@ -72,8 +72,13 @@ const SCRIPT = fileURLToPath(new URL("../../.github/scripts/test-login-pass.mjs"
 // (or `findStatus`) and records every request
 const standInQaWolf = async ({
   environments = [] as object[],
+  // Further pages of environments, served one per nextCursor
+  morePages = [] as object[][],
+  // Answers to give environment.find before the real one (e.g. [503])
   findStatus = 200,
+  failFirst = [] as number[],
 } = {}) => {
+  let finds = 0;
   const received: { method?: string; url?: string; auth?: string; body?: string }[] = [];
   const server = createServer((req, res) => {
     let body = "";
@@ -81,8 +86,18 @@ const standInQaWolf = async ({
     req.on("end", () => {
       received.push({ method: req.method, url: req.url, auth: req.headers.authorization, body });
       if (req.url?.startsWith("/api/trpc/public.environment.find")) {
+        const attempt = finds++;
+        if (attempt < failFirst.length) {
+          res.writeHead(failFirst[attempt]);
+          res.end("unavailable");
+          return;
+        }
+        const input = JSON.parse(new URL(req.url, "http://x").searchParams.get("input") ?? "{}").json;
+        const page = input.cursor ? Number(input.cursor) : 0;
+        const pages = [environments, ...morePages];
+        const nextCursor = page + 1 < pages.length ? String(page + 1) : undefined;
         res.writeHead(findStatus, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ result: { data: { json: { environments } } } }));
+        res.end(JSON.stringify({ result: { data: { json: { environments: pages[page], nextCursor } } } }));
         return;
       }
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -156,6 +171,34 @@ describe("the workflows' script, for a pull request preview", () => {
     const { variables } = await runPr(await standInQaWolf());
 
     expect(variables).toEqual({ TEST_LOGIN_APPROVED_PREVIEW_URL: PREVIEW });
+  });
+
+  it("finds the environment on a later page", async () => {
+    const { saves } = await runPr(
+      await standInQaWolf({
+        environments: [{ id: "pr-9", name: "Sporky-jc-showme-pr-9" }],
+        morePages: [[{ id: "pr-7", name: "Sporky-jc-showme-pr-7" }]],
+      })
+    );
+
+    expect(saves.map((save) => save.environmentId)).toEqual(["pr-7"]);
+  });
+
+  it("tries the lookup again when QA Wolf has a hiccup", async () => {
+    const { saves } = await runPr(
+      await standInQaWolf({
+        environments: [{ id: "pr-7", name: "Sporky-jc-showme-pr-7" }],
+        failFirst: [503],
+      })
+    );
+
+    expect(saves.map((save) => save.environmentId)).toEqual(["pr-7"]);
+  }, 20_000);
+
+  it("hands the deployment nothing when no preview address is given", async () => {
+    const { variables } = await runPr(await standInQaWolf(), { APPROVED_PREVIEW_URL: "" });
+
+    expect(variables).toEqual({});
   });
 
   it("fails, sending nothing, without a key", async () => {

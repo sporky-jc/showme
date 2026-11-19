@@ -45,7 +45,7 @@ const WORKSPACE_ID = "xoniuprcn2am5nh63rx8fn6cotea"; // not a secret
 const QAWOLF_HOST = process.env.QAWOLF_HOST_URL ?? "https://app.qawolf.com";
 const QAWOLF_ENVIRONMENT = "staging"; // the QA Wolf environment's alias
 const VARIABLE = "TEST_LOGIN_SECRET"; // the name the flows read
-// The preview the pass is for (output mode, from APPROVED_PREVIEW_URL)
+// The preview the pass is for (pr mode, from APPROVED_PREVIEW_URL)
 const PREVIEW_VARIABLE = "TEST_LOGIN_APPROVED_PREVIEW_URL";
 const MIN_KEY_LENGTH = 32; // as the backend requires
 // The refresh is scheduled hourly, but GitHub has run it only every 6 to 10
