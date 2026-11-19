@@ -52,6 +52,15 @@ const testStudent = (role: string): TestAccount => ({
   isAdmin: false,
 });
 
+// Every test teacher is "Test Admin"; the id and email come from the role
+const testAdmin = (role: string): TestAccount => ({
+  id: `${TEST_ACCOUNT_PREFIX}${role}`,
+  firstName: "Test",
+  lastName: "Admin",
+  email: `test-${role}@showme.test`,
+  isAdmin: true,
+});
+
 const TEST_ACCOUNTS: Record<string, TestAccount> = {
   student: testStudent("student"),
   "student-approve": testStudent("student-approve"),
@@ -65,13 +74,21 @@ const TEST_ACCOUNTS: Record<string, TestAccount> = {
   // Writes a sentence and has it approved, so it needs its own account: a
   // fresh login as student-likes (the like-and-unlike test) would delete it
   "student-likes-own": testStudent("student-likes-own"),
-  admin: {
-    id: "test-admin",
-    firstName: "Test",
-    lastName: "Admin",
-    email: "test-admin@showme.test",
-    isAdmin: true,
-  },
+  // A send that fails, then saves once on the retry
+  "student-retry": testStudent("student-retry"),
+  // The Today page: prompt, writing, and the latest sentences
+  "student-today": testStudent("student-today"),
+  // Two students taking turns on one device, so neither may see or change
+  // the other's sentences
+  "student-tablet-a": testStudent("student-tablet-a"),
+  "student-tablet-b": testStudent("student-tablet-b"),
+  // The Write page's sense tips and word count
+  "student-senses": testStudent("student-senses"),
+  admin: testAdmin("admin"),
+  // Logs out, which ends every session of its account (see logout in
+  // routes.ts), so it needs its own: logging out as "admin" would sign out
+  // the other teacher tests running at the same time
+  "admin-menu": testAdmin("admin-menu"),
 };
 
 // Firebase tells the code which project it's running in

@@ -1952,3 +1952,188 @@ h3,
     transform: none;
   }
 }
+
+/* ---- Teacher: the review queue ---- */
+
+.paper-review {
+  min-height: 80vh;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 20px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: left;
+}
+
+.paper-review__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.paper-review__top .scribbles {
+  flex: none;
+  width: 58px;
+  height: auto;
+}
+
+.paper-review__top h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 4vw, 2.25rem);
+}
+
+.paper-review__top h1:focus {
+  outline: none;
+}
+
+.paper-review__top .paper-status {
+  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.paper-review__failed {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--paper-retry-bg);
+  color: var(--paper-retry-ink);
+  font-weight: 800;
+}
+
+/* Nothing is waiting: Scribbles celebrates */
+.paper-review__done {
+  align-self: center;
+  width: 100%;
+  max-width: 30rem;
+  margin-top: 12px;
+  padding: 24px 22px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-radius: 28px;
+  background: var(--paper-white);
+  box-shadow: 0 6px 0 var(--paper-done-edge);
+  text-align: center;
+}
+
+.paper-review__done p {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.paper-review__done .paper-review__caught-up {
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.paper-review__done .paper-btn {
+  margin-top: 14px;
+}
+
+.paper-review__queue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+/* One waiting sentence: who, the Tell, their Show, and the two decisions */
+.paper-review__card {
+  padding: 16px 18px 18px;
+  border-radius: 24px;
+  background: var(--paper-white);
+  box-shadow: 0 6px 0 #ffb27a;
+}
+
+.paper-review__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.paper-review__who h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  overflow-wrap: anywhere;
+}
+
+.paper-review__waited {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--paper-muted);
+}
+
+.paper-review__tell {
+  margin: 10px 0 2px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b93a0a;
+}
+
+.paper-review__show {
+  margin: 0 0 14px;
+  font-weight: 700;
+  font-size: 1.3rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.paper-review__decide {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 2px dashed #e4eef7;
+}
+
+.paper-review__decide .paper-btn {
+  min-height: 48px;
+  font-size: 1.1rem;
+}
+
+/* White on this green reads at 5.4:1 */
+.paper-review__approve {
+  background: var(--paper-done-ink);
+  box-shadow: 0 4px 0 #14562b;
+  color: var(--paper-white);
+}
+
+.paper-review__approve:hover {
+  color: var(--paper-white);
+}
+
+.paper-review__again {
+  background: var(--paper-retry-bg);
+  box-shadow: 0 4px 0 var(--paper-retry-edge);
+  color: var(--paper-ink);
+}
+
+.paper-review__decide .paper-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (min-width: 576px) {
+  .paper-review__decide {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .paper-review__decide .paper-btn {
+    min-width: 150px;
+  }
+}

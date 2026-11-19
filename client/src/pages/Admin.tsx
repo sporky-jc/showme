@@ -1,28 +1,30 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { useSelector, useDispatch } from "react-redux";
-import {
-  MDBCard,
-  MDBCardBody,
-  MDBCardHeader,
-  MDBCol,
-  MDBContainer,
-  MDBIcon,
-  MDBRow,
-  MDBTable,
-  MDBTableBody,
-  MDBTableHead,
-  MDBTooltip,
-} from "mdb-react-ui-kit";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { useSelector, useDispatch, useStore } from "react-redux";
+import Scribbles from "../components/Scribbles";
+import PageLoading from "../components/PageLoading";
 import {
   updatePendingApprovalSentences,
   fetchApprovalSentences,
 } from "../actions/approvalsentences";
-import LoadingOverlay from "react-loading-overlay-ts";
-import PageLoading from "../components/PageLoading";
 import type { ReviewDecision, SentenceWithAuthor } from "../api/types";
 import type { AppDispatch, RootState } from "../reducers/types";
 
+// Some accounts have no last name
+const nameOf = ({ author }: SentenceWithAuthor) =>
+  author.lastName ? `${author.firstName} ${author.lastName}` : author.firstName;
+
+// How long a sentence has waited, in words ("today", "2 days ago"), by the
+// calendar: one sent yesterday afternoon reads "yesterday" this morning
+const waitedSince = (createdAt: string, now: number) => {
+  const midnight = (time: number) => new Date(time).setHours(0, 0, 0, 0);
+  const days = Math.round((midnight(now) - midnight(new Date(createdAt).getTime())) / 86_400_000);
+  if (!(days >= 1)) return "today"; // also a missing or future date
+  return days === 1 ? "yesterday" : `${days} days ago`;
+};
+
+// The Teacher page: the sentences waiting for a teacher, longest wait first,
+// each on a card with the way to approve it or send it back.
 function Admin() {
   // grab global state from redux store
   const user = useSelector((state: RootState) => state.user);
@@ -35,22 +37,39 @@ function Admin() {
   const sentencesAwaitingApproval = useSelector(
     (state: RootState) => state.approvalsentences
   );
-  // create state for loading spinner
-  const [isActive, setActive] = useState(false);
 
-  // dispatch for redux
   const dispatch = useDispatch<AppDispatch>();
-
+  const store = useStore<RootState>();
   const navigate = useNavigate();
   const isAdmin = user.isAdmin === true;
 
+  // Whether the queue has arrived, the sentence being saved (its buttons and
+  // everyone else's wait), what just happened (read out by screen readers),
+  // and a decision the server didn't take.
+  const [loaded, setLoaded] = useState<"loading" | "ready" | "failed">("loading");
+  const [attempt, setAttempt] = useState(0);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [said, setSaid] = useState("");
+  const [failed, setFailed] = useState(false);
+  // "Now", for how long each sentence has waited: read once, when the page
+  // opens, so the cards don't change while they're being read
+  const [now] = useState(() => Date.now());
+  const heading = useRef<HTMLHeadingElement>(null);
+
   // Retrieve all sentences pending approval (the server checks again), once
-  // the user is an admin. Only when that changes, not on every update of the
-  // user or the login check: a second request answered after an approval
-  // would bring back the queue from before it.
+  // the user is an admin. Only when that changes (or on Try again), not on
+  // every update of the user or the login check: a second request answered
+  // after an approval would bring back the queue from before it.
   useEffect(() => {
-    if (isAdmin) dispatch(fetchApprovalSentences());
-  }, [isAdmin, dispatch]);
+    if (!isAdmin) return;
+    let current = true;
+    dispatch(fetchApprovalSentences()).then((arrived) => {
+      if (current) setLoaded(arrived ? "ready" : "failed");
+    });
+    return () => {
+      current = false;
+    };
+  }, [isAdmin, dispatch, attempt]);
 
   // The server says this isn't an admin: send back to home page. Not before
   // it has answered, or a remembered student sends an admin away.
@@ -58,19 +77,55 @@ function Admin() {
     if (sessionChecked && !isAdmin) navigate("/");
   }, [sessionChecked, isAdmin, navigate]);
 
-  // `sentence` is the one in the row that was clicked, passed in directly:
-  // looking it up by row number could pick another one if the queue changed
-  // between drawing the row and the click.
-  function handleUpdateStatus(
-    sentence: SentenceWithAuthor,
-    status: ReviewDecision
-  ) {
-    // Load loading spinner
-    setActive(true);
+  // Where the keyboard goes once a decision has been answered: back to the
+  // pressed button if it didn't save, or to the card that took its place.
+  // Set just before the redraw that turns the buttons back on, and used
+  // (once) right after it.
+  const focusNext = useRef<{ id: string } | { place: number } | null>(null);
+  const list = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const target = focusNext.current;
+    if (!target) return;
+    focusNext.current = null;
+    const cards = list.current?.querySelectorAll("li") ?? [];
+    const card =
+      "id" in target
+        ? list.current?.querySelector(`li[data-sentence="${CSS.escape(target.id)}"]`)
+        : cards[Math.min(target.place, cards.length - 1)];
+    const button = card?.querySelector("button");
+    // No card left to go to (the queue is empty, or it couldn't be loaded):
+    // the heading
+    if (button) button.focus();
+    else heading.current?.focus();
+  });
 
-    // Send the approved/rejected sentence to backend and update database and Redux store
-    dispatch(updatePendingApprovalSentences(status, sentence)).then(() =>
-      setActive(false)
+  // `sentence` is the one on the card that was pressed, passed in directly:
+  // looking it up by position could pick another one if the queue changed
+  // between drawing the card and the press. `place` is where its card was.
+  async function decide(sentence: SentenceWithAuthor, status: ReviewDecision, place: number) {
+    if (saving) return;
+    setSaving(sentence._id);
+    setFailed(false);
+    const saved = await dispatch(updatePendingApprovalSentences(status, sentence));
+    if (!saved) {
+      // Ask for the queue again: the sentence may be gone (someone else
+      // handled it), and its card shouldn't stay to fail again
+      await dispatch(fetchApprovalSentences());
+      focusNext.current = { id: sentence._id };
+      setSaving(null);
+      setFailed(true);
+      return;
+    }
+    focusNext.current = { place };
+    setSaving(null);
+    // How many are left, so two decisions in a row never read the same
+    // (a screen reader stays silent when the words don't change)
+    const left = store.getState().approvalsentences.length;
+    setSaid(
+      (status === "approve"
+        ? `Approved ${nameOf(sentence)}'s sentence.`
+        : `Sent ${nameOf(sentence)}'s sentence back to try again.`) +
+        (left === 0 ? " All caught up!" : ` ${left} waiting.`)
     );
   }
 
@@ -79,108 +134,109 @@ function Admin() {
   if (!isAdmin) {
     return sessionChecked ? null : <PageLoading />;
   }
+  if (loaded === "loading") return <PageLoading />;
+
+  // Longest wait first, so nobody is left at the bottom of a growing queue
+  const queue = [...sentencesAwaitingApproval].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  const count = queue.length;
 
   return (
-    <LoadingOverlay active={isActive} spinner text="Loading...">
-      {/* At least a screen tall, and taller when the queue is: a fixed
-          height let a long queue spill out underneath the footer, whose
-          hills then covered the last rows */}
-      <section className="gradient-custom-2 min-vh-100">
-        <MDBContainer className="py-5 approvallist">
-          <MDBRow className="d-flex justify-content-center align-items-center">
-            <MDBCol md="12" xl="12">
-              <MDBCard>
-                <MDBCardHeader className="p-3">
-                  <h5 className="mb-0">
-                    <MDBIcon fas icon="list-check" className="me-2 fa-width-auto" />
-                    Sentences Awaiting Approval
-                  </h5>
-                </MDBCardHeader>
+    <div className="paper-review">
+      <div className="paper-review__top">
+        {/* With nothing waiting he moves down to the "All caught up!" card */}
+        {!(loaded === "ready" && count === 0) && <Scribbles prop="check" size={70} decorative />}
+        <h1 ref={heading} tabIndex={-1}>
+          Needs your eyes
+        </h1>
+        {loaded === "ready" && count > 0 && (
+          <span className="paper-status paper-status--turn">{count} waiting</span>
+        )}
+      </div>
+      <p className="visually-hidden" role="status">
+        {said}
+      </p>
 
-                <MDBCardBody>
-                  <MDBTable className="mb-0">
-                    <MDBTableHead>
-                      <tr>
-                        <th scope="col">Student</th>
-                        <th scope="col">Show Sentence</th>
-                        <th scope="col">Tell Sentence</th>
-                        <th scope="col">Actions</th>
-                      </tr>
-                    </MDBTableHead>
-                    <MDBTableBody>
-                      {[...sentencesAwaitingApproval].map((sentence) => {
-                        return (
-                          // Keyed by the sentence, so a row always stays that
-                          // sentence's row when the queue changes, instead of
-                          // being reused to show another one
-                          <tr
-                            className="fw-normal approve-redo"
-                            key={sentence._id}
-                          >
-                            {/* An old HTML attribute browsers still follow;
-                                React's types leave it off <th> (not <td>) */}
-                            <th {...{ width: "15%" }}>
-                              <span className="ms-2">
-                                {/* Some accounts have no last name */}
-                                {sentence.author.lastName
-                                  ? `${sentence.author.firstName} ${sentence.author.lastName}`
-                                  : sentence.author.firstName}
-                              </span>
-                            </th>
-                            <td className="align-middle" width="55%">
-                              <h6 className="mb-0">
-                                <span>{sentence.show}</span>
-                              </h6>
-                            </td>
-                            <td className="align-middle" width="20%">
-                              <span>{sentence.tell}</span>
-                            </td>
-                            <td className="align-middle" width="10%">
-                              <MDBTooltip
-                                tag="a"
-                                wrapperProps={{ href: "#!" }}
-                                title="Approve"
-                              >
-                                <MDBIcon
-                                  fas
-                                  icon="check"
-                                  color="success"
-                                  size="lg"
-                                  className="me-3 fa-width-auto"
-                                  onClick={() =>
-                                    handleUpdateStatus(sentence, "approve")
-                                  }
-                                />
-                              </MDBTooltip>
-                              <MDBTooltip
-                                tag="a"
-                                wrapperProps={{ href: "#!" }}
-                                title="Redo"
-                              >
-                                <MDBIcon
-                                  fas
-                                  icon="rotate-right"
-                                  color="warning"
-                                  size="lg"
-                                  className="me-3 fa-width-auto"
-                                  onClick={() =>
-                                    handleUpdateStatus(sentence, "redo")
-                                  }
-                                />
-                              </MDBTooltip>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </MDBTableBody>
-                  </MDBTable>
-                </MDBCardBody>
-              </MDBCard>
-            </MDBCol>
-          </MDBRow>
-        </MDBContainer>
-      </section>
-    </LoadingOverlay>
+      {loaded === "failed" ? (
+        <div className="page-message" role="alert">
+          <p>
+            We couldn&apos;t load the sentences. Check your internet
+            connection, then try again.
+          </p>
+          <button
+            type="button"
+            className="paper-btn paper-btn--action"
+            onClick={() => {
+              setLoaded("loading");
+              setAttempt((n) => n + 1);
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      ) : count === 0 ? (
+        <div className="paper-review__done">
+          <Scribbles mood="happy" prop="check" size={130} decorative />
+          <p className="paper-review__caught-up">All caught up!</p>
+          <p>No sentences are waiting.</p>
+          <Link to="/Gallery" className="paper-btn paper-btn--action">
+            See the class gallery
+          </Link>
+        </div>
+      ) : (
+        <>
+          {failed && (
+            <p className="paper-review__failed" role="alert">
+              That didn&apos;t save. If the sentence is still here, press the
+              button again.
+            </p>
+          )}
+          <ol className="paper-review__queue" ref={list}>
+            {queue.map((sentence, place) => {
+              const name = nameOf(sentence);
+              return (
+                // Keyed by the sentence, so a card always stays that
+                // sentence's card when the queue changes, instead of being
+                // reused to show another one
+                <li className="paper-review__card" key={sentence._id} data-sentence={sentence._id}>
+                  <div className="paper-review__who">
+                    <h2>{name}</h2>
+                    <span className="paper-review__waited">
+                      Sent {waitedSince(sentence.createdAt, now)}
+                    </span>
+                  </div>
+                  <p className="paper-review__tell">{sentence.tell}</p>
+                  <p className="paper-review__show">{sentence.show}</p>
+                  <div className="paper-review__decide">
+                    <button
+                      type="button"
+                      className="paper-btn paper-review__approve"
+                      aria-label={
+                        saving === sentence._id ? `Saving: ${name}'s sentence` : `Approve: ${name}'s sentence`
+                      }
+                      disabled={saving !== null}
+                      onClick={() => decide(sentence, "approve", place)}
+                    >
+                      {saving === sentence._id ? "Saving…" : "Approve"}
+                    </button>
+                    <button
+                      type="button"
+                      className="paper-btn paper-review__again"
+                      aria-label={`Try again: ${name}'s sentence`}
+                      disabled={saving !== null}
+                      onClick={() => decide(sentence, "redo", place)}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </>
+      )}
+    </div>
   );
 }
 
