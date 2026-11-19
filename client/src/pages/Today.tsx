@@ -100,7 +100,7 @@ function Today() {
               <span className="paper-status paper-status--done">All done</span>
               <p className="paper-today__sentence">You showed every sentence!</p>
               <p className="paper-today__hint">Come back later for more.</p>
-              <Link to="/Collections" className="paper-btn paper-btn--action paper-today__start">
+              <Link to="/Gallery" className="paper-btn paper-btn--action paper-today__start">
                 See the class gallery
               </Link>
             </div>
@@ -130,7 +130,7 @@ function Today() {
               return (
                 <li key={sentence._id}>
                   {/* One the teacher sent back opens ready to rewrite */}
-                  <Link to={sentence.toRedo ? `/Write/${sentence._id}` : "/MyPage"} className={note}>
+                  <Link to={sentence.toRedo ? `/Write/${sentence._id}` : "/MySentences"} className={note}>
                     <span className="paper-note__status">{label}</span>
                     <span className="paper-note__show">{sentence.show}</span>
                     {tell && <span className="visually-hidden">for “{tell}”</span>}

@@ -10,11 +10,11 @@ const About = () => {
   const openLogin = useOpenLogin();
   const user = useSelector((state: RootState) => state.user);
 
-  // Join Us: a signed-in student goes straight to their page; anyone else
-  // gets the sign-in pop-up first (signing in then opens their page)
+  // Join Us: a signed-in student goes straight to their sentences; anyone else
+  // gets the sign-in pop-up first (signing in then opens Today, their home)
   const join = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault(); // stay in the app: no reload, no "#" in the address
-    if (Object.keys(user).length !== 0) navigate("/MyPage");
+    if (Object.keys(user).length !== 0) navigate("/MySentences");
     else openLogin();
   };
 
@@ -32,7 +32,7 @@ const About = () => {
             with mere words. Start today!{" "}
           </p>
           <a
-            href="/MyPage"
+            href="/MySentences"
             onClick={join}
             className="btn btn-primary joinbutton"
           >
@@ -40,6 +40,8 @@ const About = () => {
           </a>
         </div>
       </div>
+      {/* Phones have no footer (the main links sit there), so it's here */}
+      <p className="paper-about__copyright">&copy; {new Date().getFullYear()} Show ME</p>
     </div>
   );
 };

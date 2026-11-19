@@ -33,7 +33,7 @@ Exact versions are listed in each folder's `package.json`.
 - Login with school google account (every student has a school Google account)
 - A Write page where students show today's Tell sentence, with Scribbles the pencil asking questions for each sense, and a My sentences page to follow and edit them
 - Admin can approve or reject show sentences
-- Display students' sentences in Collections Page after approval
+- Approved sentences appear in the class gallery, where classmates can like them
 
 ## Screenshots
 
@@ -43,7 +43,7 @@ Exact versions are listed in each folder's `package.json`.
 
 ![Admin Page](./img/AdminPage.PNG)
 
-![Collections](./img/Collections.PNG)
+![Class gallery](./img/Collections.PNG)
 
 ## Project Structure
 

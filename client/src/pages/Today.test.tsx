@@ -101,7 +101,7 @@ describe("Today", () => {
     await waitFor(() => expect(notes()).toHaveLength(2));
     // Newest first
     expect(notes()[0]).toHaveAttribute("href", "/Write/s2");
-    expect(notes()[1]).toHaveAttribute("href", "/MyPage");
+    expect(notes()[1]).toHaveAttribute("href", "/MySentences");
   });
 
   // The day is counted from the student's list, so Day 1 must not flash up
@@ -162,15 +162,15 @@ describe("Today", () => {
     expect(screen.queryByText("You showed every sentence!")).not.toBeInTheDocument();
   });
 
-  it("says so when every Tell sentence has been written for, and points to Collections", async () => {
+  it("says so when every Tell sentence has been written for, and points to the gallery", async () => {
     renderToday({ tellCount: 2, mine: shows(2) });
 
     expect(await screen.findByText("You showed every sentence!")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Start showing" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Collections");
+    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Gallery");
   });
 
-  it("lists the three latest sentences, newest first, each linked to MyPage", async () => {
+  it("lists the three latest sentences, newest first, each linked to My sentences", async () => {
     renderToday({ mine: shows(5) });
     await screen.findByText("“Tell 6”");
 
@@ -179,7 +179,7 @@ describe("Today", () => {
       "Show 4",
       "Show 3",
     ]);
-    notes().forEach((note) => expect(note).toHaveAttribute("href", "/MyPage"));
+    notes().forEach((note) => expect(note).toHaveAttribute("href", "/MySentences"));
   });
 
   it("says where each sentence stands: done, try again, or being checked", async () => {

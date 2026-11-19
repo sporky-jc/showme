@@ -186,7 +186,7 @@ describe("Write", () => {
     expect(screen.getByText("Tell 3")).toBeInTheDocument();
     expect(screen.getByText(/Once your teacher approves it, it will appear in the gallery/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to today" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MyPage");
+    expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MySentences");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
@@ -247,7 +247,7 @@ describe("Write", () => {
 
     expect(await screen.findByText(/You showed every sentence!/)).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Collections");
+    expect(screen.getByRole("link", { name: "See the class gallery" })).toHaveAttribute("href", "/Gallery");
   });
 
   it("when the student's sentences can't be loaded, says so and loads them on Try again", async () => {
@@ -345,7 +345,7 @@ describe("Write", () => {
       expect(await screen.findByText(/couldn't find that sentence/i)).toBeInTheDocument();
       expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
       await waitFor(() =>
-        expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MyPage")
+        expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MySentences")
       );
     });
   });

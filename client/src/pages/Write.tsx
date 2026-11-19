@@ -121,7 +121,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
           <Link to="/" className="paper-btn paper-btn--action">
             Back to today
           </Link>
-          <Link to="/MyPage" className="paper-btn">
+          <Link to="/MySentences" className="paper-btn">
             My sentences
           </Link>
         </div>
@@ -158,7 +158,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
       <div className="paper-write">
         <div className="page-message">
           <p>We couldn&apos;t find that sentence.</p>
-          <Link to="/MyPage" className="paper-btn paper-btn--action">
+          <Link to="/MySentences" className="paper-btn paper-btn--action">
             My sentences
           </Link>
         </div>
@@ -172,7 +172,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
       <div className="paper-write">
         <div className="page-message">
           <p>You showed every sentence! Come back later for more.</p>
-          <Link to="/Collections" className="paper-btn paper-btn--action">
+          <Link to="/Gallery" className="paper-btn paper-btn--action">
             See the class gallery
           </Link>
         </div>
