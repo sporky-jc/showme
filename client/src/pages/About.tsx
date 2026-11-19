@@ -52,20 +52,20 @@ const About = () => {
           </div>
         </div>
 
-        <figure className="paper-stack paper-about__example">
+        <div className="paper-stack paper-about__example">
           <div className="paper-stack__card paper-about__example-card">
             <picture>
               <source media={phonePhotoMedia} srcSet={example.phonePicture} />
               <img className="paper-about__photo" src={example.picture} alt={example.alt} />
             </picture>
-            <figcaption className="paper-about__pair">
+            <div className="paper-about__pair">
               <span className="paper-status paper-status--retry">Tell</span>
               <p className="paper-about__tell">{example.tell}</p>
               <span className="paper-status paper-status--done">Show</span>
               <p className="paper-about__show">{example.show}</p>
-            </figcaption>
+            </div>
           </div>
-        </figure>
+        </div>
       </section>
 
       <section className="paper-about__how" aria-labelledby="about-how">

@@ -13,6 +13,15 @@ const ARM = {
   thinking: "M66 104 Q 48 80 66 58",
 } as const;
 
+// Written out in full: the production build keeps only the CSS class names
+// that appear literally in the code (vite.config.ts), so a name pieced
+// together like `scribbles--${mood}` would lose its animation there
+const MOOD_CLASS = {
+  idle: "scribbles scribbles--idle",
+  happy: "scribbles scribbles--happy",
+  thinking: "scribbles scribbles--thinking",
+} as const;
+
 const MOUTH = {
   idle: "M88 118 Q 100 128 112 118",
   happy: "M88 118 Q 100 130 112 118",
@@ -91,7 +100,7 @@ function Scribbles({
   const label = decorative ? {} : { role: "img", "aria-label": "Scribbles the pencil" };
   return (
     <svg
-      className={`scribbles scribbles--${mood}`}
+      className={MOOD_CLASS[mood]}
       width={size}
       height={Math.round((size * 216) / 210)}
       viewBox="0 0 210 216"
