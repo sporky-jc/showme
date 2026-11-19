@@ -16,9 +16,9 @@ import crypto from "node:crypto";
 
 const VERSION = "v1";
 
-// The longest a pass may still have to run. GitHub mints them for 3 hours
-// (handed to a deployment's runs) or 24 hours (saved in QA Wolf, because
-// GitHub runs the hourly refresh only every few hours); a pass claiming a
+// The longest a pass may still have to run. GitHub mints them for 24 hours
+// (saved in QA Wolf, because GitHub runs the hourly refresh only every few
+// hours); a pass claiming a
 // later expiry is refused even if its signature is right, so a mistake with
 // the key can't produce one that lasts for weeks.
 export const MAX_PASS_SECONDS = 26 * 60 * 60;

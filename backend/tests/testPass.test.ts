@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { promisify } from "node:util";
@@ -64,55 +64,110 @@ describe("isValidTestPass", () => {
     const pass = mintTestPass(KEY, inAnHour());
     expect(isValidTestPass(pass.replace("v1.", "v1.0"), KEY)).toBe(false);
   });
+});
 
-  // The passes QA Wolf gets are made by .github/scripts/test-login-pass.mjs,
-  // not by this code: run it, and check its pass is one the backend takes
-  it("accepts the passes the workflows' script makes", () => {
-    const dir = mkdtempSync(join(tmpdir(), "test-pass-"));
-    const output = join(dir, "github_output");
-    writeFileSync(output, "");
-    execFileSync(
-      process.execPath,
-      [fileURLToPath(new URL("../../.github/scripts/test-login-pass.mjs", import.meta.url)), "output"],
-      { env: { PATH: process.env.PATH, TEST_LOGIN_KEY: KEY, GITHUB_OUTPUT: output } }
-    );
-    const line = readFileSync(output, "utf8").trim();
-    const pass = JSON.parse(line.slice("variables=".length)).TEST_LOGIN_SECRET;
+const SCRIPT = fileURLToPath(new URL("../../.github/scripts/test-login-pass.mjs", import.meta.url));
 
-    expect(isValidTestPass(pass, KEY)).toBe(true);
-    expect(isValidTestPass(pass, OTHER_KEY)).toBe(false);
-  });
-
-  // Runs the script's output mode and returns the variables it hands QA Wolf
-  const outputVariables = (env: Record<string, string>) => {
-    const dir = mkdtempSync(join(tmpdir(), "test-pass-"));
-    const output = join(dir, "github_output");
-    writeFileSync(output, "");
-    execFileSync(
-      process.execPath,
-      [fileURLToPath(new URL("../../.github/scripts/test-login-pass.mjs", import.meta.url)), "output"],
-      { env: { PATH: process.env.PATH, GITHUB_OUTPUT: output, ...env } }
-    );
-    const line = readFileSync(output, "utf8").trim();
-    return JSON.parse(line.slice("variables=".length));
-  };
-
-  it("sends the preview's address with the pass, for flows that check it", () => {
-    const url = "https://deploy-preview-7--show-me-not-tell.netlify.app";
-    const variables = outputVariables({ TEST_LOGIN_KEY: KEY, APPROVED_PREVIEW_URL: url });
-    expect(variables.TEST_LOGIN_APPROVED_PREVIEW_URL).toBe(url);
-    expect(isValidTestPass(variables.TEST_LOGIN_SECRET, KEY)).toBe(true);
-  });
-
-  it("still sends the preview's address when there is no key", () => {
-    const url = "https://deploy-preview-7--show-me-not-tell.netlify.app";
-    expect(outputVariables({ APPROVED_PREVIEW_URL: url })).toEqual({
-      TEST_LOGIN_APPROVED_PREVIEW_URL: url,
+// A stand-in for QA Wolf's API: answers environment.find with `environments`
+// (or `findStatus`) and records every request
+const standInQaWolf = async ({
+  environments = [] as object[],
+  findStatus = 200,
+} = {}) => {
+  const received: { method?: string; url?: string; auth?: string; body?: string }[] = [];
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      received.push({ method: req.method, url: req.url, auth: req.headers.authorization, body });
+      if (req.url?.startsWith("/api/trpc/public.environment.find")) {
+        res.writeHead(findStatus, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ result: { data: { json: { environments } } } }));
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"result":{"data":{"json":{}}}}');
     });
   });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  return { received, host: `http://127.0.0.1:${port}`, close: () => server.close() };
+};
 
-  it("sends no address when none is given", () => {
-    expect(outputVariables({})).toEqual({});
+const PREVIEW = "https://deploy-preview-7--show-me-not-tell.netlify.app";
+
+// Runs the script's pr mode; returns what it sent QA Wolf and the variables
+// it hands the deployment
+const runPr = async (qawolf: Awaited<ReturnType<typeof standInQaWolf>>, env: Record<string, string> = {}) => {
+  const dir = mkdtempSync(join(tmpdir(), "test-pass-"));
+  const output = join(dir, "github_output");
+  writeFileSync(output, "");
+  try {
+    await promisify(execFile)(process.execPath, [SCRIPT, "pr"], {
+      env: {
+        PATH: process.env.PATH,
+        GITHUB_OUTPUT: output,
+        TEST_LOGIN_KEY: KEY,
+        QAWOLF_API_KEY: "qawolf-api-key",
+        QAWOLF_HOST_URL: qawolf.host,
+        PR_ENVIRONMENT_NAME: "sporky-jc-showme-pr-7",
+        APPROVED_PREVIEW_URL: PREVIEW,
+        ...env,
+      },
+    });
+  } finally {
+    qawolf.close();
+  }
+  const line = readFileSync(output, "utf8").trim();
+  const saves = qawolf.received
+    .filter((r) => r.url === "/api/trpc/public.environment.setVariable")
+    .map((r) => JSON.parse(r.body ?? "{}").json);
+  return { saves, variables: line ? JSON.parse(line.slice("variables=".length)) : undefined };
+};
+
+describe("the workflows' script, for a pull request preview", () => {
+  it("saves a pass the backend accepts in the pull request's own QA Wolf environment", async () => {
+    const qawolf = await standInQaWolf({
+      environments: [
+        { id: "old-pr-7", name: "Sporky-jc-showme-pr-7", terminatedAt: "2026-01-01T00:00:00Z" },
+        { id: "pr-8", name: "Sporky-jc-showme-pr-8" },
+        { id: "pr-7", name: "Sporky-jc-showme-pr-7" },
+      ],
+    });
+    const { saves } = await runPr(qawolf);
+
+    expect(saves).toHaveLength(1);
+    expect(saves[0]).toMatchObject({ environmentId: "pr-7", name: "TEST_LOGIN_SECRET" });
+    expect(isValidTestPass(saves[0].value, KEY)).toBe(true);
+    expect(isValidTestPass(saves[0].value, OTHER_KEY)).toBe(false);
+    const find = qawolf.received.find((r) => r.method === "GET");
+    expect(find?.auth).toBe("Bearer qawolf-api-key");
+  });
+
+  it("saves it in staging, which the environment is copied from, when QA Wolf hasn't made one yet", async () => {
+    const { saves } = await runPr(await standInQaWolf({ environments: [{ id: "pr-8", name: "Sporky-jc-showme-pr-8" }] }));
+
+    expect(saves).toHaveLength(1);
+    expect(saves[0]).toMatchObject({ environmentId: "staging", name: "TEST_LOGIN_SECRET" });
+  });
+
+  // QA Wolf shows a deployment's variables in its pull request comment
+  it("hands the deployment only the preview's address, never the pass", async () => {
+    const { variables } = await runPr(await standInQaWolf());
+
+    expect(variables).toEqual({ TEST_LOGIN_APPROVED_PREVIEW_URL: PREVIEW });
+  });
+
+  it("fails, sending nothing, without a key", async () => {
+    const qawolf = await standInQaWolf();
+    await expect(runPr(qawolf, { TEST_LOGIN_KEY: "" })).rejects.toThrow();
+    expect(qawolf.received).toHaveLength(0);
+  });
+
+  it("fails without saving when QA Wolf refuses the lookup", async () => {
+    const qawolf = await standInQaWolf({ findStatus: 403 });
+    await expect(runPr(qawolf)).rejects.toThrow();
+    expect(qawolf.received.filter((r) => r.method === "POST")).toHaveLength(0);
   });
 });
 
