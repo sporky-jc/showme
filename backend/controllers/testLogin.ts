@@ -65,6 +65,16 @@ const TEST_ACCOUNTS: Record<string, TestAccount> = {
   // Writes a sentence and has it approved, so it needs its own account: a
   // fresh login as student-likes (the like-and-unlike test) would delete it
   "student-likes-own": testStudent("student-likes-own"),
+  // A send that fails, then saves once on the retry
+  "student-retry": testStudent("student-retry"),
+  // The Today page: prompt, writing, and the latest sentences
+  "student-today": testStudent("student-today"),
+  // Two students taking turns on one device, so neither may see or change
+  // the other's sentences
+  "student-tablet-a": testStudent("student-tablet-a"),
+  "student-tablet-b": testStudent("student-tablet-b"),
+  // The Write page's sense tips and word count
+  "student-senses": testStudent("student-senses"),
   admin: {
     id: "test-admin",
     firstName: "Test",
