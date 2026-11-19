@@ -106,17 +106,17 @@ const mainLinks = () =>
     .map((link) => `${link.textContent} ${link.getAttribute("href")}`);
 
 describe("the nav bar's links", () => {
-  it("a signed-in student gets Today, My sentences and Gallery", () => {
+  it("a signed-in student gets Home, My sentences and Gallery", () => {
     renderNav("/", maya);
 
-    expect(mainLinks()).toEqual(["Today /", "My sentences /MySentences", "Gallery /Gallery"]);
+    expect(mainLinks()).toEqual(["Home /", "My sentences /MySentences", "Gallery /Gallery"]);
   });
 
   it("a teacher also gets Teacher", () => {
     renderNav("/", { ...maya, isAdmin: true });
 
     expect(mainLinks()).toEqual([
-      "Today /",
+      "Home /",
       "My sentences /MySentences",
       "Gallery /Gallery",
       "Teacher /admin",
@@ -138,7 +138,7 @@ describe("the nav bar's links", () => {
     renderNav("/Gallery", maya);
 
     expect(screen.getByRole("link", { name: "Gallery" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Today" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
   });
 
   it("the logo leads home", () => {

@@ -122,7 +122,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
         </div>
         <div className="paper-write__next">
           <Link to="/" className="paper-btn paper-btn--action">
-            Back to today
+            Back home
           </Link>
           <Link to="/MySentences" className="paper-btn">
             My sentences
@@ -229,7 +229,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
     <div className="paper-write">
       <div className="paper-write__top">
         <Link to="/" className="paper-write__back">
-          <span aria-hidden>←</span> Back to today
+          <span aria-hidden>←</span> Back home
         </Link>
         <ol className="paper-write__steps" aria-label="Steps">
           <li aria-current="step">1 · Write it</li>

@@ -109,7 +109,7 @@ describe("Write", () => {
 
     await box();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next TellTell 3");
-    expect(screen.getByRole("link", { name: /Back to today/ })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /Back home/ })).toHaveAttribute("href", "/");
   });
 
   // The day comes from the list, and a save sent while the list is still on
@@ -185,7 +185,7 @@ describe("Write", () => {
     expect(screen.getByText("Brr, my fingers froze.")).toBeInTheDocument();
     expect(screen.getByText("Tell 3")).toBeInTheDocument();
     expect(screen.getByText(/Once Scribbles approves it, it will appear in the Show ME gallery/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to today" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Back home" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "My sentences" })).toHaveAttribute("href", "/MySentences");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
