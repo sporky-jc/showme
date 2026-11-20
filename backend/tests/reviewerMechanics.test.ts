@@ -40,6 +40,29 @@ describe("the capitals and punctuation checks", () => {
     expect(mechanicsIssues(show)).toEqual([]);
   });
 
+  // Repeats a child means: sound words, and words said aloud
+  it.each([
+    "Crunch crunch went the snow.",
+    "Drip, drip, drip went the icicles.",
+    "Boom boom went the thunder.",
+    "Grrrr grrrr went the dog.",
+    "\"Help! Help!\" she cried.",
+    "\"Help help!\" she cried.",
+    "\"No no no,\" said Sam.",
+    "“Go go go!” we shouted.",
+  ])("finds no repeated word in: %s", (show) => {
+    expect(mechanicsIssues(show)).toEqual([]);
+  });
+
+  it.each([
+    ["The the snow fell.", "The the"],
+    ["I went to to school.", "to to"],
+    ["\"I want the the red one,\" said Sam.", "the the"],
+    ["We said no no to the cold.", "no no"],
+  ])("still finds an accidental repeat in: %s", (show, text) => {
+    expect(mechanicsIssues(show)).toEqual([{ kind: "repeated-word", text }]);
+  });
+
   it("has tips, and the AI is told to be strict about the writing and the topic", () => {
     expect(TIPS.capitals).toMatch(/capital/);
     expect(TIPS.endMark).toMatch(/period/);
