@@ -18,8 +18,9 @@ name: Fill staging with sample data
 # sample sentences in every state on My sentences (approved with praise, sent
 # back with and without a tip, waiting) and becomes a teacher, so signing in
 # with it shows how everything looks. It must have signed in to staging once.
-# Its own sentences are never touched. The email isn't stored in the code or
-# printed in the log.
+# Its own sentences are never touched. The email isn't stored in the code,
+# and it's masked in the log (it still shows in the run's inputs, which only
+# people with access to the repository can see).
 on:
   workflow_dispatch:
     inputs:
@@ -61,6 +62,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The email is read from the run's event file and masked before any
+      # step prints it: a step's env block is printed with its values, so it
+      # never goes in one unmasked
+      - name: Hide the account's email in the log
+        run: |
+          account="$(jq -r '.inputs.account // ""' "$GITHUB_EVENT_PATH")"
+          if [ -n "$account" ]; then
+            echo "::add-mask::$account"
+            echo "ACCOUNT=$account" >> "$GITHUB_ENV"
+          fi
+
       - name: Seed and review
         env:
           DATABASE_ACCESS: ${{ secrets.STAGING_DATABASE_ACCESS }}
@@ -69,10 +81,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}
           CLOUDFLARE_REVIEW_MODEL: ${{ vars.CLOUDFLARE_REVIEW_MODEL }}
-          ACCOUNT: ${{ inputs.account }}
         run: |
-          if [ -n "$ACCOUNT" ]; then
-            echo "::add-mask::$ACCOUNT"
+          if [ -n "${ACCOUNT:-}" ]; then
             node lib/scripts/seed-dev.js --review --demo "$ACCOUNT"
           else
             node lib/scripts/seed-dev.js --review
