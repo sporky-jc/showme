@@ -44,6 +44,12 @@ const sentenceSchema = new mongoose.Schema({
   tip: { type: String, enum: TIP_IDS },
 });
 
+// Finding a student's sentence for a day (POST /MyPage checks there isn't
+// one yet; PATCH /MyPage edits it). Not unique: older data may hold two for
+// one day, and a unique index couldn't be built over them. The server keeps
+// to one per day itself (see createNewUserSentence).
+sentenceSchema.index({ GID: 1, title: 1 });
+
 // Creating mongoose model
 const Sentence = mongoose.model("Sentence", sentenceSchema);
 

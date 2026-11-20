@@ -8,6 +8,7 @@ import { useStudentData } from "../components/useStudentData";
 import { createSentence, editSentences } from "../actions/usersentences";
 import { fetchUser } from "../actions/user";
 import type { AppDispatch, RootState } from "../reducers/types";
+import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 
 // The five senses, each with questions Scribbles asks to get a writer going.
 // They are general on purpose: they work for any Tell sentence. Pressing a
@@ -57,6 +58,14 @@ const SENSES = [
 
 // A sentence this long has room for a detail
 const WORD_GOAL = 8;
+
+// The longest Show sentence the server saves (MAX_CHARACTERS in the
+// backend's reviewer/contract.ts). Only its type is imported, so no backend
+// code reaches the website, and the type is the number itself: if the
+// backend's changes, the type check fails until this matches.
+const MAX_LENGTH: typeof MAX_CHARACTERS = 600;
+// How close to it the page starts saying how many characters are left
+const LENGTH_WARNING = 50;
 
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
@@ -188,6 +197,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
 
   const text = typed ?? editing?.show ?? "";
   const words = countWords(text);
+  const charactersLeft = MAX_LENGTH - text.length;
   const cheer =
     words === 0
       ? "Don't just tell me. Show me!"
@@ -211,11 +221,11 @@ function WriteSentence({ id }: { id: string | undefined }) {
     if (saving || !tell || text.trim() === "") return;
     setSaving(true);
     setFailed(false);
-    // The server sets the rest itself: an edit goes back to waiting to be
-    // checked, with a new date
+    // The server sets the rest itself: the day's Tell (from the same list),
+    // and an edit goes back to waiting to be checked, with a new date
     const saved = editing
       ? await dispatch(editSentences({ title: editing.title, show: text }))
-      : await dispatch(createSentence({ title: "day" + day, tell, show: text }));
+      : await dispatch(createSentence({ title: "day" + day, show: text }));
     setSaving(false);
     if (!saved) {
       setFailed(true);
@@ -278,6 +288,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
               value={text}
               placeholder="Don't just tell me, instead SHOW ME!"
               aria-describedby="show-count"
+              maxLength={MAX_LENGTH}
               onChange={(event) => setTyped(event.target.value)}
             />
 
@@ -287,6 +298,10 @@ function WriteSentence({ id }: { id: string | undefined }) {
                   {words} {words === 1 ? "word" : "words"}
                 </strong>{" "}
                 · {cheer}
+                {charactersLeft <= LENGTH_WARNING &&
+                  (charactersLeft >= 0
+                    ? ` · ${charactersLeft} ${charactersLeft === 1 ? "character" : "characters"} left`
+                    : ` · ${-charactersLeft} too many characters`)}
               </p>
               <button
                 type="submit"

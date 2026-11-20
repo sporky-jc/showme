@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import { MemoryStore, rateLimit } from "express-rate-limit";
 import { readSession } from "./auth.js";
+import { isTestAccount } from "../config/testAccounts.js";
 
 // How many staging test logins the server takes in a minute, from everyone
 // together: a full QA Wolf suite needs a few dozen, while a script guessing
@@ -75,3 +76,51 @@ export const reviewTipsRateLimit = rateLimit({
   message: { message: "Too many requests. Wait a minute, then try again." },
   validate: { xForwardedForHeader: false, forwardedHeader: false },
 });
+
+// How many sentences one signed-in user may save (POST and PATCH /MyPage),
+// in a minute and in a day. Every save is sent to the AI reviewer, whose
+// daily allowance everyone shares, so one account mustn't be able to use it
+// up. A student writes one sentence a day and edits it a few times; a class
+// lesson, or an automated browser test (the most a QA Wolf test saves is
+// about a page of My sentences, 9), stays far below both. Counted per user
+// from the login cookie, before auth's database lookup, like the likes above.
+export const SENTENCE_WRITES_PER_MINUTE = 20;
+export const SENTENCE_WRITES_PER_DAY = 200;
+export const sentenceWritesPerMinuteStore = new MemoryStore();
+export const sentenceWritesPerDayStore = new MemoryStore();
+
+const perUser = (req: Request) => {
+  const session = readSession(req);
+  return session ? `user:${session.id}` : "signed-out";
+};
+
+const sentenceWritesPerMinute = rateLimit({
+  store: sentenceWritesPerMinuteStore,
+  windowMs: 60 * 1000,
+  limit: SENTENCE_WRITES_PER_MINUTE,
+  keyGenerator: perUser,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many saves. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});
+
+const sentenceWritesPerDay = rateLimit({
+  store: sentenceWritesPerDayStore,
+  windowMs: 24 * 60 * 60 * 1000,
+  limit: SENTENCE_WRITES_PER_DAY,
+  keyGenerator: perUser,
+  // The staging test login's accounts (ids starting "test-") are shared by
+  // every run of the automated browser tests, all day long, so they would
+  // add up to the daily limit where no student would. They only exist on
+  // staging, which has its own reviewer allowance, and they still have the
+  // per-minute limit.
+  skip: (req: Request) => isTestAccount(readSession(req)?.id),
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "That's a lot of saving for one day! Try again tomorrow." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});
+
+// Both limits, for POST and PATCH /MyPage (routes/routes.ts)
+export const sentenceWritesRateLimit = [sentenceWritesPerMinute, sentenceWritesPerDay];

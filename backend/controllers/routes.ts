@@ -10,6 +10,7 @@ import {
   ReviewTips,
   SentencesWithAuthors,
   TellSentences,
+  UNKNOWN_DAY,
   User,
 } from "../contract/api.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
@@ -17,7 +18,7 @@ import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
 import { Types } from "mongoose";
 import { Sentence } from "../models/sentences.js";
 import Profile from "../models/profile.js";
-import tellList from "../public/tellList.js";
+import tellList, { tellForTitle } from "../public/tellList.js";
 import { readSession } from "../middlewares/auth.js";
 import { SESSION_COOKIE, sessionCookieOptions } from "../config/session.js";
 import { answer } from "../utils/answer.js";
@@ -71,6 +72,10 @@ const sentencesWithAuthorNames = async (filter: {
     )
   );
 
+// What a second sentence for the same day is told (POST /MyPage)
+export const DAY_ALREADY_WRITTEN =
+  "You already wrote a sentence for this day. Edit that one instead.";
+
 export const createNewUserSentence = async (req: Request, res: Response) => {
   try {
     // Only the sentence text comes from the browser. Who wrote it comes from
@@ -81,11 +86,28 @@ export const createNewUserSentence = async (req: Request, res: Response) => {
     if (!body.success) {
       return res.status(400).json({ message: firstProblem(body.error) });
     }
-    const { show, title, tell } = body.data;
+    const { show, title } = body.data;
+    // The day's Tell, from the list: never one from the request, which could
+    // say anything (and would be shown in the gallery and sent to the AI
+    // reviewer). The contract has checked the day is on the list.
+    const tell = tellForTitle(title);
+    if (tell === undefined) {
+      return res.status(400).json({ message: UNKNOWN_DAY });
+    }
 
     const user = await Profile.findOne({ id: req.userId });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // One sentence per student per day: a second one for the same day is
+    // refused, so a student changes a day's sentence by editing it (PATCH).
+    // The website only ever asks for the next day it hasn't written, and
+    // never sends a sentence twice. (Checked here rather than by a unique
+    // index, which couldn't be built on a database that already holds
+    // duplicates from before this check.)
+    if (await Sentence.exists({ GID: user.id, title })) {
+      return res.status(409).json({ message: DAY_ALREADY_WRITTEN });
     }
 
     // When User creates a new show sentence

@@ -141,6 +141,22 @@ describe("Write", () => {
 
     await user.type(await box(), ", my fingers froze to the icy gate today");
     expect(count()).toHaveTextContent("9 words · Nice and vivid!");
+    expect(count()).not.toHaveTextContent("left");
+  });
+
+  // The server refuses anything longer than 600 characters
+  it("stops at 600 characters, and says how many are left near the end", async () => {
+    const user = userEvent.setup();
+    renderWrite();
+    const count = () => document.getElementById("show-count")!;
+
+    expect(await box()).toHaveAttribute("maxLength", "600");
+    await user.click(await box());
+    await user.paste("a".repeat(560));
+    expect(count()).toHaveTextContent("1 word · Keep going, add a detail! · 40 characters left");
+    await user.paste("b".repeat(60));
+    expect(await box()).toHaveValue("a".repeat(560) + "b".repeat(40));
+    expect(count()).toHaveTextContent("0 characters left");
   });
 
   it("pressing a sense makes Scribbles ask about it; pressing it again asks something else", async () => {
@@ -177,9 +193,9 @@ describe("Write", () => {
     expect(heading).toHaveFocus();
     expect(saves()).toHaveLength(1);
     expect(saves()[0].method).toBe("post");
+    // Only the day and the words: the server stores the day's Tell itself
     expect(JSON.parse(saves()[0].data)).toEqual({
       title: "day3",
-      tell: "Tell 3",
       show: "Brr, my fingers froze.",
     });
     expect(screen.getByText("Brr, my fingers froze.")).toBeInTheDocument();

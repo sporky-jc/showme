@@ -7,40 +7,54 @@
 //
 // The website only ever imports *types* from here (`import type`), and types
 // disappear when it's built: neither this code nor zod is sent to browsers.
-// So this file imports nothing but zod and the reviewer's fixed lists (its
-// tips, verdicts and reasons), which have no imports of their own.
+// So this file imports nothing but zod, the reviewer's fixed lists (its
+// tips, verdicts, reasons and longest sentence) and the list of Tell
+// sentences, none of which import anything but zod and types.
 import { z } from "zod";
 import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
-import { REASONS, VERDICTS } from "../reviewer/contract.js";
+import { MAX_CHARACTERS, REASONS, VERDICTS } from "../reviewer/contract.js";
 import { MECHANICS } from "../reviewer/mechanics.js";
+import { tellForTitle } from "../public/tellList.js";
 
 // ---- Requests --------------------------------------------------------------
 
 // What a refused request is told. The website and the tests rely on these.
 const BLANK_SHOW = "The show sentence can't be empty";
+export const SHOW_TOO_LONG = `The show sentence can't be longer than ${MAX_CHARACTERS} characters`;
 const TITLE_NOT_TEXT = "The title must be text";
+export const UNKNOWN_DAY = "Unknown day";
 const INVALID_ID = "Invalid sentence id";
 
 // A show sentence must be text with something besides spaces and line breaks,
-// so a blank one can't use up a day or wipe out a written one. (The website
-// checks this too, but anyone can send requests straight to the server.) It's
-// saved as written: checked, not trimmed.
+// so a blank one can't use up a day or wipe out a written one, and no longer
+// than any Show sentence (the reviewer holds anything longer, see
+// reviewer/rules.ts). (The website checks this too, but anyone can send
+// requests straight to the server.) Spaces and line breaks at either end are
+// trimmed before it's checked and saved.
 const showSentence = z
   .string({ error: BLANK_SHOW })
-  .refine((show) => show.trim() !== "", { error: BLANK_SHOW });
+  .trim()
+  .min(1, { error: BLANK_SHOW })
+  .max(MAX_CHARACTERS, { error: SHOW_TOO_LONG });
 
 // POST /MyPage: a student's sentence for a new day. Who wrote it, when, and
 // whether it's approved are set by the server, never taken from the request.
+// So is its Tell sentence: the server looks it up from the day (see
+// tellForTitle in public/tellList.ts), so the title must be a day the list
+// has: "day1", "day2", ... A `tell` in the request (older websites sent one)
+// isn't listed here, so zod drops it: it's accepted, and never used.
 // (`show` comes first, so a blank sentence is the problem reported first.)
 export const NewSentenceBody = z.object({
   show: showSentence,
-  title: z.string({ error: TITLE_NOT_TEXT }), // the day: "day1", "day2", ...
-  tell: z.string({ error: "The tell sentence must be text" }),
+  title: z
+    .string({ error: TITLE_NOT_TEXT })
+    .refine((title) => tellForTitle(title) !== undefined, { error: UNKNOWN_DAY }),
 });
 
 // PATCH /MyPage: new text for one of the student's own sentences, picked by
 // its title. The title goes into a database query, so it must be plain text:
-// an object like {"$gt": ""} would be read by MongoDB as "any title".
+// an object like {"$gt": ""} would be read by MongoDB as "any title". Only the
+// show sentence changes: its Tell stays the one stored with it.
 export const EditSentenceBody = z.object({
   title: z.string({ error: TITLE_NOT_TEXT }),
   show: showSentence,
