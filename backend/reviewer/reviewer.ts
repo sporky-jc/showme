@@ -78,6 +78,9 @@ const failureOf = (error: unknown) => {
   if (error instanceof ProviderError) {
     if (error.status === 429) return "rate-limited" as const;
     if (error.status === 401 || error.status === 403) return "credentials" as const;
+    // Not found, wrong method, too slow, a clash, too early: nothing to do
+    // with this sentence, so tried again like any failure
+    if (error.status !== undefined && [404, 405, 408, 409, 425].includes(error.status)) return "failed" as const;
     // Any other 4xx: the API got the request and won't take it (an input
     // it can't read, say). It will answer the same way next time.
     if (error.status !== undefined && error.status >= 400 && error.status < 500) return "refused" as const;

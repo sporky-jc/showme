@@ -175,7 +175,9 @@ export const editUserSentence = async (req: Request, res: Response) => {
           approved: false,
           likedBy: [],
         },
-        $unset: { tip: "" },
+        // ... and when the reviewer last tried and failed (its new words go
+        // in line with the other new sentences, reviewer/queue.ts)
+        $unset: { tip: "", lastTriedAt: "" },
       },
       { new: true }
     );

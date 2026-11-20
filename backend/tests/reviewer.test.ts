@@ -324,8 +324,10 @@ describe("the rule checks: the one plain case sent back with a tip", () => {
     ["The boy was scared.", "The boy was so scared."],
     ["The girl was happy.", "The girl is really happy."],
     ["The students were very loud, and the teacher couldn't do anything about it.", "The students were loud and the teacher couldn't do anything about it."],
-    // The Tell's instructions in brackets aren't counted
+    // The Tell's instructions in brackets aren't counted, in the Tell or
+    // pasted into the Show with it
     ["He dodged all the traps with ease. (Use a Simile)", "He dodged all the traps with ease."],
+    ["He dodged all the traps with ease. (Use a Simile)", "He dodged all the traps with ease. (Use a Simile)"],
   ])("a copy of the Tell %s: %s", (tell, show) => {
     expect(checkRules(tell, show)).toMatchObject({ outcome: "redo", tip: "ownWords", reasons: ["copies-tell"] });
   });
@@ -352,6 +354,12 @@ describe("the rule checks: the one plain case sent back with a tip", () => {
     ["She almost drowned in the pool.", "She almost drowned in the pool, gasping, sputtering."],
     ["The students were very loud, and the teacher couldn't do anything about it.", "The students were very loud, and the teacher couldn't do anything about it, help me."],
     ["The party was fun.", "The party was fun, so lonely."],
+    // Anything of their own: emoji, digits, other scripts, chat words
+    ["It is cold outside.", "It is cold outside. 😢😢"],
+    ["It is cold outside.", "It is cold outside 911"],
+    ["It is cold outside.", "It is cold outside 救命"],
+    ["It is cold outside.", "It is cold outside, ayúdame"],
+    ["It is cold outside.", "It is cold outside plz"],
   ])("not a copy of the Tell %s: %s", (tell, show) => {
     expect(checkRules(tell, show).outcome).not.toBe("redo");
   });

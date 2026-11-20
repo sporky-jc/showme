@@ -6,7 +6,9 @@ import { ProviderError } from "../reviewer/providers/http.js";
 import { cloudflareSafety } from "../reviewer/providers/cloudflare.js";
 import type { ReviewProvider, SafetyCheck } from "../reviewer/reviewer.js";
 import type { ReviewerSetup } from "../reviewer/settings.js";
-import { createUser } from "./helpers.js";
+import request from "supertest";
+import app from "../app.js";
+import { createUser, sessionCookie } from "./helpers.js";
 
 // The scheduled reviewer: reviews waiting sentences and saves suggestions,
 // with stand-in providers (no real request is sent).
@@ -313,8 +315,13 @@ describe("the scheduled reviewer", () => {
     expect(await reviewWaitingSentences(setupWith([ai]))).toMatchObject({ reviewed: 1 });
     expect(await ReviewSuggestion.findOne({ sentence: fresh._id }).lean()).toMatchObject({ verdict: "approve" });
 
-    // Each broken one fails a third time, and is held for a person
-    for (let run = 0; run < 3; run++) await reviewWaitingSentences(setupWith([ai]));
+    // Each broken one fails while the provider answers for other sentences
+    // (a new one each run), so the failure is the sentence's: held after
+    // its third such run. (Run 1 didn't count: nothing else got through.)
+    for (let run = 0; run < 6; run++) {
+      await addSentence({ show: `The wind bit my ears like a dog ${run}.` });
+      await reviewWaitingSentences(setupWith([ai]));
+    }
     const held = await ReviewSuggestion.find({ show: { $regex: `^${BAD}` } }).lean();
     expect(held).toHaveLength(10);
     for (const suggestion of held) {
@@ -323,6 +330,81 @@ describe("the scheduled reviewer", () => {
     const asked = ai.review.mock.calls.length;
     await reviewWaitingSentences(setupWith([ai]));
     expect(ai.review.mock.calls.length).toBe(asked);
+  });
+
+  // A short outage fails every sentence: none of them is to blame
+  it("holds nothing after an outage, and reviews everything once it's over", async () => {
+    for (let i = 0; i < 5; i++) await addSentence({ show: `${GOOD} ${i}` });
+    let down = true;
+    const check = vi.fn(async () => {
+      if (down) throw new Error("read ECONNRESET");
+      return "safe" as const;
+    });
+    const setup = setupWith([approving()], { safety: { name: "guard", check } });
+
+    for (let run = 0; run < 3; run++) expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 0 });
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    down = false;
+    expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 5 });
+    // (Reviewed by the AI, none held for want of a safety check)
+    expect((await ReviewSuggestion.find().lean()).map((s) => s.decidedBy)).toEqual(Array(5).fill("ai"));
+  });
+
+  it("counts a failure even when another provider was out of free requests", async () => {
+    const BAD = "The wind is a broken record.";
+    const broken = await addSentence({ show: BAD, createdAt: new Date(Date.now() - 60_000) });
+    const first = {
+      name: "first",
+      review: vi.fn(async ({ show }: { show: string }) => {
+        if (show === BAD) throw new Error("Unexpected answer from Workers AI");
+        return { verdict: "approve", tip: "great" };
+      }),
+    };
+    const limited = { name: "second", review: vi.fn(async () => Promise.reject(new ProviderError("HTTP 429", 429))) };
+
+    for (let run = 0; run < MAX_FAILED_RUNS; run++) {
+      await addSentence({ show: `${GOOD} ${run}` });
+      await reviewWaitingSentences(setupWith([first, limited]));
+    }
+    expect(await ReviewSuggestion.findOne({ sentence: broken._id }).lean()).toMatchObject({ reasons: ["no-provider"] });
+  });
+
+  it("puts an edited sentence back in line with the new ones", async () => {
+    const author = await createUser({ id: "g-edit", email: "edit@example.com" });
+    const sentence = await Sentence.create({ title: "day1", tell: TELL, show: GOOD, author: author._id, GID: author.id });
+    await Sentence.collection.updateOne({ _id: sentence._id }, { $set: { lastTriedAt: new Date(), failedShow: GOOD, failedCount: 1 } });
+
+    const res = await request(app)
+      .patch("/MyPage")
+      .set("Cookie", sessionCookie(author))
+      .send({ title: "day1", show: "The wind bit my ears like a little dog." });
+
+    expect(res.status).toBe(201);
+    expect(await Sentence.collection.findOne({ _id: sentence._id })).not.toHaveProperty("lastTriedAt");
+  });
+
+  it("tries a sentence again when the model isn't found (HTTP 404), and holds nothing", async () => {
+    await addSentence();
+    const missing = { name: "ai", review: vi.fn(async () => Promise.reject(new ProviderError("HTTP 404", 404))) };
+
+    expect(await reviewWaitingSentences(setupWith([missing]))).toEqual({ reviewed: 0 });
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    expect(await reviewWaitingSentences(setupWith([approving()]))).toEqual({ reviewed: 1 });
+  });
+
+  it("stops the run when one provider refuses two sentences, and saves neither hold", async () => {
+    const { logger } = await import("firebase-functions/logger");
+    for (let i = 0; i < 4; i++) await addSentence({ show: `${GOOD} ${i}` });
+    const refusing = { name: "ai", review: vi.fn(async () => Promise.reject(new ProviderError("HTTP 400", 400))) };
+
+    expect(await reviewWaitingSentences(setupWith([refusing]))).toEqual({ reviewed: 0, stopped: "configuration" });
+    expect(refusing.review).toHaveBeenCalledTimes(2);
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    const logged = JSON.stringify(vi.mocked(logger.write).mock.calls);
+    expect(logged).toContain("ERROR");
+    expect(logged).not.toContain("puffed");
+    // Once fixed, they're reviewed as usual
+    expect(await reviewWaitingSentences(setupWith([approving()]))).toEqual({ reviewed: 4 });
   });
 
   it("saves a hold at once when the API refuses the request (another HTTP 4xx)", async () => {

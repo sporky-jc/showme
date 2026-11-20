@@ -126,6 +126,9 @@ describe("the Cloudflare safety check", () => {
     [403, "credentials"],
     [500, "failed"],
     [400, "refused"],
+    [422, "refused"],
+    [404, "failed"],
+    [408, "failed"],
   ])("an HTTP %i from the safety check is counted as %s", async (status, outcome) => {
     fakeFetch(status, {});
     const { safety, providers } = reviewerSetup({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" });
@@ -150,7 +153,7 @@ describe("Workers AI out of the day's free Neurons", () => {
   });
 
   it("an unsuccessful answer without that error is an ordinary failure", async () => {
-    fakeFetch(200, { success: false, errors: [{ code: 5000, message: "Something else" }] });
+    fakeFetch(200, { success: false, errors: [{ code: 5000, message: "Something else" }, { code: 5001, message: "Used 12 neurons" }] });
     const { safety, providers } = reviewerSetup({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" });
     const { attempts } = await reviewSentence(INPUT, providers, { safety });
     expect(attempts.map((a) => a.outcome)).toEqual(["failed"]);
