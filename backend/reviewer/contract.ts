@@ -22,6 +22,8 @@ export const REASONS = [
   "too-long", // longer than any Show sentence
   // Sent back by the rule checks
   "copies-tell",
+  // Not approved: a word isn't in the dictionary (spelling.ts)
+  "spelling",
   // Held by the AI safety check (a model that only judges whether text is
   // safe), before any AI reviewer reads it
   "safety-check",
@@ -56,4 +58,7 @@ export interface Suggestion {
   reasons: Reason[];
   // Which layer decided: "rules", a provider's name, or "none"
   decidedBy: string;
+  // Words not in the dictionary, for the teacher (only when the rules
+  // didn't hold the sentence: a held sentence is read in full anyway)
+  misspelled?: string[];
 }

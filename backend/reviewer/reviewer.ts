@@ -10,11 +10,15 @@
 //      answers anything but the fixed form (contract.ts) is skipped.
 //   4. Nobody could decide: "unsure", which leaves the sentence for a person,
 //      exactly as if there were no AI at all.
+//   5. Spelling (spelling.ts): words not in the dictionary are listed for
+//      the teacher, and an approval becomes "redo" with the spelling tip, so
+//      a sentence with mistakes never reaches the gallery.
 //
 // So no provider can break reviewing, and switching or adding one is a
 // matter of the list passed in, not a change to the site.
 import { ProviderAnswer, type Suggestion } from "./contract.js";
 import { checkRules } from "./rules.js";
+import { misspelledWords } from "./spelling.js";
 import { PRAISE } from "./tips.js";
 
 // What a provider is shown: the Tell and the student's sentence, and nothing
@@ -99,6 +103,27 @@ export const reviewSentence = async (
     };
   }
 
+  // Spelling, for the teacher, and so a sentence with mistakes is never
+  // approved into the gallery. It's checked here, after the rules' safety
+  // checks, and only ever stops an approval (spelling.ts).
+  const misspelled = misspelledWords(input.show);
+  const { suggestion, attempts } = await askProviders(input, providers, { timeoutMs, safety });
+  if (misspelled.length === 0) return { suggestion, attempts };
+  if (suggestion.verdict === "approve") {
+    return {
+      suggestion: { ...suggestion, verdict: "redo", tip: "spelling", reasons: [...suggestion.reasons, "spelling"], misspelled },
+      attempts,
+    };
+  }
+  return { suggestion: { ...suggestion, misspelled }, attempts };
+};
+
+// The safety check, then each provider in turn (steps 2 to 4 above)
+const askProviders = async (
+  input: ReviewInput,
+  providers: ReviewProvider[],
+  { timeoutMs, safety }: { timeoutMs: number; safety?: SafetyCheck }
+): Promise<ReviewResult> => {
   // Only the two texts are passed on, whatever else the caller's object holds
   const shown: ReviewInput = { tell: input.tell, show: input.show };
   const attempts: ProviderAttempt[] = [];

@@ -18,6 +18,8 @@ const reviewSuggestionSchema = new mongoose.Schema({
   reasons: [{ type: String, enum: REASONS }],
   // "rules", a provider's name, or "none"
   decidedBy: { type: String, required: true },
+  // Words not in the dictionary, for the teacher
+  misspelled: { type: [String], default: undefined },
   createdAt: { type: Date, default: Date.now },
 });
 reviewSuggestionSchema.index({ sentence: 1, show: 1 }, { unique: true });

@@ -23,6 +23,7 @@ export const TIPS = {
   showNotTell: "Instead of saying how it is, show what makes it that way.",
   ownWords: "Use your own words, not the Tell sentence.",
   readAloud: "Read it out loud. Does every part make sense?",
+  spelling: "Check your spelling. Read each word slowly, letter by letter.",
 
   // For a sentence that's ready
   great: "Great picture! Keep painting with words.",
