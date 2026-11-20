@@ -6,7 +6,8 @@
 // charged), and the reviewer leaves sentences for the teacher. A review
 // with its safety check used roughly 50 Neurons; the welfare check is a
 // second, shorter call to the same 70B model, so count on roughly 90, about
-// 100 sentences a day (an estimate: measure it on the account). Cloudflare doesn't train models on what it's sent or keep it
+// 100 sentences a day (an estimate: measure it on the account). Cloudflare
+// doesn't train models on what it's sent or keep it
 // (developers.cloudflare.com/workers-ai/platform/data-usage/).
 //
 // Needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN (an API token with
