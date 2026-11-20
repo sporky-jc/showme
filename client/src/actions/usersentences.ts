@@ -25,12 +25,14 @@ export const getUserSentences = (): AppThunk<Promise<boolean>> => async (dispatc
 //   this same one, saved by an earlier press whose answer got lost. With
 //   it, the student's sentence for that day, once their list is reloaded.
 // - too-many: the server's rate limit (429), with its message
-// - refused: the server turned the sentence down (400, or 404 for an edit)
+// - missing: the sentence isn't there anymore (404)
+// - refused: the server turned the sentence down (any other 4xx)
 // - unreachable: no answer, or the server broke (5xx): worth trying again
 export type SaveResult =
   | { kind: "saved"; sentence: OwnSentence }
   | { kind: "already-sent"; sentence?: OwnSentence }
   | { kind: "too-many"; message?: string }
+  | { kind: "missing" }
   | { kind: "refused" }
   | { kind: "unreachable" };
 
@@ -45,6 +47,7 @@ const failureOf = (error: unknown): SaveResult => {
     const message = typeof data?.message === "string" ? data.message : undefined;
     return { kind: "too-many", message };
   }
+  if (status === 404) return { kind: "missing" };
   if (status >= 400 && status < 500) return { kind: "refused" };
   return { kind: "unreachable" };
 };

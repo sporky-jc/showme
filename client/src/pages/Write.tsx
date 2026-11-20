@@ -9,6 +9,8 @@ import { createSentence, editSentences, type SaveResult } from "../actions/users
 import { fetchUser } from "../actions/user";
 import type { AppDispatch, RootState } from "../reducers/types";
 import { dayOf, nextDay } from "../days";
+import { standing } from "../components/standing";
+import type { OwnSentence } from "../api/types";
 import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 
 // The five senses, each with questions Scribbles asks to get a writer going.
@@ -70,11 +72,42 @@ const LENGTH_WARNING = 50;
 
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
+// The sentence the server has, as the page shows it once it's sent
+type Sent = Pick<OwnSentence, "tell" | "show" | "approved" | "toRedo">;
+
+// What the sent page says, from where the sentence stands (see standing.ts).
+// again: the server already had it, from an earlier press whose answer was
+// lost on the way back, so it may have been checked since.
+const sentWords = (sentence: Sent, again: boolean) => {
+  const { label } = standing(sentence);
+  if (sentence.approved) {
+    return {
+      heading: "You already sent this one! It's in the gallery.",
+      badge: "paper-status paper-status--done",
+      label,
+    };
+  }
+  if (sentence.toRedo) {
+    return {
+      heading: "You already sent this one! Scribbles sent it back for another try.",
+      badge: "paper-status paper-status--retry",
+      label,
+    };
+  }
+  return {
+    heading: again ? "You already sent this one! Scribbles is checking it." : "Scribbles is checking!",
+    badge: "paper-status paper-status--turn",
+    label,
+  };
+};
+
 // What the page says when a sentence wasn't saved (see SaveResult)
 function problemFor(result: SaveResult, text: string): string {
   switch (result.kind) {
     case "already-sent":
       return "You already sent a sentence for this day! Open My sentences to see it.";
+    case "missing":
+      return "We couldn't find that sentence anymore. Open My sentences to see your sentences.";
     case "too-many":
       return result.message ?? "That's a lot of sending! Wait a minute, then try again.";
     case "refused":
@@ -107,10 +140,10 @@ function WriteSentence({ id }: { id: string | undefined }) {
   const [typed, setTyped] = useState<string | null>(null);
   const [sense, setSense] = useState<{ index: number; turn: number } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [sent, setSent] = useState<{ tell: string; show: string; again?: boolean } | null>(
-    null
-  );
+  // (A problem may come with the student's sentence to open: the one the
+  // server already has for this day.)
+  const [problem, setProblem] = useState<{ message: string; open?: string } | null>(null);
+  const [sent, setSent] = useState<{ sentence: Sent; again: boolean } | null>(null);
 
   // Once sent, the page changes under the reader: move them to its heading
   const sentHeading = useRef<HTMLHeadingElement>(null);
@@ -128,27 +161,34 @@ function WriteSentence({ id }: { id: string | undefined }) {
   }
 
   if (sent) {
+    const { heading, badge, label } = sentWords(sent.sentence, sent.again);
+    const waiting = !sent.sentence.approved && !sent.sentence.toRedo;
     return (
       <div className="paper-write paper-write--sent">
         <div className="paper-write__checking">
-          <Scribbles mood="thinking" prop="note" size={150} decorative />
+          <Scribbles
+            mood={sent.sentence.approved ? "happy" : "thinking"}
+            prop={sent.sentence.approved ? "check" : "note"}
+            size={150}
+            decorative
+          />
           <div>
             <h1 ref={sentHeading} tabIndex={-1}>
-              {sent.again
-                ? "You already sent this one! Scribbles is checking it."
-                : "Scribbles is checking!"}
+              {heading}
             </h1>
-            <p className="paper-write__later">
-              Come back later! Once Scribbles approves it, it will appear in
-              the Show ME gallery.
-            </p>
+            {waiting && (
+              <p className="paper-write__later">
+                Come back later! Once Scribbles approves it, it will appear in
+                the Show ME gallery.
+              </p>
+            )}
           </div>
         </div>
         <div className="paper-stack">
           <div className="paper-stack__card paper-write__sent-card">
-            <span className="paper-status paper-status--turn">Scribbles is checking…</span>
-            <p className="paper-write__sent-tell">{sent.tell}</p>
-            <p className="paper-write__sent-show">{sent.show}</p>
+            <span className={badge}>{label}</span>
+            <p className="paper-write__sent-tell">{sent.sentence.tell}</p>
+            <p className="paper-write__sent-show">{sent.sentence.show}</p>
           </div>
         </div>
         <div className="paper-write__next">
@@ -183,12 +223,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
 
   // Which sentence this is: the one being edited, with the Tell stored with
   // it, or the next new day's (see days.ts), with that day's Tell. A
-  // sentence whose title isn't a day is numbered by its place in the list.
-  const editIndex = id ? userSentences.findIndex((sentence) => sentence._id === id) : -1;
-  const editing = editIndex >= 0 ? userSentences[editIndex] : null;
-  const day = editing
-    ? dayOf(editing.title) ?? editIndex + 1
-    : nextDay(userSentences, tellSentences.length);
+  // sentence whose title isn't a day has no number.
+  const editing = (id && userSentences.find((sentence) => sentence._id === id)) || null;
+  const day = editing ? dayOf(editing.title) : nextDay(userSentences, tellSentences.length);
   const tell = editing ? editing.tell : day === undefined ? undefined : tellSentences[day - 1]?.tell;
 
   if (id && !editing) {
@@ -255,16 +292,26 @@ function WriteSentence({ id }: { id: string | undefined }) {
     if (result.kind === "saved") {
       dispatch(fetchUser());
       // As the server saved it (trimmed), with the Tell it stored
-      setSent({ tell: result.sentence.tell ?? tell, show: result.sentence.show });
+      setSent({ sentence: { ...result.sentence, tell: result.sentence.tell ?? tell }, again: false });
       return;
     }
     if (result.kind === "already-sent" && result.sentence) {
-      // Most likely this same sentence, saved by an earlier press whose
-      // answer was lost on the way back: show the one the server has
-      setSent({ tell: result.sentence.tell, show: result.sentence.show, again: true });
+      if (result.sentence.show === text.trim()) {
+        // This same sentence, saved by an earlier press whose answer was
+        // lost on the way back: show it as the server has it
+        setSent({ sentence: result.sentence, again: true });
+        return;
+      }
+      // A different one for this day (another tab or device): keep what the
+      // student typed, and point to the one already there
+      setProblem({
+        message:
+          "You already wrote a sentence for this day. Open it in My sentences to change it.",
+        open: result.sentence._id,
+      });
       return;
     }
-    setProblem(problemFor(result, text));
+    setProblem({ message: problemFor(result, text) });
   }
 
   return (
@@ -285,7 +332,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
           <form className="paper-stack__card paper-write__card" onSubmit={send}>
             <h1 className="paper-write__tell">
               <span className="paper-status paper-status--retry">
-                {editing ? `Sentence ${day} · Tell` : "Your next Tell"}
+                {editing ? (day ? `Sentence ${day} · Tell` : "Sentence · Tell") : "Your next Tell"}
               </span>
               <span className="paper-write__sentence">{tell}</span>
             </h1>
@@ -346,7 +393,13 @@ function WriteSentence({ id }: { id: string | undefined }) {
 
             {problem && (
               <p className="paper-write__failed" role="alert">
-                {problem}
+                {problem.message}
+                {problem.open && (
+                  <>
+                    {" "}
+                    <Link to={`/Write/${problem.open}`}>Open my sentence</Link>
+                  </>
+                )}
               </p>
             )}
           </form>

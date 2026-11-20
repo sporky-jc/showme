@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router";
 import Write from "./Write";
@@ -334,6 +334,77 @@ describe("Write", () => {
     await user.click(sendButton());
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Your sentence is too long. Make it shorter.");
+  });
+
+  // Another tab or device already sent a different sentence for this day:
+  // the student's words stay, with the way to the one already there
+  it("when a different sentence was already sent for the day, keeps the words and links to it", async () => {
+    const user = userEvent.setup();
+    const other = { ...shows(3)[2], _id: "s3", show: "Written on the tablet." };
+    let posted = false;
+    renderWrite({
+      list: () => ({ status: 200, data: posted ? [...shows(2), other] : shows(2) }),
+      save: () => {
+        posted = true;
+        return 409;
+      },
+    });
+
+    await user.type(await box(), "Written on the laptop.");
+    await user.click(sendButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "You already wrote a sentence for this day. Open it in My sentences to change it."
+    );
+    expect(within(alert).getByRole("link", { name: "Open my sentence" })).toHaveAttribute("href", "/Write/s3");
+    expect(await box()).toHaveValue("Written on the laptop.");
+    expect(screen.queryByRole("heading", { name: /already sent this one/ })).not.toBeInTheDocument();
+  });
+
+  // The earlier press's sentence may have been checked since: say where it
+  // really stands, not "checking"
+  it.each([
+    [{ approved: true }, "You already sent this one! It's in the gallery.", "Done · in the gallery"],
+    [{ toRedo: true }, "You already sent this one! Scribbles sent it back for another try.", "Try again"],
+  ])("when the day was already sent and %j since, says where it stands", async (since, heading, badge) => {
+    const user = userEvent.setup();
+    const saved = { ...shows(3)[2], show: "Brr.", ...since };
+    let posted = false;
+    renderWrite({
+      list: () => ({ status: 200, data: posted ? [...shows(2), saved] : shows(2) }),
+      save: () => {
+        posted = true;
+        return 409;
+      },
+    });
+
+    await user.type(await box(), "Brr.");
+    await user.click(sendButton());
+
+    expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+    expect(document.querySelector(".paper-write__sent-card .paper-status")).toHaveTextContent(badge);
+    expect(screen.queryByText(/Come back later/)).not.toBeInTheDocument();
+  });
+
+  it("when the sentence being edited is gone (404), says so", async () => {
+    const user = userEvent.setup();
+    renderWrite({ route: "/Write/s1", mine: shows(2), save: () => 404 });
+
+    await user.type(await box(), " more");
+    await user.click(sendButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "We couldn't find that sentence anymore. Open My sentences to see your sentences."
+    );
+  });
+
+  it("gives an older sentence whose title isn't a day no number", async () => {
+    const [first] = shows(1);
+    renderWrite({ route: "/Write/s1", mine: [{ ...first, title: "The room was messy." }] });
+
+    await box();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^Sentence · TellTell 1$/);
   });
 
   it("when the server refuses it for another reason, doesn't blame the internet", async () => {
