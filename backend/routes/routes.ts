@@ -7,6 +7,7 @@ import {
   getUserInfo,
   getPendingApprovalSentences,
   updatePendingApprovalSentences,
+  getReviewTips,
   fetchApprovedSentences,
   logoutUser,
 } from "../controllers/routes.js";
@@ -56,6 +57,8 @@ router.post("/Logout", logoutUser);
 router.get("/Admin", auth, admin, getPendingApprovalSentences);
 // Route for updating status on sentences awaiting approval
 router.patch("/Admin", auth, admin, updatePendingApprovalSentences);
+// The tips a teacher can send back with "Try again"
+router.get("/Admin/tips", auth, admin, getReviewTips);
 
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);

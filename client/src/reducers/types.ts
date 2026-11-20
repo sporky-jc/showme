@@ -1,5 +1,5 @@
 import type { ThunkAction, ThunkDispatch } from "@reduxjs/toolkit";
-import type { Sentence, SentenceWithAuthor, TellSentence, User } from "../api/types";
+import type { OwnSentence, QueueSentence, SentenceWithAuthor, TellSentence, User } from "../api/types";
 import type { RootState } from "./index";
 
 export type { RootState };
@@ -11,12 +11,12 @@ export type AppAction =
   | { type: "FIND_USER"; payload: User }
   | { type: "SESSION_CHECKED" }
   | { type: "LOGOUT" }
-  | { type: "FETCH_ALL"; payload: Sentence[] }
-  | { type: "CREATE"; payload: Sentence }
-  | { type: "EDIT"; payload: Sentence }
+  | { type: "FETCH_ALL"; payload: OwnSentence[] }
+  | { type: "CREATE"; payload: OwnSentence }
+  | { type: "EDIT"; payload: OwnSentence }
   | { type: "CLEAR_ALL" }
-  | { type: "FETCH_APPROVAL"; payload: SentenceWithAuthor[] }
-  | { type: "UPDATE_APPROVAL_SENTENCES"; payload: SentenceWithAuthor[] }
+  | { type: "FETCH_APPROVAL"; payload: QueueSentence[] }
+  | { type: "UPDATE_APPROVAL_SENTENCES"; payload: QueueSentence[] }
   | { type: "FETCH_APPROVED"; payload: SentenceWithAuthor[] };
 
 // The store's dispatch, which also runs the async actions in src/actions/

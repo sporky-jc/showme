@@ -166,9 +166,9 @@ describe("an admin opening the review page", () => {
     fireEvent.click(leosApprove);
 
     await waitFor(() => expect(sent("patch", "/Admin")).toHaveLength(2));
-    const [first, second] = sent("patch", "/Admin").map((r) => JSON.parse(r.data).sentence.show);
-    expect(first).toBe(mia.show);
-    expect(second).toBe(leo.show);
+    const [first, second] = sent("patch", "/Admin").map((r) => JSON.parse(r.data).sentence._id);
+    expect(first).toBe(mia._id);
+    expect(second).toBe(leo._id);
   });
 });
 

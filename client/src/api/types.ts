@@ -18,6 +18,10 @@ export type {
   ReviewBody,
   // what it reads back
   Author,
+  OwnSentence,
+  QueueSentence,
+  ReviewTip,
+  ScribblesSuggestion,
   Sentence,
   SentenceLikes,
   SentenceWithAuthor,
@@ -27,3 +31,6 @@ export type {
 
 // What an admin decides about a sentence in the review queue (PATCH /Admin)
 export type ReviewDecision = ReviewBody["status"];
+
+// A tip from Scribbles' list, by its id, sent with "Try again" (or none)
+export type ReviewTipId = NonNullable<ReviewBody["tip"]>;

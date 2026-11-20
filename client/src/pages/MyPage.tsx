@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router";
 import { useSelector } from "react-redux";
 import PageLoading from "../components/PageLoading";
+import Scribbles from "../components/Scribbles";
 import SignInPrompt from "../components/SignInPrompt";
 import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
@@ -88,6 +89,30 @@ function MyPage() {
                   <span className="paper-mine__day">Sentence {index + 1}</span>
                 </div>
                 <p className="paper-mine__show">{sentence.show}</p>
+                {/* The tip from the teacher's decision, in Scribbles' words:
+                    how to fix it, or praise once it's in the gallery */}
+                {sentence.tip && (sentence.toRedo || sentence.approved) && (
+                  <div className="paper-mine__tip">
+                    <Scribbles
+                      mood={sentence.approved ? "happy" : "thinking"}
+                      prop={sentence.approved ? "check" : "note"}
+                      size={56}
+                      decorative
+                    />
+                    <p
+                      className={
+                        sentence.approved
+                          ? "paper-mine__tip-bubble paper-mine__tip-bubble--praise"
+                          : "paper-mine__tip-bubble"
+                      }
+                    >
+                      <span className="paper-mine__tip-label">
+                        {sentence.approved ? "Scribbles says" : "Scribbles\u2019 tip"}
+                      </span>
+                      {sentence.tip.text}
+                    </p>
+                  </div>
+                )}
                 <div className="paper-mine__foot">
                   <p className="paper-mine__tell">{tellSentences[index]?.tell}</p>
                   <Link

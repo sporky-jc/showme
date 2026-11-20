@@ -6,7 +6,7 @@ import { OpenLoginContext } from "../components/loginPopup";
 import type { InternalAxiosRequestConfig } from "axios";
 import { renderWithApp } from "../test/testUtils";
 import type { Outcome } from "../test/testUtils";
-import type { Sentence, TellSentence } from "../api/types";
+import type { OwnSentence, TellSentence } from "../api/types";
 
 // My sentences: the signed-in student's own sentences, newest first, each
 // with where it stands and the way to change it.
@@ -23,7 +23,7 @@ const tells = (n: number): TellSentence[] =>
   }));
 
 // The student's own sentences for days 1..n ("Show 1".."Show n")
-const shows = (n: number): Sentence[] =>
+const shows = (n: number): OwnSentence[] =>
   Array.from({ length: n }, (_, i) => ({
     _id: `s${i + 1}`,
     title: `day${i + 1}`,
@@ -41,7 +41,7 @@ const renderMyPage = ({
   tellCount = 12,
   mine = shows(2),
   answer,
-}: { tellCount?: number; mine?: Sentence[]; answer?: () => Outcome | Promise<Outcome> } = {}) => {
+}: { tellCount?: number; mine?: OwnSentence[]; answer?: () => Outcome | Promise<Outcome> } = {}) => {
   const requests: InternalAxiosRequestConfig[] = [];
   const view = renderWithApp(<MyPage />, {
     state: { user: ada, tellsentences: tells(tellCount), usersentences: [] },
@@ -177,5 +177,23 @@ describe("My sentences", () => {
     await user.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(await screen.findByText("Show 1")).toBeInTheDocument();
+  });
+
+  it("shows the tip that came with Try again, and the praise once approved, in Scribbles' words", async () => {
+    const [first, second, third] = shows(3);
+    renderMyPage({
+      mine: [
+        { ...first, approved: true, tip: { id: "great", text: "Great picture! Keep painting with words." } },
+        { ...second, toRedo: true, tip: { id: "spelling", text: "Check your spelling. Read each word slowly, letter by letter." } },
+        third,
+      ],
+    });
+
+    expect(await screen.findByText("Check your spelling. Read each word slowly, letter by letter.")).toBeInTheDocument();
+    expect(screen.getByText("Scribbles\u2019 tip")).toBeInTheDocument();
+    expect(screen.getByText("Great picture! Keep painting with words.")).toBeInTheDocument();
+    expect(screen.getByText("Scribbles says")).toBeInTheDocument();
+    // A sentence still waiting has no tip
+    expect(document.querySelectorAll(".paper-mine__tip")).toHaveLength(2);
   });
 });

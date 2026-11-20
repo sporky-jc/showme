@@ -2,16 +2,20 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useSelector, useDispatch, useStore } from "react-redux";
 import Scribbles from "../components/Scribbles";
+import ScribblesNote from "../components/ScribblesNote";
+import { noteKind } from "../components/noteKind";
+import type { NoteKind } from "../components/noteKind";
 import PageLoading from "../components/PageLoading";
+import * as api from "../api";
 import {
   updatePendingApprovalSentences,
   fetchApprovalSentences,
 } from "../actions/approvalsentences";
-import type { ReviewDecision, SentenceWithAuthor } from "../api/types";
+import type { QueueSentence, ReviewDecision, ReviewTip, ReviewTipId } from "../api/types";
 import type { AppDispatch, RootState } from "../reducers/types";
 
 // Some accounts have no last name
-const nameOf = ({ author }: SentenceWithAuthor) =>
+const nameOf = ({ author }: QueueSentence) =>
   author.lastName ? `${author.firstName} ${author.lastName}` : author.firstName;
 
 // How long a sentence has waited, in words ("today", "2 days ago"), by the
@@ -23,9 +27,37 @@ const waitedSince = (createdAt: string, now: number) => {
   return days === 1 ? "yesterday" : `${days} days ago`;
 };
 
+// The show sentence, with the words Scribbles found misspelled marked
+const withMisspellings = (show: string, misspelled: string[] = []) => {
+  if (misspelled.length === 0) return show;
+  const escaped = misspelled.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const parts = show.split(new RegExp(`\\b(${escaped.join("|")})\\b`, "g"));
+  // Each part keyed by where it starts in the sentence
+  let at = 0;
+  return parts.map((part, i) => {
+    const start = at;
+    at += part.length;
+    // The split keeps each match at an odd place
+    return i % 2 === 1 ? (
+      <mark key={`word-${start}`} className="paper-review__misspelled">
+        {part}
+        <span className="visually-hidden"> (misspelled)</span>
+      </mark>
+    ) : (
+      <React.Fragment key={`text-${start}`}>{part}</React.Fragment>
+    );
+  });
+};
+
+// How many tips "Try again" offers before "See all tips"
+const TIPS_SHOWN = 3;
+
 // The Teacher page, for the reviewer who reads as Scribbles: the sentences
-// waiting for review, longest wait first, each on a card with the way to
-// approve it or send it back.
+// waiting for review, each on a card with the way to approve it or send it
+// back with a tip the student sees. Where Scribbles has read a sentence
+// first (the AI reviewer, backend/reviewer/), his note says what he
+// suggests; the teacher still decides. A sentence that may mean a student
+// needs help comes first, then the longest wait.
 function Admin() {
   // grab global state from redux store
   const user = useSelector((state: RootState) => state.user);
@@ -58,6 +90,10 @@ function Admin() {
   // opens, so the cards don't change while they're being read
   const [now] = useState(() => Date.now());
   const heading = useRef<HTMLHeadingElement>(null);
+  // The tips a teacher can send back, and the card whose "Try again" is
+  // open: the tip chosen there (null: none), and whether every tip shows
+  const [tips, setTips] = useState<ReviewTip[]>([]);
+  const [choosing, setChoosing] = useState<{ id: string; tip: ReviewTipId | null; all: boolean } | null>(null);
 
   // Retrieve all sentences pending approval (the server checks again), once
   // the user is an admin. Only when that changes (or on Try again), not on
@@ -73,6 +109,24 @@ function Admin() {
       current = false;
     };
   }, [isAdmin, dispatch, attempt]);
+
+  // The tips for "Try again". Without them, only Scribbles' pick and "No
+  // tip" are offered.
+  useEffect(() => {
+    if (!isAdmin) return;
+    let current = true;
+    api
+      .fetchReviewTips()
+      .then(({ data }) => {
+        if (current && Array.isArray(data)) {
+          setTips(data.filter((tip) => typeof tip?.id === "string" && typeof tip?.text === "string"));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [isAdmin]);
 
   // The server says this isn't an admin: send back to home page. Not before
   // it has answered, or a remembered student sends an admin away.
@@ -105,11 +159,11 @@ function Admin() {
   // `sentence` is the one on the card that was pressed, passed in directly:
   // looking it up by position could pick another one if the queue changed
   // between drawing the card and the press. `place` is where its card was.
-  async function decide(sentence: SentenceWithAuthor, status: ReviewDecision, place: number) {
+  async function decide(sentence: QueueSentence, status: ReviewDecision, place: number, tip: ReviewTipId | null = null) {
     if (saving) return;
     setSaving(sentence._id);
     setFailed(false);
-    const outcome = await dispatch(updatePendingApprovalSentences(status, sentence));
+    const outcome = await dispatch(updatePendingApprovalSentences(status, sentence, tip));
     if (outcome !== "saved") {
       // Ask for the queue again: the sentence may be gone (someone else
       // handled it) or changed (the student edited it, so it comes back with
@@ -122,6 +176,7 @@ function Admin() {
       return;
     }
     focusNext.current = { place };
+    setChoosing(null);
     setSaving(null);
     // How many are left, so two decisions in a row never read the same
     // (a screen reader stays silent when the words don't change)
@@ -141,11 +196,24 @@ function Admin() {
   }
   if (loaded === "loading") return <PageLoading />;
 
-  // Longest wait first, so nobody is left at the bottom of a growing queue
+  // A sentence that may mean a student needs help first, then the longest
+  // wait, so nobody is left at the bottom of a growing queue
+  const kindOf = (sentence: QueueSentence): NoteKind | null =>
+    sentence.suggestion ? noteKind(sentence.suggestion) : null;
   const queue = [...sentencesAwaitingApproval].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    (a, b) =>
+      Number(kindOf(b) === "check-in") - Number(kindOf(a) === "check-in") ||
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
   const count = queue.length;
+  // How many of each note, for the stickers under the heading
+  const tally = (kinds: NoteKind[]) => queue.filter((sentence) => kinds.includes(kindOf(sentence) as NoteKind)).length;
+  const stickers = [
+    { label: "to check in on", n: tally(["check-in", "held"]), className: "paper-review__sticker paper-review__sticker--check-in" },
+    { label: "ready", n: tally(["ready"]), className: "paper-review__sticker paper-review__sticker--ready" },
+    { label: "try again", n: tally(["again"]), className: "paper-review__sticker paper-review__sticker--again" },
+    { label: "your call", n: tally(["your-call"]), className: "paper-review__sticker paper-review__sticker--your-call" },
+  ].filter((sticker) => sticker.n > 0);
 
   return (
     <div className="paper-review">
@@ -159,6 +227,18 @@ function Admin() {
           <span className="paper-status paper-status--turn">{count} waiting</span>
         )}
       </div>
+      {loaded === "ready" && stickers.length > 0 && (
+        <div className="paper-review__summary">
+          <p>Scribbles read them first. You decide.</p>
+          <ul aria-label="Scribbles' notes">
+            {stickers.map((sticker) => (
+              <li key={sticker.label} className={sticker.className}>
+                {sticker.n} {sticker.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="visually-hidden" role="status">
         {said}
       </p>
@@ -215,11 +295,39 @@ function Admin() {
                     </span>
                   </div>
                   <p className="paper-review__tell">{sentence.tell}</p>
-                  <p className="paper-review__show">{sentence.show}</p>
+                  <p className="paper-review__show">
+                    {withMisspellings(sentence.show, sentence.suggestion?.misspelled)}
+                  </p>
+                  {sentence.suggestion && (
+                    <ScribblesNote suggestion={sentence.suggestion} firstName={sentence.author.firstName} />
+                  )}
+                  {choosing?.id === sentence._id ? (
+                    <TipChooser
+                      name={name}
+                      firstName={sentence.author.firstName}
+                      pick={sentence.suggestion?.verdict === "redo" ? sentence.suggestion.tip?.id ?? null : null}
+                      tips={tips}
+                      chosen={choosing.tip}
+                      all={choosing.all}
+                      saving={saving === sentence._id}
+                      disabled={saving !== null}
+                      onChoose={(tip) => setChoosing({ ...choosing, tip })}
+                      onShowAll={() => setChoosing({ ...choosing, all: true })}
+                      onCancel={() => {
+                        focusNext.current = { id: sentence._id };
+                        setChoosing(null);
+                      }}
+                      onSend={() => decide(sentence, "redo", place, choosing.tip)}
+                    />
+                  ) : (
                   <div className="paper-review__decide">
                     <button
                       type="button"
-                      className="paper-btn paper-review__approve"
+                      className={
+                        sentence.suggestion?.verdict === "approve" && kindOf(sentence) === "ready"
+                          ? "paper-btn paper-review__approve paper-review__pick"
+                          : "paper-btn paper-review__approve"
+                      }
                       aria-label={
                         saving === sentence._id ? `Saving: ${name}'s sentence` : `Approve: ${name}'s sentence`
                       }
@@ -230,20 +338,127 @@ function Admin() {
                     </button>
                     <button
                       type="button"
-                      className="paper-btn paper-review__again"
+                      className={
+                        kindOf(sentence) === "again"
+                          ? "paper-btn paper-review__again paper-review__pick"
+                          : "paper-btn paper-review__again"
+                      }
                       aria-label={`Try again: ${name}'s sentence`}
                       disabled={saving !== null}
-                      onClick={() => decide(sentence, "redo", place)}
+                      onClick={() => {
+                        // Scribbles' tip is chosen to start with, when he has one
+                        const suggested = sentence.suggestion;
+                        setChoosing({
+                          id: sentence._id,
+                          tip: suggested?.verdict === "redo" ? suggested.tip?.id ?? null : null,
+                          all: false,
+                        });
+                      }}
                     >
                       Try again
                     </button>
                   </div>
+                  )}
                 </li>
               );
             })}
           </ol>
         </>
       )}
+    </div>
+  );
+}
+
+// "Try again", opened: which tip the student sees with it. Scribbles' pick
+// (when he has one) is chosen to start with; a few more tips, then all of
+// them on request, or none.
+function TipChooser({
+  name,
+  firstName,
+  pick,
+  tips,
+  chosen,
+  all,
+  saving,
+  disabled,
+  onChoose,
+  onShowAll,
+  onCancel,
+  onSend,
+}: {
+  name: string;
+  firstName: string;
+  pick: ReviewTipId | null;
+  tips: ReviewTip[];
+  chosen: ReviewTipId | null;
+  all: boolean;
+  saving: boolean;
+  disabled: boolean;
+  onChoose: (tip: ReviewTipId | null) => void;
+  onShowAll: () => void;
+  onCancel: () => void;
+  onSend: () => void;
+}) {
+  const group = useRef<HTMLDivElement>(null);
+  // Keyboard users land on the chosen tip when it opens
+  useEffect(() => {
+    group.current?.querySelector<HTMLInputElement>("input:checked")?.focus();
+  }, []);
+
+  const others = tips.filter((tip) => tip.id !== pick);
+  const shown = all ? others : others.slice(0, pick ? TIPS_SHOWN - 1 : TIPS_SHOWN);
+  // Scribbles' pick, even if the list of tips couldn't be loaded
+  const picked = pick ? tips.find((tip) => tip.id === pick) : undefined;
+  const options: { id: ReviewTipId | null; text: string; isPick?: boolean }[] = [
+    ...(pick ? [{ id: pick, text: picked?.text ?? "Scribbles' tip", isPick: true }] : []),
+    ...shown.map((tip) => ({ id: tip.id, text: tip.text })),
+    // "No tip" stays chosen if it was, even when it's off the short list
+    { id: null, text: "No tip, just \u201cTry again\u201d" },
+  ];
+  const groupName = `tip-${name}`;
+
+  return (
+    <div className="paper-review__choose">
+      <div className="paper-review__tips" role="radiogroup" aria-label={`Which tip should ${firstName} see?`} ref={group}>
+        <p className="paper-review__tips-question" aria-hidden="true">
+          Which tip should {firstName} see?
+        </p>
+        {options.map((option) => (
+          <label
+            key={option.id ?? "none"}
+            className={chosen === option.id ? "paper-review__tip paper-review__tip--chosen" : "paper-review__tip"}
+          >
+            <input
+              type="radio"
+              name={groupName}
+              checked={chosen === option.id}
+              disabled={disabled}
+              onChange={() => onChoose(option.id)}
+            />
+            <span>{option.text}</span>
+            {option.isPick && <span className="paper-review__tip-pick">Scribbles&apos; pick</span>}
+          </label>
+        ))}
+        {!all && others.length > shown.length && (
+          <button type="button" className="paper-review__all-tips" onClick={onShowAll} disabled={disabled}>
+            See all tips
+          </button>
+        )}
+      </div>
+      <div className="paper-review__decide">
+        <button type="button" className="paper-btn paper-review__cancel" onClick={onCancel} disabled={disabled}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="paper-btn paper-review__send"
+          aria-label={saving ? `Saving: ${name}'s sentence` : `Send back: ${name}'s sentence`}
+          disabled={disabled}
+          onClick={onSend}
+        >
+          {saving ? "Saving…" : chosen ? "Send back with this tip" : "Send back"}
+        </button>
+      </div>
     </div>
   );
 }

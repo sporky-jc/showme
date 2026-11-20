@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { TIP_IDS } from "../reviewer/tips.js";
 
 // User sentence schema
 const sentenceSchema = new mongoose.Schema({
@@ -37,6 +38,10 @@ const sentenceSchema = new mongoose.Schema({
     },
   ],
   GID: { type: String, required: true },
+  // The tip from Scribbles' list (reviewer/tips.ts) the student sees with
+  // their teacher's decision: one they chose with "Try again", or the
+  // praise tip once approved. Cleared when the student edits the sentence.
+  tip: { type: String, enum: TIP_IDS },
 });
 
 // Creating mongoose model

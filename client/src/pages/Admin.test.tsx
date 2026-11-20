@@ -6,7 +6,7 @@ import { checkSession } from "../actions/user";
 import type { InternalAxiosRequestConfig } from "axios";
 import { renderWithApp } from "../test/testUtils";
 import type { Outcome } from "../test/testUtils";
-import type { SentenceWithAuthor } from "../api/types";
+import type { QueueSentence, ReviewTip } from "../api/types";
 import type { UserState } from "../reducers/user";
 
 // The Teacher page: the sentences waiting for a teacher, longest wait
@@ -15,9 +15,18 @@ import type { UserState } from "../reducers/user";
 // What every waiting sentence shares
 const pending = { approved: false, toRedo: false, createdAt: "2026-10-01T00:00:00.000Z" };
 
-const waiting: SentenceWithAuthor[] = [
+const waiting: QueueSentence[] = [
   { _id: "a", title: "day1", tell: "It is cold outside.", show: "Frost bit my fingers.", author: { firstName: "Mia", lastName: "Torres" }, ...pending },
   { _id: "b", title: "day2", tell: "It is hot outside.", show: "The road shimmered.", author: { firstName: "Leo", lastName: "Chen" }, ...pending },
+];
+
+// The tips a teacher can send back (GET /Admin/tips)
+const TIPS: ReviewTip[] = [
+  { id: "see", text: "Add something you would see. What colors or shapes are there?" },
+  { id: "hear", text: "Add a sound you would hear." },
+  { id: "feel", text: "Add how something feels. Is it warm, cold, rough or soft?" },
+  { id: "smell", text: "Add a smell. What's in the air?" },
+  { id: "spelling", text: "Check your spelling. Read each word slowly, letter by letter." },
 ];
 
 const Where = () => <div data-testid="where">{useLocation().pathname}</div>;
@@ -33,14 +42,16 @@ const renderAdmin = ({
   queue = waiting,
   list,
   update,
+  tips = TIPS,
 }: {
   user?: UserState;
   sessionChecked?: boolean;
   login?: Outcome | Promise<Outcome>;
-  afterUpdate?: SentenceWithAuthor[];
-  queue?: SentenceWithAuthor[];
+  afterUpdate?: QueueSentence[];
+  queue?: QueueSentence[];
   list?: () => Outcome | Promise<Outcome>;
   update?: () => Outcome | Promise<Outcome>;
+  tips?: ReviewTip[];
 } = {}) => {
   const requests: InternalAxiosRequestConfig[] = [];
   const view = renderWithApp(
@@ -53,6 +64,7 @@ const renderAdmin = ({
       respond: (config) => {
         requests.push(config);
         if (config.url === "/Login") return login;
+        if (config.url === "/Admin/tips") return { status: 200, data: tips };
         if (config.method === "get" && config.url === "/Admin") {
           return list ? list() : { status: 200, data: queue };
         }
@@ -177,7 +189,12 @@ describe("Admin", () => {
       expect(found).toBeDefined();
       return found!; // defined: checked just above
     });
-    expect(JSON.parse(patch.data)).toEqual({ status: "approve", sentence: waiting[0] });
+    // Only the sentence's id and date: the server reads the words itself
+    expect(JSON.parse(patch.data)).toEqual({
+      status: "approve",
+      sentence: { _id: "a", createdAt: pending.createdAt },
+      tip: null,
+    });
     await waitFor(() => expect(screen.queryByText("Mia Torres")).not.toBeInTheDocument());
     expect(cards()).toHaveLength(1);
     expect(screen.getByText("1 waiting")).toBeInTheDocument();
@@ -186,18 +203,24 @@ describe("Admin", () => {
     await waitFor(() => expect(approve("Leo Chen")).toHaveFocus());
   });
 
-  it("Try again sends 'redo' with that card's sentence", async () => {
+  it("Try again, then Send back, sends 'redo' with that card's sentence and no tip", async () => {
     const { requests } = renderAdmin({ afterUpdate: [waiting[0]] });
     await screen.findByText("Leo Chen");
 
     fireEvent.click(tryAgain("Leo Chen"));
+    expect(requests.filter((r) => r.method === "patch")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Send back: Leo Chen's sentence" }));
 
     const patch = await waitFor(() => {
       const found = requests.find((r) => r.method === "patch");
       expect(found).toBeDefined();
       return found!; // defined: checked just above
     });
-    expect(JSON.parse(patch.data)).toEqual({ status: "redo", sentence: waiting[1] });
+    expect(JSON.parse(patch.data)).toEqual({
+      status: "redo",
+      sentence: { _id: "b", createdAt: pending.createdAt },
+      tip: null,
+    });
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent("Sent Leo Chen's sentence back to try again. 1 waiting.")
     );
@@ -355,7 +378,7 @@ describe("Admin", () => {
       expect(found).toBeDefined();
       return found!; // defined: checked just above
     });
-    expect(JSON.parse(patch.data).sentence.show).toBe("The road shimmered.");
+    expect(JSON.parse(patch.data).sentence._id).toBe("b"); // Leo's
   });
 
   // The database doesn't require a last name (older accounts, and Google
@@ -371,5 +394,106 @@ describe("Admin", () => {
 
     expect(await screen.findByText("Bo")).toBeInTheDocument();
     expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Scribbles' notes", () => {
+  const sentence = (id: string, firstName: string, show: string, suggestion?: QueueSentence["suggestion"]): QueueSentence => ({
+    _id: id,
+    title: "day1",
+    tell: "The cafeteria was loud.",
+    show,
+    author: { firstName, lastName: "K" },
+    ...pending,
+    suggestion,
+  });
+  const ready = sentence("r", "Leo", "Trays clattered and chairs scraped.", {
+    verdict: "approve",
+    tip: { id: "great", text: "Great picture! Keep painting with words." },
+    reasons: ["ai"],
+  });
+  const again = sentence("g", "Maya", "The cafateria was lound with trays banging.", {
+    verdict: "redo",
+    tip: { id: "spelling", text: "Check your spelling. Read each word slowly, letter by letter." },
+    reasons: ["ai", "spelling"],
+    misspelled: ["cafateria", "lound"],
+  });
+  const worrying = { ...sentence("w", "Ava", "Nobody at home talks to me anymore.", {
+    verdict: "unsure",
+    tip: null,
+    reasons: ["worrying"],
+  }), createdAt: "2026-10-05T00:00:00.000Z" };
+  const plain = sentence("p", "Sam", "She danced like a noodle.");
+
+  it("puts a sentence that may mean a student needs help first, with a note to check in", async () => {
+    renderAdmin({ queue: [ready, again, worrying, plain] });
+    await screen.findByText("Ava K");
+
+    expect(names()).toEqual(["Ava K", "Leo K", "Maya K", "Sam K"]);
+    const notes = screen.getAllByRole("note");
+    expect(notes[0]).toHaveTextContent("Ava may need help.");
+    expect(notes[0]).toHaveTextContent("No AI saw it.");
+    expect(notes[1]).toHaveTextContent("Ready for the gallery.");
+    expect(notes[1]).toHaveTextContent("Leo will see: \u201cGreat picture! Keep painting with words.\u201d");
+    expect(notes[2]).toHaveTextContent("Words to fix: cafateria, lound.");
+    // No suggestion, no note
+    expect(notes).toHaveLength(3);
+    expect(screen.getByRole("list", { name: "Scribbles' notes" })).toHaveTextContent(/1 to check in on.*1 ready.*1 try again/);
+  });
+
+  it("marks the misspelled words in the sentence", async () => {
+    renderAdmin({ queue: [again] });
+    await screen.findByText("Maya K");
+
+    const marked = document.querySelectorAll("mark.paper-review__misspelled");
+    expect([...marked].map((mark) => mark.firstChild?.textContent)).toEqual(["cafateria", "lound"]);
+    expect(screen.getByText(/The/, { selector: "p.paper-review__show" })).toHaveTextContent(
+      "The cafateria (misspelled) was lound (misspelled) with trays banging."
+    );
+  });
+
+  it("Try again starts on Scribbles' tip, and Send back sends its id", async () => {
+    const { requests } = renderAdmin({ queue: [again], afterUpdate: [] });
+    await screen.findByText("Maya K");
+
+    fireEvent.click(tryAgain("Maya K"));
+
+    const group = screen.getByRole("radiogroup", { name: "Which tip should Maya see?" });
+    const pick = screen.getByRole("radio", { name: /Check your spelling/ });
+    expect(pick).toBeChecked();
+    expect(group).toHaveTextContent("Scribbles' pick");
+    await waitFor(() => expect(pick).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Send back: Maya K's sentence" }));
+
+    await waitFor(() => expect(requests.some((r) => r.method === "patch")).toBe(true));
+    expect(JSON.parse(requests.find((r) => r.method === "patch")!.data)).toMatchObject({ status: "redo", tip: "spelling" });
+  });
+
+  it("can send another tip, or none, and shows every tip on request", async () => {
+    const { requests } = renderAdmin({ queue: [plain], afterUpdate: [] });
+    await screen.findByText("Sam K");
+
+    fireEvent.click(tryAgain("Sam K"));
+    // No suggestion: no tip to start with, and the first few tips offered
+    expect(screen.getByRole("radio", { name: /No tip/ })).toBeChecked();
+    expect(screen.queryByRole("radio", { name: /Check your spelling/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "See all tips" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Add a sound/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Send back: Sam K's sentence" }));
+
+    await waitFor(() => expect(requests.some((r) => r.method === "patch")).toBe(true));
+    expect(JSON.parse(requests.find((r) => r.method === "patch")!.data)).toMatchObject({ status: "redo", tip: "hear" });
+  });
+
+  it("Cancel closes the tips without sending, and puts the keyboard back on the card", async () => {
+    const { requests } = renderAdmin({ queue: [plain] });
+    await screen.findByText("Sam K");
+
+    fireEvent.click(tryAgain("Sam K"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+    await waitFor(() => expect(approve("Sam K")).toHaveFocus());
+    expect(requests.filter((r) => r.method === "patch")).toHaveLength(0);
   });
 });

@@ -3,9 +3,12 @@ import type {
   EditSentenceBody,
   LoginBody,
   NewSentenceBody,
+  OwnSentence,
+  QueueSentence,
   ReviewBody,
   ReviewDecision,
-  Sentence,
+  ReviewTip,
+  ReviewTipId,
   SentenceLikes,
   SentenceWithAuthor,
   TellSentence,
@@ -29,27 +32,33 @@ export const loginUser = (token: string) =>
 export const fetchUser = () => API.get<User>("/Login");
 
 // retrieve/create/update user sentences on mypage
-export const fetchUserSentences = () => API.get<Sentence[]>("/MyPage");
+export const fetchUserSentences = () => API.get<OwnSentence[]>("/MyPage");
 export const createSentence = (newSentence: NewSentenceBody) =>
-  API.post<Sentence>("/MyPage", newSentence);
+  API.post<OwnSentence>("/MyPage", newSentence);
 export const editUserSentences = (editedSentence: EditSentenceBody) =>
-  API.patch<Sentence>("/MyPage", editedSentence);
+  API.patch<OwnSentence>("/MyPage", editedSentence);
 
 // logout User
 export const logoutUser = () => API.post("/Logout");
 
 // retrieve/approve/reject sentences awaiting approval
 export const fetchApprovalSentences = () =>
-  API.get<SentenceWithAuthor[]>("/Admin");
+  API.get<QueueSentence[]>("/Admin");
 export const updatePendingApprovalSentences = (
   status: ReviewDecision,
-  sentence: SentenceWithAuthor
+  sentence: SentenceWithAuthor,
+  // With "redo": the tip the student sees, or none
+  tip: ReviewTipId | null = null
 ) =>
-  // The server answers with the queue as it is after this decision
-  API.patch<SentenceWithAuthor[]>("/Admin", {
+  // The server answers with the queue as it is after this decision. Only
+  // the sentence's id and date are sent (see ReviewBody).
+  API.patch<QueueSentence[]>("/Admin", {
     status,
-    sentence,
+    sentence: { _id: sentence._id, createdAt: sentence.createdAt },
+    tip,
   } satisfies ReviewBody);
+// The tips a teacher can send back with "Try again"
+export const fetchReviewTips = () => API.get<ReviewTip[]>("/Admin/tips");
 
 // Likes on the gallery page, for signed-in users only: every approved
 // sentence's likes, and liking or unliking one (each answers with that
