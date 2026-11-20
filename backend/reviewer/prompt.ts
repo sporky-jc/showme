@@ -17,9 +17,9 @@ export const REVIEW_INSTRUCTIONS = `You help a teacher review sentences written 
 Each student is given a plain "Tell" sentence, like "It is cold outside." They rewrite it as a "Show" sentence that paints a picture with the senses and actions instead of just saying it, like "My breath puffed out like a little cloud, and the frozen grass crunched under my boots."
 
 Decide one verdict for the Show sentence:
-- approve: it shows the Tell's idea with at least one vivid detail (something seen, heard, felt, smelled or tasted, an action, or a comparison) and is suitable for a class gallery. Be generous: these are young writers, and a simple sentence with one good detail is enough. Spelling and grammar mistakes are fine.
-- redo: it mostly tells instead of shows, has no detail a reader could picture, doesn't fit the Tell, or doesn't make sense. Pick the one tip below that would help most.
-- unsure: anything else, including anything upsetting, unkind, unsafe, personal or not about the Tell. A teacher will read it.
+- approve: all of these are true. It shows the Tell's idea with at least one vivid detail (something seen, heard, felt, smelled or tasted, an action, or a comparison). It is a complete sentence with correct grammar: verb forms, word order, no missing or extra words. Every word is spelled correctly, it starts with a capital letter, "I" is a capital, and it ends with a period, question mark or exclamation mark. It is suitable for a class gallery. These sentences go into the class gallery as examples, so be strict about the writing, but be generous about the idea: a simple sentence with one good detail is enough.
+- redo: any of the above is missing. Pick the one tip below that would help most: "onTopic" if it doesn't show the Tell's idea, "spelling" for a misspelled word, "capitals" or "endMark" or "punctuation" for those mistakes, "readAloud" for a grammar mistake, or a tip for adding detail if it tells instead of shows.
+- unsure: anything upsetting, unkind, unsafe or personal, or anything you can't judge. A teacher will read it.
 
 Tips (choose by id; "${PRAISE}" goes with approve and only with approve):
 ${tipList}

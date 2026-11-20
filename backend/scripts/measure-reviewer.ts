@@ -17,7 +17,7 @@ if (!setup.safety || setup.providers.length === 0) {
 }
 
 type Outcome = "approve" | "redo" | "unsure" | "held by safety" | "held by rules" | "no answer";
-const rows: { expected: string; got: Outcome; ok: boolean; ms: number; by: string; show: string }[] = [];
+const rows: { expected: string; got: Outcome; ok: boolean; ms: number; by: string; show: string; note: string }[] = [];
 
 for (const sample of SAMPLES) {
   const started = Date.now();
@@ -38,7 +38,10 @@ for (const sample of SAMPLES) {
     sample.expected === "unsafe"
       ? got === "held by safety" || got === "held by rules"
       : got === sample.expected || got === "unsure";
-  rows.push({ expected: sample.expected, got, ok, ms, by: suggestion.decidedBy, show: sample.show });
+  const note = [suggestion.tip ?? "", suggestion.misspelled?.length ? `misspelled: ${suggestion.misspelled.join(", ")}` : ""]
+    .filter(Boolean)
+    .join("; ");
+  rows.push({ expected: sample.expected, got, ok, ms, by: suggestion.decidedBy, show: sample.show, note });
 }
 
 const count = (test: (r: (typeof rows)[number]) => boolean) => rows.filter(test).length;
@@ -54,9 +57,9 @@ const lines = [
   `- Left for the teacher ("unsure"): ${count((r) => r.got === "unsure")}; no answer (failed or out of free requests): ${count((r) => r.got === "no answer")}`,
   `- Slowest: ${Math.max(...rows.map((r) => r.ms))} ms; average ${Math.round(rows.reduce((s, r) => s + r.ms, 0) / rows.length)} ms`,
   "",
-  "| | Expected | Got | ms | Sentence |",
-  "|---|---|---|---|---|",
-  ...rows.map((r) => `| ${r.ok ? "✅" : "❌"} | ${r.expected} | ${r.got} | ${r.ms} | ${r.show.replace(/\|/g, "/")} |`),
+  "| | Expected | Got | Tip, spelling | ms | Sentence |",
+  "|---|---|---|---|---|---|",
+  ...rows.map((r) => `| ${r.ok ? "✅" : "❌"} | ${r.expected} | ${r.got} | ${r.note} | ${r.ms} | ${r.show.replace(/\|/g, "/")} |`),
 ];
 const report = lines.join("\n");
 console.log(report);

@@ -10,11 +10,18 @@
 //      answers anything but the fixed form (contract.ts) is skipped.
 //   4. Nobody could decide: "unsure", which leaves the sentence for a person,
 //      exactly as if there were no AI at all.
+//   5. The writing checks: spelling (spelling.ts), and capitals, end marks,
+//      punctuation, repeated words and "a"/"an" (mechanics.ts). Mistakes are
+//      listed for the teacher, and an approval becomes "redo" with the tip
+//      for the first one, so a sentence with mistakes never reaches the
+//      gallery. (Grammar a program can't check, the AI judges.)
 //
 // So no provider can break reviewing, and switching or adding one is a
 // matter of the list passed in, not a change to the site.
-import { ProviderAnswer, type Suggestion } from "./contract.js";
+import { ProviderAnswer, type Reason, type Suggestion } from "./contract.js";
+import { MECHANIC_TIP, MECHANICS, mechanicsIssues } from "./mechanics.js";
 import { checkRules } from "./rules.js";
+import { misspelledWords } from "./spelling.js";
 import { PRAISE } from "./tips.js";
 
 // What a provider is shown: the Tell and the student's sentence, and nothing
@@ -99,6 +106,36 @@ export const reviewSentence = async (
     };
   }
 
+  // The writing checks, for the teacher, and so a sentence with mistakes is
+  // never approved into the gallery. They're checked here, after the rules'
+  // safety checks, and only ever stop an approval (spelling.ts, mechanics.ts).
+  const misspelled = misspelledWords(input.show);
+  const mechanics = mechanicsIssues(input.show);
+  const { suggestion, attempts } = await askProviders(input, providers, { timeoutMs, safety });
+  if (misspelled.length === 0 && mechanics.length === 0) return { suggestion, attempts };
+  const found = {
+    ...(misspelled.length > 0 ? { misspelled } : {}),
+    ...(mechanics.length > 0 ? { mechanics } : {}),
+  };
+  if (suggestion.verdict !== "approve") return { suggestion: { ...suggestion, ...found }, attempts };
+
+  // An approval becomes "redo", with the tip for the first kind of mistake:
+  // spelling, then capitals, end marks, punctuation, then the rest
+  const kinds = MECHANICS.filter((kind) => mechanics.some((issue) => issue.kind === kind));
+  const tip = misspelled.length > 0 ? "spelling" : MECHANIC_TIP[kinds[0]];
+  const reasons: Reason[] = [...suggestion.reasons];
+  if (misspelled.length > 0) reasons.push("spelling");
+  if (kinds.some((kind) => kind !== "repeated-word" && kind !== "a-an")) reasons.push("punctuation");
+  if (kinds.some((kind) => kind === "repeated-word" || kind === "a-an")) reasons.push("grammar");
+  return { suggestion: { ...suggestion, verdict: "redo", tip, reasons, ...found }, attempts };
+};
+
+// The safety check, then each provider in turn (steps 2 to 4 above)
+const askProviders = async (
+  input: ReviewInput,
+  providers: ReviewProvider[],
+  { timeoutMs, safety }: { timeoutMs: number; safety?: SafetyCheck }
+): Promise<ReviewResult> => {
   // Only the two texts are passed on, whatever else the caller's object holds
   const shown: ReviewInput = { tell: input.tell, show: input.show };
   const attempts: ProviderAttempt[] = [];
