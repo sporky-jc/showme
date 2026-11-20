@@ -46,17 +46,20 @@ export const fetchApprovalSentences = () =>
   API.get<QueueSentence[]>("/Admin");
 export const updatePendingApprovalSentences = (
   status: ReviewDecision,
-  sentence: SentenceWithAuthor,
+  sentence: SentenceWithAuthor | QueueSentence,
   // With "redo": the tip the student sees, or none
   tip: ReviewTipId | null = null
-) =>
-  // The server answers with the queue as it is after this decision. Only
-  // the sentence's id and date are sent (see ReviewBody).
-  API.patch<QueueSentence[]>("/Admin", {
+) => {
+  // The sentence as the page shows it, without Scribbles' suggestion (the
+  // server only reads its id and date, see ReviewBody). The server answers
+  // with the queue as it is after this decision.
+  const { suggestion: _suggestion, ...shown } = sentence as QueueSentence;
+  return API.patch<QueueSentence[]>("/Admin", {
     status,
-    sentence: { _id: sentence._id, createdAt: sentence.createdAt },
+    sentence: shown,
     tip,
   } satisfies ReviewBody);
+};
 // The tips a teacher can send back with "Try again"
 export const fetchReviewTips = () => API.get<ReviewTip[]>("/Admin/tips");
 

@@ -189,12 +189,7 @@ describe("Admin", () => {
       expect(found).toBeDefined();
       return found!; // defined: checked just above
     });
-    // Only the sentence's id and date: the server reads the words itself
-    expect(JSON.parse(patch.data)).toEqual({
-      status: "approve",
-      sentence: { _id: "a", createdAt: pending.createdAt },
-      tip: null,
-    });
+    expect(JSON.parse(patch.data)).toEqual({ status: "approve", sentence: waiting[0], tip: null });
     await waitFor(() => expect(screen.queryByText("Mia Torres")).not.toBeInTheDocument());
     expect(cards()).toHaveLength(1);
     expect(screen.getByText("1 waiting")).toBeInTheDocument();
@@ -216,11 +211,7 @@ describe("Admin", () => {
       expect(found).toBeDefined();
       return found!; // defined: checked just above
     });
-    expect(JSON.parse(patch.data)).toEqual({
-      status: "redo",
-      sentence: { _id: "b", createdAt: pending.createdAt },
-      tip: null,
-    });
+    expect(JSON.parse(patch.data)).toEqual({ status: "redo", sentence: waiting[1], tip: null });
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent("Sent Leo Chen's sentence back to try again. 1 waiting.")
     );
@@ -378,7 +369,7 @@ describe("Admin", () => {
       expect(found).toBeDefined();
       return found!; // defined: checked just above
     });
-    expect(JSON.parse(patch.data).sentence._id).toBe("b"); // Leo's
+    expect(JSON.parse(patch.data).sentence.show).toBe("The road shimmered.");
   });
 
   // The database doesn't require a last name (older accounts, and Google
@@ -466,7 +457,10 @@ describe("Scribbles' notes", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send back: Maya K's sentence" }));
 
     await waitFor(() => expect(requests.some((r) => r.method === "patch")).toBe(true));
-    expect(JSON.parse(requests.find((r) => r.method === "patch")!.data)).toMatchObject({ status: "redo", tip: "spelling" });
+    const sent = JSON.parse(requests.find((r) => r.method === "patch")!.data);
+    expect(sent).toMatchObject({ status: "redo", tip: "spelling", sentence: { _id: "g" } });
+    // Scribbles' suggestion stays on the page
+    expect(sent.sentence.suggestion).toBeUndefined();
   });
 
   it("can send another tip, or none, and shows every tip on request", async () => {
