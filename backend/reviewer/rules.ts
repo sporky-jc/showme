@@ -7,10 +7,11 @@
 //    first, and personal details. These are held for a person ("hold"), and
 //    no AI provider ever sees them. Held is the safe side: when in doubt,
 //    hold.
-// 2. The two plain cases an AI isn't needed for: a sentence that copies its
-//    Tell, or one too short to paint a picture ("redo", with the matching
-//    tip). Only after every safety check, so a worrying sentence is never
-//    just sent back.
+// 2. The one plain case an AI isn't needed for: a sentence that copies its
+//    Tell ("redo", with the "own words" tip). Only after every safety
+//    check. Nothing else is sent back by the rules: a word list can miss a
+//    worrying sentence, and a missed one must reach the AI or a person,
+//    never be bounced back to the child.
 //
 // Anything else passes on to the next layer ("pass"). Whether a sentence
 // paints a picture is for the AI or a person to judge, not a word list.
@@ -19,6 +20,7 @@ import type { TipId } from "./tips.js";
 import {
   FIRST_NAMES,
   PERSONAL_PHRASES,
+  PRETEND_NAMES,
   SENSITIVE_WORDS,
   UNSAFE_INSIDE,
   UNSAFE_WORDS,
@@ -30,8 +32,6 @@ export type RuleOutcome =
   | { outcome: "redo"; tip: TipId; reasons: Reason[] }
   | { outcome: "pass" };
 
-// Fewer words than this can't paint a picture
-export const MIN_WORDS = 5;
 // Longer than any Show sentence: held, and not checked further (long text
 // would make the checks slow)
 export const MAX_CHARACTERS = 600;
@@ -49,6 +49,10 @@ const ALPHABET_LOOKALIKES: Record<string, string> = {
   у: "y", х: "x", і: "i", ї: "i", ј: "j", ѕ: "s", ԁ: "d", ԛ: "q", ԝ: "w",
   α: "a", β: "b", ε: "e", η: "n", ι: "i", κ: "k", ν: "v", ο: "o", ρ: "p", τ: "t", υ: "u",
   χ: "x", ω: "w",
+  // Small capitals ("ꜱʜɪᴛ")
+  ᴀ: "a", ʙ: "b", ᴄ: "c", ᴅ: "d", ᴇ: "e", ꜰ: "f", ɢ: "g", ʜ: "h", ɪ: "i", ᴊ: "j", ᴋ: "k",
+  ʟ: "l", ᴍ: "m", ɴ: "n", ᴏ: "o", ᴘ: "p", ʀ: "r", ꜱ: "s", ᴛ: "t", ᴜ: "u", ᴠ: "v", ᴡ: "w",
+  ʏ: "y", ᴢ: "z",
 };
 
 // Symbols and digits people swap in for letters to get past filters ("sh1t",
@@ -77,12 +81,16 @@ interface Reading {
   inside: string[]; // each written word with everything but letters removed ("shitstorm")
   dotted: string[]; // words with symbols inside them, symbols removed ("s.e.x.y"; not "he'll")
   spelledOut: string[]; // runs of single letters joined ("f u c k")
+  stretched: string[]; // letters said three or more times said once ("fuuuck", "shiiit")
+  starred: boolean; // a word with letters starred out ("f*ck", "a**hole", "sh#t")
 }
 
 const read = (text: string): Reading => {
   const lower = plain(text);
   const words = lower.match(/[a-z]+(?:'[a-z]+)*/g) ?? [];
-  const tokens = lower.split(/\s+/).filter(Boolean);
+  // Written words: split at spaces, and at "/" or "..." between two words
+  // ("mother/father", "a bit...chilly")
+  const tokens = lower.split(/[\s/]+|\.{2,}|\u2026/).filter(Boolean);
   const swapped = tokens.flatMap((token) => {
     // Punctuation around a word is punctuation, not a letter ("die!")
     const core = token.replace(/^[^a-z0-9@$]+|[^a-z0-9]+$/g, "");
@@ -107,7 +115,11 @@ const read = (text: string): Reading => {
     }
   }
   if (run.length > 1) spelledOut.push(run);
-  return { words, swapped, inside, dotted, spelledOut };
+  const stretched = [...words, ...swapped]
+    .filter((word) => /([a-z])\1\1/.test(word))
+    .map((word) => word.replace(/([a-z])\1{2,}/g, "$1"));
+  const starred = tokens.some((token) => /[a-z][*#]+[a-z]|^[a-z][*#]{2,}|[*#]{2,}[a-z]$/.test(token));
+  return { words, swapped, inside, dotted, spelledOut, stretched, starred };
 };
 
 // Does this list of words contain the phrase (as whole words)?
@@ -130,17 +142,49 @@ const FIRST = new Set(FIRST_NAMES);
 
 export const isUnsafe = (text: string) => {
   const reading = read(text);
-  const whole = [...reading.words, ...reading.swapped, ...reading.dotted, ...reading.spelledOut];
-  if (whole.some((w) => UNSAFE.has(w))) {
-    return true;
-  }
+  if (reading.starred) return true;
+  const whole = [
+    ...reading.words,
+    ...reading.swapped,
+    ...reading.dotted,
+    ...reading.spelledOut,
+    ...reading.stretched,
+  ];
+  if (whole.some((w) => UNSAFE.has(w))) return true;
   // Inside one written word, never across two ("a bit chilly" is fine)
-  return [...reading.inside, ...reading.spelledOut].some((w) =>
+  return [...reading.inside, ...reading.spelledOut, ...reading.stretched].some((w) =>
     UNSAFE_INSIDE.some((bad) => w.includes(bad))
   );
 };
 
-export const isWorrying = (text: string) => anyPhrase(read(text), WORRYING_PHRASES);
+// Someone doing something to the child: "Dad hit me", "they beat me up", "my
+// uncle touched me". Only with a person doing it: "the cold wind hits me
+// like a wall" is a Show sentence.
+const PEOPLE = new Set([
+  "dad", "daddy", "mom", "mommy", "mum", "mother", "father", "stepdad", "stepmom",
+  "brother", "sister", "uncle", "aunt", "grandpa", "grandma", "teacher", "coach",
+  "he", "she", "they", "someone", "somebody", "man", "boy", "boys", "girl", "girls",
+  "kids", "kid", "parents", "babysitter", "cousin", "neighbor",
+]);
+const DONE_TO = new Set([
+  "hit", "hits", "hitting", "beat", "beats", "beating", "kick", "kicks", "kicked",
+  "punch", "punches", "punched", "slap", "slaps", "slapped", "touch", "touches", "touched",
+  "hurt", "hurts", "choke", "choked", "grabbed", "pushed", "shoved", "yells", "yelled",
+  "screams", "screamed",
+]);
+const someoneHurtsMe = (words: string[]) => {
+  for (let i = 0; i < words.length; i++) {
+    if (!DONE_TO.has(words[i]) || words[i + 1] !== "me") continue;
+    // A person up to three words before: "my dad always hits me"
+    if (words.slice(Math.max(0, i - 3), i).some((word) => PEOPLE.has(word))) return true;
+  }
+  return false;
+};
+
+export const isWorrying = (text: string) => {
+  const reading = read(text);
+  return anyPhrase(reading, WORRYING_PHRASES) || someoneHurtsMe(reading.words);
+};
 
 export const isSensitive = (text: string) => {
   const { words, swapped } = read(text);
@@ -150,59 +194,97 @@ export const isSensitive = (text: string) => {
 // Patterns for personal details, on the text with invisible characters
 // removed. Every repeat is bounded, so no input can make them slow.
 const EMAIL = /[a-z0-9._%+-]{1,64}@[a-z0-9-]{1,63}(\.[a-z0-9-]{1,63}){0,3}\.[a-z]{2,10}/i;
-// A web address. Lower-case endings only: "happy.Me and my dog" (a missing
-// space after a full stop) isn't a link.
+// A web address, in any case ("Roblox.com", "ROBLOX.COM"). Not a word
+// starting with a capital right after a dot ("happy.Me and my dog" is a
+// missing space), and not endings that are everyday words ("cold.it melted").
 const LINK =
-  /(https?:\/\/|www\.)\S{1,200}|\b[a-z0-9-]{2,63}\.(com|net|org|edu|gov|io|co|us|uk|ca|au|nz|ie|de|fr|es|it|nl|in|me|ly|gg|tv|app|xyz|info|online|site|club|fun|games)\b/;
-// A handle: @ and a name, not inside an email ("(@samcool)", "@frosty_kid")
-const HANDLE = /(^|[^a-z0-9_.@])@[a-z0-9_.]{2,30}/i;
+  /(https?:\/\/|www\.)\S{1,200}|[a-z0-9-]{2,63}\.(com|net|org|edu|gov|io|co|uk|ca|au|nz|ie|fr|nl|ly|gg|tv|app|xyz|info|online|site|club|fun|games)\b/gi;
+const hasLink = (text: string) => {
+  for (const match of text.matchAll(LINK)) {
+    const ending = match[2];
+    // "happy.Me": a capital then lower case after the dot starts a sentence
+    if (ending !== undefined && /^[A-Z][a-z]/.test(ending)) continue;
+    return true;
+  }
+  return false;
+};
+// A handle: @ and a name starting with a letter, not inside an email
+// ("(@samcool)", "@frosty_kid"; not "@6am")
+const HANDLE = /(^|[^a-z0-9_.@])@[a-z][a-z0-9_.]{1,29}/i;
 // Phone numbers: 555-1234, (555) 123-4567, +1 555.123.4567, 5551234567,
 // +44 7911 123456; not a year next to a number, or a million written out
 const PHONE =
-  /(?:\+?\d{1,2}[\s.-]?)?(?:\(\d{3}\)|\b\d{3})[\s.-]?\d{3}[\s.-]\d{4}\b|\b\d{3}[\s.-]\d{4}\b|\b\d{10,11}\b|\+\d{1,3}[\s.-]?\d{2,5}[\s.-]?\d{3,4}[\s.-]?\d{3,4}\b/;
-const STREET_WORD =
-  "(street|st|avenue|ave|road|rd|lane|ln|drive|dr|court|ct|boulevard|blvd|way|place|pl|circle)";
-// "42 Maple Street", "42 maple street": a number, one to three words, a
-// street word (the words checked in code, so "2 cars on the road" isn't one)
-const NUMBERED_STREET = new RegExp(`\\b\\d{1,5}\\s+((?:[a-z]{1,20}\\s+){1,3})${STREET_WORD}\\b`, "gi");
-// "on Elm Street": a capitalized name and a capitalized street word
-const NAMED_STREET =
-  /\b[A-Z][a-z]{1,20}\s+(Street|Avenue|Road|Lane|Drive|Court|Boulevard|Place|Circle)\b/;
-// "Lincoln Elementary", "Maple Middle School", "Oak Primary"
-const SCHOOL = /\b[A-Z][a-z]{1,20}\s+(Elementary|Primary|Middle|High|Academy|Prep)\b/;
-// Words that can come between a number and "road" in an ordinary sentence
+  /(?:\+?\d{1,2}[\s.-]?)?(?:\(\d{3}\)|\b\d{3})[\s.-]?\d{3}[\s.-]\d{4}\b|\b\d{3}[\s.-]\d{4}\b|\b\d{10,11}\b|\+\d{1,3}[\s.-]?\d{2,5}[\s.-]?\d{3,4}[\s.-]?\d{3,4}\b|\b(?:\d[\s.-]){6,10}\d\b/;
+// Words that can come before a street word in an ordinary sentence ("down
+// the road", "2 cars on the busy street")
 const NOT_A_STREET_NAME = new Set([
   "a", "an", "the", "on", "in", "at", "of", "to", "by", "near", "down", "up", "across",
   "along", "over", "under", "my", "our", "his", "her", "their", "your", "and", "or",
   "big", "small", "long", "old", "new", "dirt", "busy", "icy", "snowy", "wet", "dark",
+  "quiet", "empty", "this", "that", "same", "whole", "next", "other", "every",
 ]);
+// A street: a name and a street word ("Elm Street", "elm street", "Oak St.",
+// "42 Maple Rd"). Spelled out in any case; short forms ("St", "Rd") only
+// capitalized, and never "way" or "drive" ("2 dogs were way too excited",
+// "2 cars drive by").
+const STREET =
+  /\b([a-z]{2,20})\s+(street|avenue|road|lane|boulevard|court|circle)\b|\b([A-Z][a-z]{1,20})\s+(St|Ave|Rd|Ln|Blvd|Ct|Dr)\b\.?/gi;
+const SHORT_STREET = /^(St|Ave|Rd|Ln|Blvd|Ct|Dr)$/;
 
 const hasAddress = (text: string) => {
-  if (NAMED_STREET.test(text)) return true;
-  for (const match of text.matchAll(NUMBERED_STREET)) {
-    const between = match[1].trim().toLowerCase().split(/\s+/);
-    if (between.every((word) => !NOT_A_STREET_NAME.has(word))) return true;
+  for (const match of text.matchAll(STREET)) {
+    const name = match[1] ?? match[3];
+    const street = match[2] ?? match[4];
+    // A short form must be written with a capital, as streets are
+    if (match[4] !== undefined && !SHORT_STREET.test(street)) continue;
+    // "Road", "Lane", "Court" and "Circle" need a capitalized name ("Oak
+    // Road"): "a bumpy road", "rocky road ice cream" aren't addresses.
+    // "street" and "avenue" are held either way ("elm street").
+    if (/^(road|lane|court|circle)$/i.test(street) && !/^[A-Z]/.test(name)) continue;
+    if (!NOT_A_STREET_NAME.has(name.toLowerCase())) return true;
   }
   return false;
 };
 
-// A common first name followed by a capitalized word: "Emma Johnson"
+// "Lincoln Elementary", "lincoln elementary", "Oak Primary", "Maple Middle
+// School", "Westside High"
+const SCHOOL =
+  /\b[a-z]{2,20}\s+(elementary|primary|academy)\b|\b[A-Z][a-z]{1,20}\s+(Middle|High)( School)?\b/i;
+const NOT_A_SCHOOL_NAME = /\b(the|my|our|an?|in|at|to|from|of)\s+(elementary|primary|academy)\b/i;
+const hasSchool = (text: string) => {
+  const match = text.match(SCHOOL);
+  if (!match) return false;
+  // "my elementary school", "the academy": no name
+  if (NOT_A_SCHOOL_NAME.test(match[0])) return false;
+  // "Middle"/"High" need a capital ("a high wall" isn't a school)
+  if (match[2] !== undefined && !/^(Middle|High)/.test(match[2])) return false;
+  return true;
+};
+
+// A common first name followed by a surname-looking word: "Emma Johnson",
+// "EMMA JOHNSON", "Olivia James". Not "Max Barked" (a word ending in -ed or
+// -ing is something Max did).
 const hasFullName = (text: string) => {
-  for (const match of text.matchAll(/\b([A-Z][a-z]{1,20})\s+([A-Z][a-z]{1,30})\b/g)) {
-    if (FIRST.has(match[1].toLowerCase()) && !FIRST.has(match[2].toLowerCase())) return true;
+  // Shouting in capitals is read as ordinary capitals ("EMMA" is "Emma")
+  const titled = text.replace(/\b[A-Z]{2,}\b/g, (word) => word[0] + word.slice(1).toLowerCase());
+  for (const match of titled.matchAll(/\b([A-Z][a-z]{1,20})\s+([A-Z][a-z]{1,30})\b/g)) {
+    if (FIRST.has(match[1].toLowerCase()) && !/(ed|ing)$/.test(match[2])) return true;
   }
   return false;
 };
+
+// Made-up people and places, taken out before the checks above
+const PRETEND = new RegExp(`\\b(${PRETEND_NAMES.join("|")})\\b`, "gi");
 
 export const hasPersonalDetails = (text: string) => {
-  const visible = text.replace(INVISIBLE, "");
+  const visible = text.replace(INVISIBLE, "").replace(PRETEND, " ");
   return (
     EMAIL.test(visible) ||
-    LINK.test(visible) ||
+    hasLink(visible) ||
     HANDLE.test(visible) ||
     PHONE.test(visible) ||
     hasAddress(visible) ||
-    SCHOOL.test(visible) ||
+    hasSchool(visible) ||
     hasFullName(visible) ||
     anyPhrase(read(visible), PERSONAL_PHRASES)
   );
@@ -244,10 +326,10 @@ export const checkRules = (tell: string, show: string): RuleOutcome => {
   if (hasPersonalDetails(show)) reasons.push("personal-details");
   if (reasons.length > 0) return { outcome: "hold", reasons };
 
-  // Copying the Tell first: that tip says more than "too short"
+  // The one plain case decided here: a sentence that copies its Tell. Too
+  // short, or not painting a picture, is for the AI or a person to judge:
+  // a word list can miss a worrying sentence, so the rules never send one
+  // back on their own just for being short ("Dad hit me.")
   if (copiesTell(tell, show)) return { outcome: "redo", tip: "ownWords", reasons: ["copies-tell"] };
-  if (read(show).words.length < MIN_WORDS) {
-    return { outcome: "redo", tip: "more", reasons: ["too-short"] };
-  }
   return { outcome: "pass" };
 };

@@ -79,7 +79,7 @@ describe("the rule checks: held for a person, never sent to an AI", () => {
       outcome: "hold",
       reasons: ["worrying", "unsafe-words", "personal-details"],
     });
-    expect(checkRules(COLD, "The dead leaves crunched, damn they were loud.")).toEqual({
+    expect(checkRules(COLD, "My frozen toes were killing me, damn it was cold.")).toEqual({
       outcome: "hold",
       reasons: ["sensitive-words", "unsafe-words"],
     });
@@ -178,13 +178,90 @@ describe("the rule checks: what the review found", () => {
   });
 });
 
-describe("the rule checks: the plain cases sent back with a tip", () => {
-  it("a sentence too short to paint a picture", () => {
-    expect(checkRules(COLD, "Brrr, my poor toes!")).toEqual({
-      outcome: "redo",
-      tip: "more",
-      reasons: ["too-short"],
-    });
+// The second review: more ways kids write, and the everyday sentences the
+// first fixes caught by mistake
+describe("the rule checks: what the second review found", () => {
+  it.each([
+    "Dad hit me.",
+    "He touched me.",
+    "They beat me up.",
+    "I wanna disappear.",
+    "My dad hit me with a belt last night.",
+    "Mom hit me when I spilled the cold milk.",
+    "They beat me up in the cold snow.",
+    "He touched me and I felt cold all over.",
+    "I wish I was never born on this cold day.",
+    "I want to disappear into the cold snow.",
+    "The big kids bully me every day at recess.",
+    "Mom hits me!!",
+  ])("holds for a person: %s", (show) => {
+    expect(checkRules(COLD, show).outcome).toBe("hold");
+  });
+
+  it.each([
+    "The cold f*ck wind froze my nose.",
+    "This sh*t snow is so cold and wet.",
+    "My sister is a b*tch about the cold.",
+    "The a**hole wind froze my ears.",
+    "The fuuuck cold wind bit my nose.",
+    "Shiiit the snow is cold and wet.",
+    "The fuk wind froze my nose today.",
+    "What the fck, the snow is so cold.",
+    "\uA731\u029C\u026A\u1D1B the snow is so cold today.", // small capitals
+  ])("holds bad language: %s", (show) => {
+    expect(checkRules(COLD, show)).toMatchObject({ outcome: "hold", reasons: ["unsafe-words"] });
+  });
+
+  it.each([
+    "Go to Roblox.com and add SamCool2014.",
+    "Check out SnowKid.com for cold pics.",
+    "ROBLOX.COM is where I play in the cold.",
+    "EMMA JOHNSON and I shivered at the stop.",
+    "Me and Olivia James shivered at the bus stop.",
+    "We go to Lincoln elementary and it is icy cold.",
+    "My house on elm street is icy cold.",
+    "We live near Oak St. where it is icy and cold.",
+    "Call me 5 5 5 1 2 3 4 when the snow falls.",
+    "sam underscore cool on insta, the snow is cold.",
+  ])("holds personal details: %s", (show) => {
+    expect(checkRules(COLD, show)).toMatchObject({ outcome: "hold", reasons: ["personal-details"] });
+  });
+
+  it.each([
+    "The cold wind hits me like a wall of ice.",
+    "The icy air hurts me when I breathe in.",
+    "The warm sunlight touches me like a soft blanket.",
+    "The wind kicks me back like a giant hand.",
+    "My 2 dogs were way too excited for the snow.",
+    "I ate 3 pancakes way too fast and got syrup everywhere.",
+    "We watched 2 cars drive by in the rain.",
+    "We sang along to Sesame Street on the couch.",
+    "My kart zoomed down Rainbow Road in a flash.",
+    "Dorothy skipped down the Yellow Brick Road singing.",
+    "My Monster High dolls sparkled under the lamp.",
+    "Jack Frost nipped at my nose and fingers.",
+    "Max Barked at the waves crashing on the sand.",
+    "The snow was cold.it melted on my warm tongue.",
+    "we went to the park.in the pond ducks splashed.",
+    "My mother/father danced in the glowing kitchen.",
+    "The wind was a bit...chilly on my nose.",
+    "Dead leaves crunched under my red boots.",
+    "I spread jam with a butter knife on warm toast.",
+    "The sky turned blood orange over the hills.",
+    "The fire died down to glowing orange coals.",
+    "I sat alone by the window watching the rain.",
+    "I woke up @6am to the smell of pancakes.",
+    "We bounced down the bumpy road in the old truck.",
+    "My rocky road ice cream dripped down the cone.",
+    "The wall was so high I could not see over it.",
+  ])("passes an ordinary Show sentence on: %s", (show) => {
+    expect(checkRules(COLD, show)).toEqual({ outcome: "pass" });
+  });
+});
+
+describe("the rule checks: the one plain case sent back with a tip", () => {
+  it("passes a short sentence on instead of sending it back (a word list can miss a worrying one)", () => {
+    expect(checkRules(COLD, "Brrr, my poor toes!")).toEqual({ outcome: "pass" });
   });
 
   it.each([

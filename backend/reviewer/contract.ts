@@ -21,7 +21,6 @@ export const REASONS = [
   "personal-details", // an email, phone number, link, handle, address, school or full name
   "too-long", // longer than any Show sentence
   // Sent back by the rule checks
-  "too-short",
   "copies-tell",
   // Decided by an AI provider
   "ai",
