@@ -1,22 +1,28 @@
-// Fills the PRACTICE database with made-up students and sentences, so every
-// page (Collections, Admin, MyPage) has something to show during local testing.
+// Fills the PRACTICE database (ShowME-dev, which local testing and staging
+// share) with made-up students and sentences (utils/sampleData.ts), so every
+// page has realistic things to show: the Gallery, My sentences with
+// Scribbles' tips and praise, and the Teacher page with every kind of note.
 //
 //   npm run seed:dev                      add/refresh the sample data
+//   npm run seed:dev -- --review          also have Scribbles review the
+//                                         waiting sample sentences now
 //   npm run seed:dev -- --admin <email>   also make that practice profile an admin
 //
-// Safety lock: it only runs when DATABASE_NAME (from .env.local) names a
-// database other than the production one, and it only ever deletes the sample
-// data it created itself (emails ending in @seed.example).
+// Run on staging by the "Fill staging with sample data" workflow.
+//
+// Safety lock: it only runs when DATABASE_NAME names a database other than
+// the production one, and it only ever deletes the sample data it created
+// itself (emails ending in @seed.example).
 // Settings come from Node's built-in --env-file flags in package.json:
 // .env first, then .env.local, whose DATABASE_NAME wins.
 import mongoose from "mongoose";
 import Profile from "../models/profile.js";
-import { Sentence } from "../models/sentences.js";
-import tellList from "../public/tellList.js";
+import { SAMPLE_SENTENCES, seedSampleData } from "../utils/sampleData.js";
+import { reviewWaitingSentences } from "../reviewer/queue.js";
+import { reviewerSetup } from "../reviewer/settings.js";
 import { messageOf } from "../utils/errors.js";
 
 const PRODUCTION_DB = "ShowME";
-const SEED_DOMAIN = "@seed.example";
 
 const dbName = process.env.DATABASE_NAME;
 if (!dbName || dbName === PRODUCTION_DB) {
@@ -32,85 +38,29 @@ if (!databaseAccess) {
   process.exit(1);
 }
 
-// Made-up students. `id` plays the part of the Google account id.
-const students = [
-  { id: "seed-mia", firstName: "Mia", lastName: "Torres" },
-  { id: "seed-leo", firstName: "Leo", lastName: "Chen" },
-  { id: "seed-ava", firstName: "Ava", lastName: "Patel" },
-  { id: "seed-noah", firstName: "Noah", lastName: "Kim" },
-];
-
-// [student id, day, show sentence, state]
-//   approved -> shows in Collections
-//   pending  -> waits in the Admin review queue
-//   redo     -> sent back to the student
-type State = "approved" | "pending" | "redo";
-type SeedSentence = [studentId: string, day: number, show: string, state: State];
-const sentences: SeedSentence[] = [
-  ["seed-mia", 1, "Frost crawled across the window as my breath hung in the air like a ghost.", "approved"],
-  ["seed-mia", 2, "The sidewalk shimmered, and my ice cream surrendered before I could take a bite.", "approved"],
-  ["seed-mia", 3, "Mountains of socks blocked the doorway, and a forgotten sandwich had grown fur.", "approved"],
-  ["seed-mia", 4, "Every book stood in a straight line, and the carpet still had vacuum stripes.", "pending"],
-  ["seed-leo", 1, "My fingers went numb inside my gloves before I reached the bus stop.", "approved"],
-  ["seed-leo", 2, "Sweat dripped off my nose and sizzled on the burning pavement.", "approved"],
-  ["seed-leo", 3, "His room is very messy.", "redo"],
-  ["seed-ava", 1, "Icicles hung from the roof like a row of glass teeth.", "approved"],
-  ["seed-ava", 2, "The dog refused to leave the shade, panting like he had run a marathon.", "approved"],
-  ["seed-ava", 3, "I had to climb over a hill of laundry just to find his bed.", "pending"],
-  ["seed-ava", 4, "You could see your reflection in her desk, and her pencils were sorted by color.", "pending"],
-  ["seed-noah", 1, "Our car would not start, and the snow reached the top of the tires.", "approved"],
-  ["seed-noah", 2, "It is really really hot.", "redo"],
-  ["seed-noah", 5, "We needed a map to find the kitchen, and the hallway echoed when I sneezed.", "pending"],
-];
-
 const seed = async () => {
-  // Remove the previous run's sample data (and only that), so re-running is safe.
-  const old = await Profile.find({ email: { $regex: `${SEED_DOMAIN}$` } });
-  await Sentence.deleteMany({ GID: { $in: old.map((p) => p.id) } });
-  await Profile.deleteMany({ _id: { $in: old.map((p) => p._id) } });
+  const { students, waiting } = await seedSampleData();
+  const count = (key: "approved" | "redo" | "waiting") => SAMPLE_SENTENCES.filter(([, , , state]) => key in state).length;
+  console.log(
+    `Seeded ${students} students: ${count("approved")} approved, ` +
+      `${count("redo")} sent back with a tip, ${count("waiting")} waiting for review.`
+  );
 
-  const profiles: Record<string, InstanceType<typeof Profile>> = {};
-  for (const s of students) {
-    profiles[s.id] = await Profile.create({
-      ...s,
-      email: `${s.firstName.toLowerCase()}${SEED_DOMAIN}`,
-    });
-  }
-
-  // Spread creation times over the last few weeks so "newest first" sorting
-  // has something to sort.
-  const now = Date.now();
-  for (const [index, [studentId, day, show, state]] of sentences.entries()) {
-    const author = profiles[studentId];
-    const sentence = await Sentence.create({
-      title: `day${day}`,
-      tell: tellList[day - 1].tell,
-      show,
-      author: author._id,
-      GID: author.id,
-      approved: state === "approved",
-      toRedo: state === "redo",
-      createdAt: new Date(now - (sentences.length - index) * 36 * 60 * 60 * 1000),
-    });
-    author.ownSentences.push(sentence._id);
-    // Some likes, so Collections has counts other than 1 to show: between
-    // none and all of the other students like each approved sentence.
-    // (Students can't like their own.)
-    if (state === "approved") {
-      const others = students.filter((s) => s.id !== studentId);
-      sentence.likedBy = others
-        .slice(0, index % (others.length + 1))
-        .map((s) => profiles[s.id]._id);
-      await sentence.save();
+  if (process.argv.includes("--review")) {
+    // Scribbles reviews just the waiting sample sentences, as the scheduled
+    // reviewer would (reviewer/queue.ts). Needs REVIEWER_MODE=suggest and the
+    // Cloudflare keys; otherwise the scheduled reviewer does it later.
+    const setup = reviewerSetup();
+    if (setup.mode === "off" || !setup.safety || setup.providers.length === 0) {
+      console.log("The reviewer isn't set up here, so Scribbles will review them on a later scheduled run.");
+      return;
+    }
+    const { reviewed } = await reviewWaitingSentences(setup, { limit: waiting.length, only: { _id: { $in: waiting } } });
+    console.log(`Scribbles reviewed ${reviewed} of the ${waiting.length} waiting sample sentences.`);
+    if (reviewed < waiting.length) {
+      console.log("The rest will be reviewed on a later scheduled run.");
     }
   }
-  await Promise.all(Object.values(profiles).map((p) => p.save()));
-
-  const count = (state: State) => sentences.filter((s) => s[3] === state).length;
-  console.log(
-    `Seeded ${students.length} students: ${count("approved")} approved, ` +
-      `${count("pending")} waiting for review, ${count("redo")} sent back.`
-  );
 };
 
 const makeAdmin = async (email: string) => {

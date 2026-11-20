@@ -16,7 +16,17 @@ export const SENTENCES_PER_RUN = 10;
 
 export const reviewWaitingSentences = async (
   setup: ReviewerSetup,
-  { limit = SENTENCES_PER_RUN, timeoutMs }: { limit?: number; timeoutMs?: number } = {}
+  {
+    limit = SENTENCES_PER_RUN,
+    timeoutMs,
+    only = {},
+  }: {
+    limit?: number;
+    timeoutMs?: number;
+    // Only the waiting sentences that also match this (scripts/seed-dev.ts
+    // reviews just its sample sentences)
+    only?: { _id?: { $in: Types.ObjectId[] } };
+  } = {}
 ) => {
   if (setup.mode === "off") return { reviewed: 0 };
   // Not set up yet: review nothing, so every sentence is reviewed once it is
@@ -27,7 +37,7 @@ export const reviewWaitingSentences = async (
 
   // The sentences waiting for the teacher, oldest first, that have no
   // suggestion for their current words
-  const waiting = await Sentence.find({ approved: false, toRedo: false }, { tell: 1, show: 1 })
+  const waiting = await Sentence.find({ ...only, approved: false, toRedo: false }, { tell: 1, show: 1 })
     .sort({ createdAt: 1 })
     .limit(200)
     .lean<{ _id: Types.ObjectId; tell: string; show: string }[]>();

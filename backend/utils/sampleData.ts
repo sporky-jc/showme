@@ -1,0 +1,137 @@
+// Made-up students and sentences for the practice database (ShowME-dev),
+// which local testing and staging share, so every page has realistic things
+// to show: the Gallery, a student's My sentences, and the Teacher page with
+// Scribbles' notes of every kind. Written by scripts/seed-dev.ts. None of it
+// was written by a real student.
+//
+// Only ever deletes what it created itself: profiles with an email ending in
+// SEED_DOMAIN, their sentences, and Scribbles' suggestions for those.
+import type { Types } from "mongoose";
+import Profile from "../models/profile.js";
+import { Sentence } from "../models/sentences.js";
+import { ReviewSuggestion } from "../models/reviewSuggestions.js";
+import tellList from "../public/tellList.js";
+import { PRAISE, type TipId } from "../reviewer/tips.js";
+
+export const SEED_DOMAIN = "@seed.example";
+
+// `id` plays the part of the Google account id
+export const SAMPLE_STUDENTS = [
+  { id: "seed-mia", firstName: "Mia", lastName: "Torres" },
+  { id: "seed-leo", firstName: "Leo", lastName: "Chen" },
+  { id: "seed-ava", firstName: "Ava", lastName: "Patel" },
+  { id: "seed-noah", firstName: "Noah", lastName: "Kim" },
+  { id: "seed-sofia", firstName: "Sofia", lastName: "Rossi" },
+  { id: "seed-eli", firstName: "Eli", lastName: "Johnson" },
+  { id: "seed-zoe", firstName: "Zoe", lastName: "Nguyen" },
+  { id: "seed-omar", firstName: "Omar", lastName: "Haddad" },
+] as const;
+
+type StudentId = (typeof SAMPLE_STUDENTS)[number]["id"];
+
+// approved: in the Gallery, with Scribbles' praise on My sentences
+// redo: sent back by the teacher, with the tip they chose (or none)
+// waiting: in the Teacher page's queue. Scribbles reviews these (with
+//   scripts/seed-dev.ts --review, or the scheduled reviewer on staging); each
+//   is written for one kind of note, named after it.
+type Waiting = "ready" | "spelling" | "capitals" | "punctuation" | "grammar" | "off-topic" | "personal" | "check-in" | "your-call";
+export type SampleState = { approved: true } | { redo: TipId | null } | { waiting: Waiting };
+
+// [student, day of the Tell (tellList), show sentence, state]
+type SampleSentence = [student: StudentId, day: number, show: string, state: SampleState];
+
+export const SAMPLE_SENTENCES: SampleSentence[] = [
+  // Approved, for the Gallery
+  ["seed-mia", 1, "Frost crawled across the window as my breath hung in the air like a ghost.", { approved: true }],
+  ["seed-mia", 2, "The sidewalk shimmered, and my ice cream surrendered before I could take a bite.", { approved: true }],
+  ["seed-mia", 3, "Mountains of socks blocked the doorway, and a forgotten sandwich had grown fur.", { approved: true }],
+  ["seed-leo", 1, "My fingers went numb inside my gloves before I reached the bus stop.", { approved: true }],
+  ["seed-leo", 2, "Sweat dripped off my nose and sizzled on the burning pavement.", { approved: true }],
+  ["seed-ava", 1, "Icicles hung from the roof like a row of glass teeth.", { approved: true }],
+  ["seed-ava", 2, "The dog refused to leave the shade, panting like he had run a marathon.", { approved: true }],
+  ["seed-noah", 1, "Our car would not start, and the snow reached the top of the tires.", { approved: true }],
+  ["seed-sofia", 4, "Her pencils were lined up by color, and the window sparkled in the sun.", { approved: true }],
+  ["seed-sofia", 5, "Our footsteps echoed down a hallway with so many doors that I lost count.", { approved: true }],
+  ["seed-eli", 6, "We bumped elbows at the tiny table, and the couch was also my bed.", { approved: true }],
+  ["seed-eli", 7, "Music thumped through the floor while confetti stuck to our sweaty faces.", { approved: true }],
+  ["seed-zoe", 8, "The clock ticked so slowly that I counted every tile on the ceiling twice.", { approved: true }],
+  ["seed-zoe", 9, "My eyelids felt like heavy curtains, and I yawned until my jaw cracked.", { approved: true }],
+  ["seed-omar", 10, "I flipped my pillow to the cool side for the hundredth time and stared at the ceiling.", { approved: true }],
+  ["seed-omar", 11, "Gold coins spilled from his pockets, and his crown sparkled with rubies.", { approved: true }],
+
+  // Sent back by the teacher, each with a tip (or none), for My sentences
+  ["seed-leo", 3, "His room is very messy.", { redo: "showNotTell" }],
+  ["seed-noah", 2, "It is really hot and I am hot.", { redo: "feel" }],
+  ["seed-sofia", 7, "The party was fun and everyone had fun.", { redo: "action" }],
+  ["seed-eli", 5, "The house was super big", { redo: "endMark" }],
+  ["seed-zoe", 10, "i can not sleep at all", { redo: "capitals" }],
+  ["seed-omar", 12, "The students were loud.", { redo: null }],
+
+  // Waiting for the teacher, one for each kind of Scribbles note
+  ["seed-mia", 4, "Every book stood in a straight line, and the carpet still had vacuum stripes.", { waiting: "ready" }],
+  ["seed-ava", 7, "Balloons bumped the ceiling while we danced until our sneakers squeaked.", { waiting: "ready" }],
+  ["seed-noah", 12, "Desks screeched, paper airplanes flew, and Ms. Lee's whistle was lost in the roar.", { waiting: "ready" }],
+  ["seed-leo", 8, "The clock ticked so slowley that I counted every crack in the cieling.", { waiting: "spelling" }],
+  ["seed-sofia", 9, "my eyes kept closing and i yawned so wide my jaw cracked", { waiting: "capitals" }],
+  ["seed-eli", 1, "The wind howled ,and the trees bent.My hat flew away.", { waiting: "punctuation" }],
+  ["seed-zoe", 2, "We was so hot that the ice cream melt before we can eat it.", { waiting: "grammar" }],
+  ["seed-omar", 5, "My little brother got a new red bike for his birthday.", { waiting: "off-topic" }],
+  ["seed-mia", 7, "Come to my party at 42 Maple Street on Saturday!", { waiting: "personal" }],
+  // So the teacher sees how Scribbles holds a sentence that may mean a
+  // student needs help: the rules catch it, and no AI ever reads it
+  ["seed-ava", 10, "I can't fall asleep because nobody would miss me if I was gone.", { waiting: "check-in" }],
+  ["seed-noah", 11, "The king's castle had gold doors.", { waiting: "your-call" }],
+];
+
+const HOUR = 60 * 60 * 1000;
+
+// Replaces the previous sample data with SAMPLE_SENTENCES. Returns the
+// waiting sentences' ids, for Scribbles to review.
+export const seedSampleData = async (now = Date.now()) => {
+  const old = await Profile.find({ email: { $regex: `${SEED_DOMAIN.replace(".", "\\.")}$` } });
+  const oldSentences = (
+    await Sentence.find({ GID: { $in: old.map((p) => p.id) } }, { _id: 1 }).lean<{ _id: Types.ObjectId }[]>()
+  ).map((s) => s._id);
+  await ReviewSuggestion.deleteMany({ sentence: { $in: oldSentences } });
+  await Sentence.deleteMany({ _id: { $in: oldSentences } });
+  await Profile.deleteMany({ _id: { $in: old.map((p) => p._id) } });
+
+  const profiles = new Map<string, InstanceType<typeof Profile>>();
+  for (const student of SAMPLE_STUDENTS) {
+    profiles.set(
+      student.id,
+      await Profile.create({ ...student, email: `${student.firstName.toLowerCase()}${SEED_DOMAIN}` })
+    );
+  }
+
+  const waiting: Types.ObjectId[] = [];
+  // Spread over the last few weeks, oldest first, so sorting has something
+  // to sort; the waiting ones are the newest, like real work in progress
+  for (const [index, [studentId, day, show, state]] of SAMPLE_SENTENCES.entries()) {
+    const author = profiles.get(studentId)!;
+    const approved = "approved" in state;
+    const tip = approved ? PRAISE : "redo" in state ? state.redo : null;
+    const sentence = await Sentence.create({
+      title: `day${day}`,
+      tell: tellList[day - 1].tell,
+      show,
+      author: author._id,
+      GID: author.id,
+      approved,
+      toRedo: "redo" in state,
+      ...(tip ? { tip } : {}),
+      createdAt: new Date(now - (SAMPLE_SENTENCES.length - index) * 12 * HOUR),
+    });
+    author.ownSentences.push(sentence._id);
+    if ("waiting" in state) waiting.push(sentence._id);
+    // Likes, so the Gallery shows counts other than 1: between none and all
+    // of the other students like each one (students can't like their own)
+    if (approved) {
+      const others = SAMPLE_STUDENTS.filter((s) => s.id !== studentId);
+      sentence.likedBy = others.slice(0, index % (others.length + 1)).map((s) => profiles.get(s.id)!._id);
+      await sentence.save();
+    }
+  }
+  await Promise.all([...profiles.values()].map((p) => p.save()));
+  return { students: profiles.size, waiting };
+};
