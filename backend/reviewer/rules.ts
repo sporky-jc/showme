@@ -16,6 +16,7 @@
 // Anything else passes on to the next layer ("pass"). Whether a sentence
 // paints a picture is for the AI or a person to judge, not a word list.
 import type { Reason } from "./contract.js";
+import { libraryFindsFullName, libraryFindsUnsafe } from "./libraries.js";
 import type { TipId } from "./tips.js";
 import {
   FIRST_NAMES,
@@ -152,9 +153,15 @@ export const isUnsafe = (text: string) => {
   ];
   if (whole.some((w) => UNSAFE.has(w))) return true;
   // Inside one written word, never across two ("a bit chilly" is fine)
-  return [...reading.inside, ...reading.spelledOut, ...reading.stretched].some((w) =>
-    UNSAFE_INSIDE.some((bad) => w.includes(bad))
-  );
+  if (
+    [...reading.inside, ...reading.spelledOut, ...reading.stretched].some((w) =>
+      UNSAFE_INSIDE.some((bad) => w.includes(bad))
+    )
+  ) {
+    return true;
+  }
+  // And the obscenity library's list, on the cleaned-up text
+  return libraryFindsUnsafe(plain(text));
 };
 
 // Someone doing something to the child: "Dad hit me", "they beat me up", "my
@@ -286,6 +293,7 @@ export const hasPersonalDetails = (text: string) => {
     hasAddress(visible) ||
     hasSchool(visible) ||
     hasFullName(visible) ||
+    libraryFindsFullName(visible) ||
     anyPhrase(read(visible), PERSONAL_PHRASES)
   );
 };

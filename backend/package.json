@@ -20,6 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "compromise": "14.19.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.2.1",
@@ -29,6 +30,7 @@
     "google-auth-library": "^11.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.10.2",
+    "obscenity": "0.4.6",
     "zod": "^4.6.7"
   },
   "engines": {
