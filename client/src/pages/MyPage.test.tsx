@@ -93,6 +93,27 @@ describe("My sentences", () => {
     expect(within(note("Show 3")).getByText("Tell 3")).toBeInTheDocument();
   });
 
+  // Numbered by the day in their titles, not their place in the list. An
+  // older sentence whose title isn't a day gets no number: its place could
+  // be another sentence's day.
+  it("numbers each sentence by its day, and an older one without a day not at all", async () => {
+    const [first, second] = shows(2);
+    renderMyPage({
+      mine: [
+        { ...first, title: "Day 1", show: "Old one" },
+        { ...second, title: "day1", show: "Show 1", tell: "Stored Tell" },
+      ],
+    });
+
+    await screen.findByText("Old one");
+    expect(within(note("Show 1")).getByText("Sentence 1")).toBeInTheDocument();
+    expect(within(note("Show 1")).getByText("Stored Tell")).toBeInTheDocument();
+    expect(within(note("Old one")).getByText("Sentence")).toBeInTheDocument();
+    expect(screen.getAllByText(/^Sentence \d+$/)).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Edit: sentence 1" })).toHaveAttribute("href", "/Write/s2");
+    expect(screen.getByRole("link", { name: "Edit: sentence “Old one”" })).toHaveAttribute("href", "/Write/s1");
+  });
+
   it("says where each sentence stands", async () => {
     const mine = shows(3);
     mine[0].approved = true;

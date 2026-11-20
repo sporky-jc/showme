@@ -78,6 +78,9 @@ const failureOf = (error: unknown) => {
   if (error instanceof ProviderError) {
     if (error.status === 429) return "rate-limited" as const;
     if (error.status === 401 || error.status === 403) return "credentials" as const;
+    // Any other 4xx: the API got the request and won't take it (an input
+    // it can't read, say). It will answer the same way next time.
+    if (error.status !== undefined && error.status >= 400 && error.status < 500) return "refused" as const;
     if (error.invalid) return "invalid" as const;
   }
   return "failed" as const;
@@ -146,13 +149,17 @@ export const reviewSentence = async (
   const { suggestion, attempts } = await askProviders(shown, providers, { timeoutMs, safety });
   if (misspelled.length === 0 && mechanics.length === 0) return { suggestion, attempts };
 
-  // The mistakes found, and why, whatever the verdict: a teacher reading a
-  // "redo" from the AI sees the spelling and punctuation reasons too
+  // The mistakes found, as evidence for the teacher, whatever the verdict.
+  // And why, for an approval turned back or a "redo" from the AI (so the
+  // teacher sees the spelling and punctuation reasons too); a hold
+  // ("unsure") keeps only the reasons it was held for.
   const kinds = MECHANICS.filter((kind) => mechanics.some((issue) => issue.kind === kind));
   const reasons: Reason[] = [...suggestion.reasons];
-  if (misspelled.length > 0) reasons.push("spelling");
-  if (kinds.some((kind) => kind !== "repeated-word" && kind !== "a-an")) reasons.push("punctuation");
-  if (kinds.some((kind) => kind === "repeated-word" || kind === "a-an")) reasons.push("grammar");
+  if (suggestion.verdict !== "unsure") {
+    if (misspelled.length > 0) reasons.push("spelling");
+    if (kinds.some((kind) => kind !== "repeated-word" && kind !== "a-an")) reasons.push("punctuation");
+    if (kinds.some((kind) => kind === "repeated-word" || kind === "a-an")) reasons.push("grammar");
+  }
   const found = {
     reasons,
     ...(misspelled.length > 0 ? { misspelled } : {}),

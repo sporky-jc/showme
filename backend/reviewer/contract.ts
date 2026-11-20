@@ -7,6 +7,12 @@ import { z } from "zod";
 import { PRAISE, TIP_IDS } from "./tips.js";
 import type { MechanicsIssue } from "./mechanics.js";
 
+// Longer than any Show sentence. The rule checks hold anything longer (see
+// rules.ts), and the API refuses to save it (contract/api.ts). Kept here,
+// with no imports of its own beyond this file's, so the API contract can
+// share it.
+export const MAX_CHARACTERS = 600;
+
 // approve: ready for the gallery. redo: send back with a tip. unsure: leave
 // it for a person.
 export const VERDICTS = ["approve", "redo", "unsure"] as const;
@@ -52,6 +58,7 @@ export const ATTEMPT_OUTCOMES = [
   "invalid", // an answer, but not in the form asked for
   "rate-limited", // HTTP 429: out of free requests for now (the run stops)
   "credentials", // HTTP 401 or 403: the key is wrong or lacks permission (the run stops)
+  "refused", // any other HTTP 4xx: it won't take this request, now or later (a hold is saved)
   "failed", // any other failure
   "timeout", // took too long
 ] as const;

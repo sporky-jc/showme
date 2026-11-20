@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { Sentence } from "../models/sentences.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
-import { MAX_AGE_DAYS, RUN_DEADLINE_MS, reviewWaitingSentences } from "../reviewer/queue.js";
+import { MAX_AGE_DAYS, MAX_FAILED_RUNS, RUN_DEADLINE_MS, reviewWaitingSentences } from "../reviewer/queue.js";
 import { ProviderError } from "../reviewer/providers/http.js";
+import { cloudflareSafety } from "../reviewer/providers/cloudflare.js";
 import type { ReviewProvider, SafetyCheck } from "../reviewer/reviewer.js";
 import type { ReviewerSetup } from "../reviewer/settings.js";
 import { createUser } from "./helpers.js";
@@ -264,5 +265,93 @@ describe("the scheduled reviewer", () => {
     answer = "safe";
     expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 1 });
     expect(await ReviewSuggestion.findOne().lean()).toMatchObject({ verdict: "approve" });
+  });
+
+  // The real Llama Guard reader, through the whole chain: an answer in no
+  // known form is "invalid", tried again once, then saved as a hold
+  it("tries a real invalid safety answer again once, then saves the hold", async () => {
+    const sentence = await addSentence();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ success: true, result: { response: "probably fine" } })));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const ai = approving();
+      const setup = setupWith([ai], { safety: cloudflareSafety({ accountId: "a", token: "t" }) });
+
+      expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 0 });
+      expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 1 });
+      expect(await ReviewSuggestion.findOne({ sentence: sentence._id }).lean()).toMatchObject({
+        verdict: "unsure",
+        reasons: ["no-safety-check"],
+        attempts: [{ outcome: "invalid" }],
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(ai.review).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  // Sentences that fail the same way every run must not block newer ones
+  it(`puts sentences that keep failing behind new ones, and holds them after ${MAX_FAILED_RUNS} failed runs`, async () => {
+    const BAD = "The wind is a broken record.";
+    for (let i = 0; i < 10; i++) {
+      await addSentence({ show: `${BAD} ${i}`, createdAt: new Date(Date.now() - (20 - i) * 60_000) });
+    }
+    const fresh = await addSentence({ show: "The wind bit my ears like a little dog." });
+    // Fails for the broken ones (as a provider might for an input it can't
+    // read), answers for the rest
+    const ai = {
+      name: "ai",
+      review: vi.fn(async ({ show }: { show: string }) => {
+        if (show.startsWith(BAD)) throw new Error("Unexpected answer from Workers AI");
+        return { verdict: "approve", tip: "great" };
+      }),
+    };
+
+    // Run 1: the ten older ones, all failing; run 2: the new one first
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 0 });
+    expect(await reviewWaitingSentences(setupWith([ai]))).toMatchObject({ reviewed: 1 });
+    expect(await ReviewSuggestion.findOne({ sentence: fresh._id }).lean()).toMatchObject({ verdict: "approve" });
+
+    // Each broken one fails a third time, and is held for a person
+    for (let run = 0; run < 3; run++) await reviewWaitingSentences(setupWith([ai]));
+    const held = await ReviewSuggestion.find({ show: { $regex: `^${BAD}` } }).lean();
+    expect(held).toHaveLength(10);
+    for (const suggestion of held) {
+      expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["no-provider"], decidedBy: "none" });
+    }
+    const asked = ai.review.mock.calls.length;
+    await reviewWaitingSentences(setupWith([ai]));
+    expect(ai.review.mock.calls.length).toBe(asked);
+  });
+
+  it("saves a hold at once when the API refuses the request (another HTTP 4xx)", async () => {
+    const sentence = await addSentence();
+    const refusing = { name: "ai", review: vi.fn(async () => Promise.reject(new ProviderError("HTTP 400", 400))) };
+
+    expect(await reviewWaitingSentences(setupWith([refusing]))).toEqual({ reviewed: 1 });
+    expect(await ReviewSuggestion.findOne({ sentence: sentence._id }).lean()).toMatchObject({
+      verdict: "unsure",
+      reasons: ["no-provider"],
+      attempts: [{ outcome: "safe" }, { outcome: "refused" }],
+    });
+  });
+
+  it("keeps going when one provider is out of free requests but a later one answers", async () => {
+    for (let i = 0; i < 3; i++) await addSentence({ show: `${GOOD} ${i}` });
+    const limited = { name: "first", review: vi.fn(async () => Promise.reject(new ProviderError("HTTP 429", 429))) };
+
+    expect(await reviewWaitingSentences(setupWith([limited, approving()]))).toEqual({ reviewed: 3 });
+    expect(limited.review).toHaveBeenCalledTimes(3);
+  });
+
+  it("stops when every provider asked is out of free requests", async () => {
+    for (let i = 0; i < 3; i++) await addSentence({ show: `${GOOD} ${i}` });
+    const limited = (name: string) => ({ name, review: vi.fn(async () => Promise.reject(new ProviderError("HTTP 429", 429))) });
+    const [first, second] = [limited("first"), limited("second")];
+
+    expect(await reviewWaitingSentences(setupWith([first, second]))).toEqual({ reviewed: 0, stopped: "rate-limited" });
+    expect(first.review).toHaveBeenCalledTimes(1);
+    expect(second.review).toHaveBeenCalledTimes(1);
   });
 });

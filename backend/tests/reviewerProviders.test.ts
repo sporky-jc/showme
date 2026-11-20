@@ -143,12 +143,35 @@ describe("the Cloudflare safety check", () => {
     [401, "credentials"],
     [403, "credentials"],
     [500, "failed"],
+    [400, "refused"],
   ])("an HTTP %i from the safety check is counted as %s", async (status, outcome) => {
     fakeFetch(status, {});
     const { safety, providers } = reviewerSetup({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" });
     const { suggestion, attempts } = await reviewSentence(INPUT, providers, { safety });
     expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["no-safety-check"] });
     expect(attempts).toEqual([{ provider: safety!.name, outcome, ms: expect.any(Number) }]);
+  });
+});
+
+describe("Workers AI out of the day's free Neurons", () => {
+  const usedUp = { success: false, errors: [{ code: 3036, message: "Account limited: you have used up your daily free allocation of 10,000 neurons" }] };
+
+  it.each([
+    ["HTTP 429", 429],
+    ["HTTP 400", 400],
+    ["HTTP 200 with success: false", 200],
+  ])("is counted as out of free requests when it comes as %s", async (_, status) => {
+    fakeFetch(status, usedUp);
+    const { safety, providers } = reviewerSetup({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" });
+    const { attempts } = await reviewSentence(INPUT, providers, { safety });
+    expect(attempts.map((a) => a.outcome)).toEqual(["rate-limited"]);
+  });
+
+  it("an unsuccessful answer without that error is an ordinary failure", async () => {
+    fakeFetch(200, { success: false, errors: [{ code: 5000, message: "Something else" }] });
+    const { safety, providers } = reviewerSetup({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" });
+    const { attempts } = await reviewSentence(INPUT, providers, { safety });
+    expect(attempts.map((a) => a.outcome)).toEqual(["failed"]);
   });
 });
 

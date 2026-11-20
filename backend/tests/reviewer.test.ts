@@ -333,16 +333,18 @@ describe("the rule checks: the one plain case sent back with a tip", () => {
     ["It is cold outside.", "Cold."],
     ["The boy was scared.", "The boy was so scared."],
     ["The girl was happy.", "The girl is really happy."],
-    // A Tell of three or more words: most of its words, and at most two new
-    ["The students were very loud, and the teacher couldn't do anything about it.", "The students were loud and the teacher couldn't do anything about it at all."],
+    ["The students were very loud, and the teacher couldn't do anything about it.", "The students were loud and the teacher couldn't do anything about it."],
     // The Tell's instructions in brackets aren't counted
     ["He dodged all the traps with ease. (Use a Simile)", "He dodged all the traps with ease."],
   ])("a copy of the Tell %s: %s", (tell, show) => {
     expect(checkRules(tell, show)).toMatchObject({ outcome: "redo", tip: "ownWords", reasons: ["copies-tell"] });
   });
 
-  // Most Tells have one or two words that aren't small words: a sentence
-  // that adds any of its own is for the AI to judge, not a copy
+  // One word of the child's own and it's for the AI or a person to judge,
+  // never sent back as a copy: however much of the Tell it repeats (the
+  // figurative-language Tells ask for exactly that), and above all when the
+  // word added is a cry for help. The Tells are the real ones
+  // (public/tellList.ts).
   it.each([
     ["The boy was scared.", "The scared boy hid, trembling."],
     ["The girl was happy.", "The girl hugged her happy puppy."],
@@ -350,10 +352,18 @@ describe("the rule checks: the one plain case sent back with a tip", () => {
     ["It is cold outside.", "The cold kills my fingers."],
     ["The boy was scared.", "Boy, was I scared when it hit me."],
     ["It is cold outside.", "It is cold and windy outside."],
-    // The boundary for a long Tell: three new words is more than a copy
-    ["The students were very loud, and the teacher couldn't do anything about it.", "The students were loud and the teacher couldn't do anything about it, so she sighed and covered her ears."],
+    ["It is cold outside.", "It is cold outside, help me."],
+    ["He dodged all the traps with ease. (Use a Simile)", "Like a ninja, he dodged all the traps with ease."],
+    ["The hot soup burned my mouth. (Use a Metaphor)", "The hot soup was lava that burned my mouth."],
+    ["The gale blew the flowers back and forth. (Use Personification)", "The gale danced, pushing the flowers back and forth."],
+    ["I lost my bike, and I got an F on my math test. (Use Hyperbole)", "I lost my bike and got an F on my math test; the world ended."],
+    ["The car is super fast.", "Zoom! The super fast car vanished."],
+    ["The movie scared the little boy.", "The movie scared the little boy, who hid."],
+    ["She almost drowned in the pool.", "She almost drowned in the pool, gasping, sputtering."],
+    ["The students were very loud, and the teacher couldn't do anything about it.", "The students were very loud, and the teacher couldn't do anything about it, help me."],
+    ["The party was fun.", "The party was fun, so lonely."],
   ])("not a copy of the Tell %s: %s", (tell, show) => {
-    expect(checkRules(tell, show)).toEqual({ outcome: "pass" });
+    expect(checkRules(tell, show).outcome).not.toBe("redo");
   });
 
   it("passes a short sentence without listed sense words on (painting a picture is for the AI or a person)", () => {
@@ -438,24 +448,26 @@ describe("the reviewer", () => {
     expect(ai.review).not.toHaveBeenCalled();
   });
 
-  // A copy of the Tell with something worrying or unkind added: the rules
-  // see a copy, but a person must read it if the safety check doesn't pass it
+  // A copy of the Tell is only sent back once the safety check passes it
   it.each([
     ["unsafe", safetyCheck("unsafe"), ["safety-check"], "guard"],
     ["failed", safetyCheck(new Error("down")), ["no-safety-check"], "none"],
     ["not set up", undefined, ["no-safety-check"], "none"],
   ])("holds a copy of the Tell when the safety check is %s", async (_, safety, reasons, decidedBy) => {
-    const tell = "The students were very loud, and the teacher couldn't do anything about it.";
-    for (const show of [
-      "The students were very loud and the teacher couldn't do anything about it, help me.",
-      "The students were loud and the teacher couldn't do anything about it, I'm scared.",
-      "The students were very loud and the teacher couldn't do anything about it, please help.",
-    ]) {
+    for (const show of ["It is cold outside.", "it is very cold outside", "It is really cold outside today."]) {
       // (The rules alone would send each back as a copy)
-      expect(checkRules(tell, show)).toMatchObject({ outcome: "redo", reasons: ["copies-tell"] });
-      const { suggestion } = await reviewSentence({ tell, show }, [provider("ai", {})], { safety });
+      expect(checkRules(COLD, show)).toMatchObject({ outcome: "redo", reasons: ["copies-tell"] });
+      const { suggestion } = await reviewSentence({ tell: COLD, show }, [provider("ai", {})], { safety });
       expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons, decidedBy });
     }
+  });
+
+  it("asks the safety check and the AI about a copy with a cry for help added", async () => {
+    const ai = provider("ai", { verdict: "unsure", tip: "great" });
+    const safety = safetyCheck("safe");
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, help me." }, [ai], { safety });
+    expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "ai" });
+    expect(ai.review).toHaveBeenCalledTimes(1);
   });
 
   it("still holds a sentence the rules held before any request, a copy of the Tell or not", async () => {
@@ -492,6 +504,17 @@ describe("the reviewer", () => {
       { provider: "forbidden", outcome: "credentials" },
       { provider: "broken", outcome: "failed" },
     ]);
+  });
+
+  it("keeps only hold reasons on a hold, with the mistakes as evidence", async () => {
+    for (const { safety, ai, reasons } of [
+      { safety: safetyCheck("unsafe"), ai: provider("ai", {}), reasons: ["safety-check"] },
+      { safety: safetyCheck("safe"), ai: provider("ai", { verdict: "unsure", tip: "great" }), reasons: ["ai"] },
+    ]) {
+      const { suggestion } = await reviewSentence({ tell: COLD, show: "the wind bit my noze" }, [ai], { safety });
+      expect(suggestion).toMatchObject({ verdict: "unsure", reasons, misspelled: ["noze"] });
+      expect(suggestion.mechanics?.length).toBeGreaterThan(0);
+    }
   });
 
   it("keeps the writing checks' reasons when the AI itself sends a sentence back", async () => {

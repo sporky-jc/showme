@@ -88,7 +88,7 @@ describe("request log (one structured line per request)", () => {
     await request(app)
       .post("/MyPage?note=private-query-text")
       .set("Cookie", cookie)
-      .send({ title: "Day 1", tell: "It is cold.", show: "Frost bit my fingers." });
+      .send({ title: "day1", show: "Frost bit my fingers." });
 
     const written = JSON.stringify(await logLineFor("/MyPage"));
     expect(written).not.toContain(cookie.slice("session=".length));

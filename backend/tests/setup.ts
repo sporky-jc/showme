@@ -5,6 +5,8 @@ import { logger } from "firebase-functions/logger";
 import {
   likesRateLimitStore,
   reviewTipsRateLimitStore,
+  sentenceWritesPerDayStore,
+  sentenceWritesPerMinuteStore,
   testLoginRateLimitStore,
 } from "../middlewares/rateLimit.js";
 
@@ -28,8 +30,10 @@ afterEach(async () => {
   if (!db) throw new Error("Not connected to the test database");
   const collections = await db.collections();
   await Promise.all(collections.map((c) => c.deleteMany({})));
-  // Likewise the like routes' per-user request counts
+  // Likewise the rate limits' request counts
   await likesRateLimitStore.resetAll();
+  await sentenceWritesPerMinuteStore.resetAll();
+  await sentenceWritesPerDayStore.resetAll();
   await reviewTipsRateLimitStore.resetAll();
   await testLoginRateLimitStore.resetAll();
 });

@@ -74,7 +74,15 @@ describe("Scribbles' suggestions on the review queue", () => {
       {},
       { $set: { reviewedShow: "The cafateria was loud", reviewedAt: new Date(), safetyInvalidShow: "x" } }
     );
+    await Sentence.collection.updateMany({}, { $set: { failedShow: "x", failedCount: 2, lastTriedAt: new Date() } });
     await suggest(waiting, { attempts: [{ provider: "cloudflare:guard", outcome: "safe", ms: 120 }] });
+    // The fields are there in the database, but a query that names no
+    // fields (as every route's does) doesn't read them
+    const RECORDS = ["reviewedShow", "reviewedAt", "safetyInvalidShow", "failedShow", "failedCount", "lastTriedAt"];
+    const raw = await Sentence.collection.findOne({ _id: waiting._id });
+    for (const field of RECORDS) expect(raw).toHaveProperty(field);
+    const read = (await Sentence.findById(waiting._id).lean()) as Record<string, unknown>;
+    for (const field of RECORDS) expect(read).not.toHaveProperty(field);
     await suggest(approved, { verdict: "approve", tip: "great", reasons: ["ai"] });
 
     const queue = await request(app).get("/Admin").set("Cookie", sessionCookie(admin));
@@ -84,7 +92,7 @@ describe("Scribbles' suggestions on the review queue", () => {
     expect(queue.body[0].suggestion).toBeDefined();
     for (const body of [queue.body, mine.body, gallery.body]) {
       const text = JSON.stringify(body);
-      for (const field of ["attempts", "cloudflare", "reviewedShow", "reviewedAt", "safetyInvalidShow"]) {
+      for (const field of ["attempts", "cloudflare", ...RECORDS]) {
         expect(text).not.toContain(field);
       }
     }
