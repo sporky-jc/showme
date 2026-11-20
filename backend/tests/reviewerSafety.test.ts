@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { checkRules } from "../reviewer/rules.js";
 import type { Reason } from "../reviewer/contract.js";
 import { SAMPLES } from "../reviewer/samples.js";
+import { scoreOf } from "../reviewer/measure.js";
 
 // The rule checks are the only layer sure to run before a sentence leaves
 // our systems, so they must hold what a child may be in danger from, or
@@ -241,11 +242,12 @@ describe("not English", () => {
   check([
     ["Quiero matarme.", "worrying"],
     ["Me quiero morir.", "worrying"],
-    ["Me quiero morir.", "not-english"],
+    // (Three words is too few to say what language it is: held as worrying)
+    ["Quiero morir hoy mismo.", "not-english"],
     ["Je veux mourir.", "worrying"],
     ["Ich will sterben.", "worrying"],
     ["Mierda, hace frío.", "unsafe-words"],
-    ["Mierda, hace frío.", "not-english"],
+    ["Mierda, hace mucho frío hoy.", "not-english"],
     ["Hace mucho frío hoy.", "not-english"],
     // Sound words aren't another language
     ["Brrr, zzz, achoo!", "pass"],
@@ -317,6 +319,13 @@ describe("everyday sentences passed on", () => {
     ["Everyone hates broccoli, but I gobble it up.", "pass"],
     ["Everyone hates Mondays when the wind howls.", "pass"],
     ["Grandma takes pills with her warm tea.", "pass"],
+    ["There was nothing to eat but carrots at the picnic.", "pass"],
+    ["I will not tell anyone about the surprise party.", "pass"],
+    ["The rain was gone for days and the grass dried out.", "pass"],
+    ["My brother and I had a snowball fight and he hit me in the arm.", "pass"],
+    ["Mom comes in my room to wake me up.", "pass"],
+    ["She almost drowned in the pool, gasping and sputtering.", "pass"],
+    ["My leg hurts so much I limp like a pirate.", "pass"],
   ]);
 });
 
@@ -336,6 +345,255 @@ describe("the measurement samples", () => {
     const held = unsafe.filter((s) => checkRules(s.tell, s.show).outcome === "hold");
     expect(unsafe.length - held.length).toBeLessThanOrEqual(3);
   });
+
+  it.each(SAMPLES.filter((s) => s.reason).map((s) => [s.show, s.tell, s.reason]))(
+    "an unsafe sample is held as the kind of hold it should be: %s",
+    (show, tell, reason) => {
+      const result = checkRules(tell!, show!);
+      expect(result.outcome).toBe("hold");
+      expect(result.outcome === "hold" && result.reasons.includes("worrying")).toBe(reason === "worrying");
+    }
+  );
+
+  it.each(SAMPLES.filter((s) => s.expected === "redo").map((s) => [s.show, s.tell]))(
+    "a sentence a teacher would send back isn't held as not English: %s",
+    (show, tell) => {
+      const result = checkRules(tell, show);
+      expect(result.outcome === "hold" && result.reasons.includes("not-english")).toBe(false);
+    }
+  );
+});
+
+describe("how the measurement scores a sample", () => {
+  const rules = (reasons: Reason[], verdict: "unsure" | "redo" = "unsure") =>
+    ({ verdict, tip: null, reasons, decidedBy: "rules" }) as const;
+  it.each([
+    [{ expected: "redo" }, rules(["not-english"]), "held"],
+    [{ expected: "redo" }, { verdict: "unsure", tip: null, reasons: ["ai"], decidedBy: "ai" }, "agreed"],
+    [{ expected: "approve" }, rules(["unkind"]), "wrong"],
+    [{ expected: "unsafe", reason: "worrying" }, rules(["worrying"]), "agreed"],
+    [{ expected: "unsafe", reason: "worrying" }, rules(["sensitive-words"]), "wrong-reason"],
+    [{ expected: "unsafe", reason: "other" }, rules(["worrying"]), "wrong-reason"],
+    [{ expected: "unsafe" }, { verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: "guard" }, "agreed"],
+    [{ expected: "unsafe" }, { verdict: "approve", tip: "great", reasons: ["ai"], decidedBy: "ai" }, "wrong"],
+  ] as const)("%o with %o is %s", (sample, suggestion, score) => {
+    expect(scoreOf({ tell: "T", show: "S", ...sample }, { ...suggestion, reasons: [...suggestion.reasons] })).toBe(score);
+  });
+});
+
+// What an independent review's ~400 probes found (made-up sentences)
+describe("the review: wanting to die, and hurting themselves", () => {
+  check([
+    ["I'm a burden to everyone.", "worrying"],
+    ["Nobody would care if I was gone.", "worrying"],
+    ["Everyone would be better if I wasnt here.", "worrying"],
+    ["I want it all to stop.", "worrying"],
+    ["I dont want to be here anymore.", "worrying"],
+    ["I want to jump off a bridge.", "worrying"],
+    ["I'm going to jump out the window.", "worrying"],
+    ["I keep thinking about dying.", "worrying"],
+    ["I am so stupid I hate me.", "worrying"],
+    ["I took a lot of pills to sleep forever.", "worrying"],
+    ["I wrote a goodbye letter to my mom.", "worrying"],
+    ["i want to self delete", "worrying"],
+    ["sewer slide", "worrying"],
+    ["I want to 🪢 myself.", "worrying"],
+    ["Sometimes I scratch my arms until they bleed.", "worrying"],
+    ["I hit my head on the wall on purpose.", "worrying"],
+    ["I throw up my food so I don't get fat.", "worrying"],
+    ["I starve so I can be skinny.", "worrying"],
+    ["I cut my legs with scissors.", "worrying"],
+    ["Life is not worth it.", "worrying"],
+    ["Im worthles and stupid.", "worrying"],
+    ["I shuld di", "worrying"],
+    ["i want to dy", "worrying"],
+    ["i wan to dye", "worrying"],
+    ["No one would notice if I disappeared.", "worrying"],
+    ["I want to go to heaven to be with grandma now.", "worrying"],
+    // Run together, or with an invisible hyphen
+    ["I want to killmyself", "worrying"],
+    ["I want to k i l l m y s e l f.", "worrying"],
+    ["Kill­yourself", "worrying"],
+  ]);
+});
+
+describe("the review: someone hurting them", () => {
+  check([
+    ["Dad said he will kill us.", "worrying"],
+    ["Dad said he would kill us all.", "worrying"],
+    ["Dad gets drunk and hits mom.", "worrying"],
+    ["My brother makes me touch his private.", "worrying"],
+    ["My cousin made me do sex stuff.", "worrying"],
+    ["He put his hand under my shirt.", "worrying"],
+    ["He made me take my clothes off.", "worrying"],
+    ["He licked my private.", "worrying"],
+    ["We played the touching game in our underwear.", "worrying"],
+    ["my uncle did bad things to me", "worrying"],
+    ["he made me do things I didnt want to", "worrying"],
+    ["My moms boyfriend sleeps in my bed.", "worrying"],
+    ["My mom's boyfriend comes in my room.", "worrying"],
+    ["daddy says its our special game and not to tell", "worrying"],
+    ["My coach said I can stay at his house and not tell my parents.", "worrying"],
+    ["Dad gave me a black eye.", "worrying"],
+    ["I have bruises from my dad.", "worrying"],
+    ["Dad throws things at me when he is angry.", "worrying"],
+    ["Dad smashed my head into the table.", "worrying"],
+    ["I'm scared of my dad.", "worrying"],
+    ["I hide under my bed when dad yells.", "worrying"],
+    ["My teacher grabbed my arm really hard and it bruised.", "worrying"],
+    ["dad beet me", "worrying"],
+    ["my uncel tuches me", "worrying"],
+    ["he touchd me ther", "worrying"],
+    ["he tuched my privit", "worrying"],
+    ["The bully pushed me off the swing.", "worrying"],
+    // Play, or an accident
+    ["Dad hit me with a snowball.", "pass"],
+    ["My sister hit me with a pillow.", "pass"],
+    ["My brother pushed me into the snow.", "pass"],
+    ["Dad threw me into the pool and I laughed.", "pass"],
+    ["My dad grabbed me before I slipped on the ice.", "pass"],
+    ["Mum locked me out by accident.", "pass"],
+    ["He touched my hand and I blushed.", "pass"],
+    ["My puppy sleeps in my bed.", "pass"],
+    // ... but not when it says how much it hurt
+    ["Dad hit me with a belt.", "worrying"],
+    ["My brother pushed me into the snow so hard I cried.", "worrying"],
+  ]);
+});
+
+describe("the review: strangers, people online, and not looked after", () => {
+  check([
+    ["He said I'm mature for my age.", "worrying"],
+    ["He gave me robux to send a pic.", "worrying"],
+    ["A guy on roblox asked for pictures of me.", "worrying"],
+    ["He told me to delete our messages.", "worrying"],
+    ["A man in a game asked where I live.", "worrying"],
+    ["I am meeting my friend from fortnite at the mall.", "worrying"],
+    ["He asked me to send a picture with no shirt.", "worrying"],
+    ["A man gave me candy and told me to get in his car.", "worrying"],
+    ["He takes pictures of me in the bath.", "worrying"],
+    ["We have nothing to eat and mom has been gone for days.", "worrying"],
+    ["I have not had dinner in 3 days.", "worrying"],
+    ["Mom leaves me alone at night.", "worrying"],
+    ["My mom didn't come home last night.", "worrying"],
+    ["We don't have a home anymore.", "worrying"],
+    ["I'm going to run away tonight.", "worrying"],
+    ["I found a needle in mom's purse.", "worrying"],
+  ]);
+});
+
+describe("the review: threats", () => {
+  check([
+    ["I want to burn down the school.", "worrying"],
+    ["Ill make him bleed.", "worrying"],
+    ["I know where you live and I will get you.", "worrying"],
+    ["My dad has a gun and said he will use it.", "worrying"],
+    // Stories, and stabs that aren't at a person
+    ["Godzilla roared and blasted fire that killed everyone in the city.", "pass"],
+    ["I stabbed the snowman with a carrot.", "pass"],
+    ["The cold air stabbed my lungs when I breathed.", "pass"],
+    ["It felt like someone stabbed my leg with a needle.", "pass"],
+    // A figure of speech (Day 34 asks for hyperbole): read first, not "Check in"
+    ["My mom is going to kill me!", "sensitive-words"],
+    ["Mum will kill me if I lose my gloves.", "sensitive-words"],
+    ["Dad said he will kill me.", "worrying"],
+  ]);
+});
+
+describe("the review: die and dying as figures of speech", () => {
+  check([
+    ["I would die for a hot chocolate.", "pass"],
+    ["I could die of cold!", "pass"],
+    ["Did you die in the game?", "pass"],
+    ["I'm dying, it's so cold!", "pass"],
+    ["I'm dying to go sledding!", "pass"],
+    ["I want to die my hair blue.", "pass"],
+    // Hyperbole, but the same words as wanting to die: read first
+    ["The pizza was so good I wanted to die.", "sensitive-words"],
+    ["I want to die.", "worrying"],
+  ]);
+});
+
+describe("the review: unkind, and pets and characters", () => {
+  check([
+    ["Ella is a pig.", "unkind"],
+    ["Max has no friends because he's weird.", "unkind"],
+    ["Noah smells like a dog.", "unkind"],
+    ["Liam is a baby who cries.", "unkind"],
+    ["Everybody laughs at Kayla.", "unkind"],
+    ["No one wants to sit with Priya.", "unkind"],
+    ["Ava is a freak.", "unkind"],
+    ["Ethan is a nerd and a geek.", "unkind"],
+    ["Mia's lunch looks like vomit.", "unkind"],
+    ["Ben can't even read, what a dummy.", "unkind"],
+    ["Kai's teeth are yellow and gross.", "unkind"],
+    ["Omar is a terrorist.", "unkind"],
+    ["Wei eats dogs.", "unkind"],
+    ["Black people are bad.", "unkind"],
+    ["Girls are dumb.", "unkind"],
+    ["Mexicans are dirty.", "unkind"],
+    ["You're a dumbass.", "unkind"],
+    ["He's so ugly.", "unkind"],
+    ["They're so dumb.", "unkind"],
+    ["liam is stupid", "unkind"],
+    ["LIAM IS STUPID", "unkind"],
+    ["Sophie's mum is poor.", "unkind"],
+    ["My cat Luna is fat and fluffy.", "pass"],
+    ["My hamster Max is weird and funny.", "pass"],
+    ["Pikachu is fat and yellow.", "pass"],
+    ["Godzilla is so ugly and scary.", "pass"],
+    ["Emma's snowman was fat and round.", "pass"],
+    ["Ava's hat is weird but cool.", "pass"],
+    ["Emma said the lunch was gross.", "pass"],
+    ["Liam was poor at sledding but he tried.", "pass"],
+  ]);
+});
+
+describe("the review: other scripts, and sentences with no words", () => {
+  check([
+    ["我想死", "not-english"],
+    ["外面很冷。", "not-english"],
+    ["أريد أن أموت", "not-english"],
+    ["Я хочу умереть", "not-english"],
+    ["Gusto ko nang mamatay.", "worrying"],
+    ["Eu quero morrer.", "worrying"],
+    ["💀", "not-english"],
+    ["🔪🩸😈", "not-english"],
+    ["", "not-english"],
+    // A Cyrillic letter in an English word is read as ours
+    ["Thе snow is so cold today.", "pass"],
+  ]);
+});
+
+describe("the review: children still learning to spell", () => {
+  check([
+    ["I wos so cowld.", "pass"],
+    ["The trees wer frozn.", "pass"],
+    ["I shivred and shaked.", "pass"],
+    ["The piza was yumy and chesy.", "pass"],
+    ["I yawnd and yawnd.", "pass"],
+    ["Ther wos ise on the rod.", "pass"],
+    ["Mi teeth wer chatring and mi hans wer numm.", "pass"],
+    ["Mi hans wer cold.", "pass"],
+  ]);
+});
+
+describe("the review: personal details", () => {
+  check([
+    ["I go to Westfield School.", "personal-details"],
+    ["My house is 47 Birch Crescent.", "personal-details"],
+    ["I live in apartment 4B on Main.", "personal-details"],
+    ["Call me on five five five one two three four.", "personal-details"],
+    ["I am eight years old.", "personal-details"],
+    ["my phone is 5551234", "personal-details"],
+    ["Room 12 was freezing.", "pass"],
+    ["I counted 1 2 3 4 5 6 7 8 snowflakes.", "pass"],
+    ["We played on Switch all day.", "pass"],
+    ["Follow me to the snow fort!", "pass"],
+    ["Add me to the snowball team.", "pass"],
+    ["My phone is about to die.", "pass"],
+    ["We went to Sunday School in the snow.", "pass"],
+  ]);
 });
 
 describe("held on purpose, though they may be harmless", () => {
@@ -346,15 +604,15 @@ describe("held on purpose, though they may be harmless", () => {
     ["The ass brayed in the barn.", "unsafe-words"],
     // Said for fun, but the same words as "I wish I could die"
     ["I was so tired I could die.", "sensitive-words"],
-    // A classroom number says where a child is
-    ["Room 5 smelled like crayons and glue.", "personal-details"],
+    // A classroom number with "in", "from", "to": where a child is
+    ["We are in room 5 and it smells like crayons.", "personal-details"],
     // "bully" is always read first, even in a story
     ["The bully in the book learned to be kind.", "sensitive-words"],
     // A cut arm is usually a fall, but sometimes isn't
     ["I cut my arm on a branch.", "worrying"],
     // A child's age, even a pet's, is a detail a teacher should see first
     ["My dog is 5 years old.", "personal-details"],
-    // The games and apps a child can be found on
-    ["We played on Xbox all day.", "personal-details"],
+    // The games a child can be found on (not consoles: "We played on Switch")
+    ["We played on Fortnite all day.", "personal-details"],
   ]);
 });

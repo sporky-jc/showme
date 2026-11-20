@@ -41,19 +41,24 @@ describe("what a reviewer is told", () => {
   it("names who reads the gallery, and lists when to leave a sentence to the teacher", () => {
     expect(REVIEW_INSTRUCTIONS).toContain("a class gallery read by children aged 6 to 12");
     for (const when of [
-      "1. It may be about a real classmate or another named person",
+      "1. It names a real person in a negative, embarrassing or personal way",
       "2. It is unkind, mocking or bullying",
       "3. It has scary, gory or violent detail",
       "4. It is about romance, kissing, bodies or private parts",
       "5. It mentions alcohol, drugs, smoking or weapons",
-      "6. It sounds like the child is sad, hurt, scared at home, or keeping a secret",
+      "6. It sounds like the child is sad, hurt, scared or keeping a secret in their own real life at home or school, beyond what the Tell asks for",
       "7. It shares personal details",
-      "8. The Tell looks like anything other than a short plain sentence",
     ]) {
       expect(REVIEW_INSTRUCTIONS).toContain(when);
     }
+    // The Tell comes from the server now (the day's own), so there's no odd
+    // Tell to watch for
+    expect(REVIEW_INSTRUCTIONS).not.toContain("8. ");
     // ... and what's fine, so it doesn't leave everything to the teacher
     expect(REVIEW_INSTRUCTIONS).toMatch(/dead leaves, a butter knife, a blood orange, a spooky story with a ghost/);
+    expect(REVIEW_INSTRUCTIONS).toMatch(/kind sentences that name people/);
+    expect(REVIEW_INSTRUCTIONS).toMatch(/story-like danger the Tell itself asks for/);
+    expect(REVIEW_INSTRUCTIONS).toMatch(/hyperbole/);
   });
 });
 

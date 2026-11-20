@@ -51,6 +51,8 @@ const TITLES = new Set([
   "king", "queen", "prince", "princess", "lady", "lord", "saint", "st",
 ]);
 
+const SMALL_WORDS = new Set(["is", "was", "are", "were", "and", "the", "so", "a", "an", "my", "has", "had"]);
+
 // A first and last name compromise finds ("Harry Smith", "Sofia Ramirez").
 // Given the text with made-up names already taken out, and capitals as the
 // child wrote them (names are found by their capitals).
@@ -65,6 +67,8 @@ export const libraryFindsFullName = (text: string) => {
     if (names.length < 2 || !names.every((name) => /^\p{Lu}/u.test(name))) continue;
     // Not "Max Barked": a word ending in -ed or -ing is something Max did
     if (names.slice(1).some((name) => /(ed|ing)$/i.test(name))) continue;
+    // Nor "LIAM IS STUPID": a small word is no surname
+    if (names.slice(1).some((name) => SMALL_WORDS.has(name.toLowerCase()))) continue;
     return true;
   }
   return false;
