@@ -2,10 +2,13 @@
 //
 //   1. The rule checks (rules.ts), on every sentence. They hold anything
 //      unsafe or personal for a person, and send back the plain cases.
-//   2. Each AI provider, in order, until one gives a valid answer. A
+//   2. The AI safety check: a model that only judges whether the sentence is
+//      safe. Unsafe, or no answer (not set up, failed, too slow, out of free
+//      requests), and it's held for a person: no AI reviewer reads it.
+//   3. Each AI provider, in order, until one gives a valid answer. A
 //      provider that fails, takes too long, has run out of free requests or
 //      answers anything but the fixed form (contract.ts) is skipped.
-//   3. Nobody could decide: "unsure", which leaves the sentence for a person,
+//   4. Nobody could decide: "unsure", which leaves the sentence for a person,
 //      exactly as if there were no AI at all.
 //
 // So no provider can break reviewing, and switching or adding one is a
@@ -28,13 +31,19 @@ export interface ReviewProvider {
   review(input: ReviewInput, signal: AbortSignal): Promise<unknown>;
 }
 
+// The AI safety check: "safe" or "unsafe", or it throws
+export interface SafetyCheck {
+  name: string;
+  check(input: ReviewInput, signal: AbortSignal): Promise<"safe" | "unsafe">;
+}
+
 // How long one provider may take before the next one is asked
 export const PROVIDER_TIMEOUT_MS = 10_000;
 
 // What happened at each provider, for the logs (never shown to anyone)
 export interface ProviderAttempt {
   provider: string;
-  outcome: "answered" | "invalid" | "failed" | "timeout";
+  outcome: "answered" | "invalid" | "failed" | "timeout" | "safe" | "unsafe";
 }
 
 export interface ReviewResult {
@@ -46,7 +55,11 @@ export interface ReviewResult {
 // (A symbol, so no answer a provider gives can be mistaken for it)
 const TIMED_OUT = Symbol("timed out");
 
-const ask = async (provider: ReviewProvider, input: ReviewInput, timeoutMs: number) => {
+const ask = async (
+  provider: { review: (input: ReviewInput, signal: AbortSignal) => Promise<unknown> },
+  input: ReviewInput,
+  timeoutMs: number
+) => {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
@@ -70,7 +83,7 @@ const ask = async (provider: ReviewProvider, input: ReviewInput, timeoutMs: numb
 export const reviewSentence = async (
   input: ReviewInput,
   providers: ReviewProvider[],
-  { timeoutMs = PROVIDER_TIMEOUT_MS }: { timeoutMs?: number } = {}
+  { timeoutMs = PROVIDER_TIMEOUT_MS, safety }: { timeoutMs?: number; safety?: SafetyCheck } = {}
 ): Promise<ReviewResult> => {
   const rules = checkRules(input.tell, input.show);
   if (rules.outcome === "hold") {
@@ -89,6 +102,39 @@ export const reviewSentence = async (
   // Only the two texts are passed on, whatever else the caller's object holds
   const shown: ReviewInput = { tell: input.tell, show: input.show };
   const attempts: ProviderAttempt[] = [];
+
+  // No reviewer: nothing to ask, and nothing to check first
+  if (providers.length === 0) {
+    return {
+      suggestion: { verdict: "unsure", tip: null, reasons: ["no-provider"], decidedBy: "none" },
+      attempts,
+    };
+  }
+
+  // The safety check first, and a sentence it hasn't passed never reaches a
+  // reviewer
+  if (!safety) {
+    return {
+      suggestion: { verdict: "unsure", tip: null, reasons: ["no-safety-check"], decidedBy: "none" },
+      attempts,
+    };
+  }
+  const checked = await ask({ review: (i, signal) => safety.check(i, signal) }, shown, timeoutMs);
+  const safe = checked.kind === "answer" && (checked.answer === "safe" || checked.answer === "unsafe") ? checked.answer : null;
+  attempts.push({ provider: safety.name, outcome: safe ?? (checked.kind === "answer" ? "invalid" : checked.kind) });
+  if (safe === "unsafe") {
+    return {
+      suggestion: { verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: safety.name },
+      attempts,
+    };
+  }
+  if (safe !== "safe") {
+    return {
+      suggestion: { verdict: "unsure", tip: null, reasons: ["no-safety-check"], decidedBy: "none" },
+      attempts,
+    };
+  }
+
   for (const provider of providers) {
     const result = await ask(provider, shown, timeoutMs);
     if (result.kind !== "answer") {

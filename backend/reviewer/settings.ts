@@ -1,0 +1,41 @@
+// Which reviewer runs, from the backend's settings (.env, written by the
+// deploy from GitHub secrets and variables). Read each time, so a test can
+// set its own. Nothing is set: the reviewer is off.
+import type { ReviewProvider, SafetyCheck } from "./reviewer.js";
+import { cloudflareReviewer, cloudflareSafety } from "./providers/cloudflare.js";
+import { groqReviewer } from "./providers/groq.js";
+
+// off: nothing runs. suggest: suggestions are saved for the teacher, and
+// nothing changes for students (step 3 shows them on the Teacher page).
+export const REVIEWER_MODES = ["off", "suggest"] as const;
+export type ReviewerMode = (typeof REVIEWER_MODES)[number];
+
+export const reviewerMode = (env = process.env): ReviewerMode =>
+  (REVIEWER_MODES as readonly string[]).includes(env.REVIEWER_MODE ?? "") ? (env.REVIEWER_MODE as ReviewerMode) : "off";
+
+export interface ReviewerSetup {
+  mode: ReviewerMode;
+  safety?: SafetyCheck;
+  providers: ReviewProvider[];
+}
+
+export const reviewerSetup = (env = process.env): ReviewerSetup => {
+  const mode = reviewerMode(env);
+  const providers: ReviewProvider[] = [];
+  let safety: SafetyCheck | undefined;
+
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+  const token = env.CLOUDFLARE_AI_TOKEN;
+  if (accountId && token) {
+    safety = cloudflareSafety({ accountId, token });
+    providers.push(cloudflareReviewer({ accountId, token, model: env.CLOUDFLARE_REVIEW_MODEL || undefined }));
+  }
+
+  // Groq only when asked for: its terms don't allow data about children
+  // under 13 (providers/groq.ts)
+  if (env.GROQ_API_KEY && env.REVIEWER_USE_GROQ === "yes") {
+    providers.push(groqReviewer({ apiKey: env.GROQ_API_KEY }));
+  }
+
+  return { mode, safety, providers };
+};

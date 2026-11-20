@@ -10,8 +10,16 @@ vi.spyOn(logger, "error").mockImplementation(() => {});
 const exported = await import("../index.js");
 
 describe("deployed functions", () => {
-  it("deploys exactly one function, apiv2", () => {
-    expect(Object.keys(exported)).toEqual(["apiv2"]);
+  it("deploys exactly two functions: apiv2 and the scheduled reviewer", () => {
+    expect(Object.keys(exported).sort()).toEqual(["apiv2", "reviewer"]);
+  });
+
+  it("runs the reviewer every 10 minutes, one run at a time, in us-central1", () => {
+    const { reviewer } = exported;
+    expect(reviewer.__endpoint.platform).toBe("gcfv2");
+    expect(reviewer.__endpoint.region).toEqual(["us-central1"]);
+    expect(reviewer.__endpoint.scheduleTrigger).toMatchObject({ schedule: "every 10 minutes" });
+    expect(reviewer.__endpoint.maxInstances).toBe(1);
   });
 
   it("exports apiv2 as a 2nd generation HTTPS function in us-central1", () => {
