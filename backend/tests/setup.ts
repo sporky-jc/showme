@@ -5,6 +5,7 @@ import { logger } from "firebase-functions/logger";
 import {
   decisionsRateLimitStore,
   likesRateLimitStore,
+  reviewCountRateLimitStore,
   reviewTipsRateLimitStore,
   sentenceWritesPerDayStore,
   sentenceWritesPerMinuteStore,
@@ -37,6 +38,7 @@ afterEach(async () => {
   await sentenceWritesPerDayStore.resetAll();
   await reviewTipsRateLimitStore.resetAll();
   await decisionsRateLimitStore.resetAll();
+  await reviewCountRateLimitStore.resetAll();
   await testLoginRateLimitStore.resetAll();
 });
 

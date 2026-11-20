@@ -23,6 +23,7 @@ export type {
   GallerySentence,
   OwnSentence,
   QueueSentence,
+  ReviewCounts,
   ReviewTip,
   ScribblesSuggestion,
   Sentence,

@@ -8,6 +8,7 @@ import {
   RecentDecisions,
   REVIEW_STALE,
   ReviewBody,
+  ReviewCounts,
   ReviewQueue,
   ReviewTips,
   TellSentences,
@@ -266,6 +267,43 @@ const reviewQueueFor = async (adminId: string | undefined) => {
     ...sentence.toObject(),
     suggestion: forWords.get(`${String(sentence._id)} ${sentence.show}`),
   }));
+};
+
+// How many sentences wait in this admin's queue, and how many of them
+// Scribbles held as worrying ("Check in" on the Teacher page, the first
+// cards there), for the badge on the site's Teacher link. The same queue as
+// the Teacher page (reviewQueue, so the same test-account rule), and the
+// same rule for which suggestion counts: only one for a sentence's current
+// words. Only each waiting sentence's id and words are read, with no
+// authors, so it's much lighter than loading the queue: the waiting
+// sentences come through the index on approved and toRedo
+// (models/sentences.ts), and their suggestions through the one on sentence
+// and show (models/reviewSuggestions.ts).
+const reviewCountsFor = async (adminId: string | undefined) => {
+  const queue = await Sentence.find(reviewQueue(adminId), { _id: 1, show: 1 }).lean<
+    { _id: Types.ObjectId; show: string }[]
+  >();
+  if (queue.length === 0) return { checkIn: 0, waiting: 0 };
+  const worrying = await ReviewSuggestion.find(
+    { sentence: { $in: queue.map((s) => s._id) }, reasons: { $eq: "worrying" } },
+    { _id: 0, sentence: 1, show: 1 }
+  ).lean<{ sentence: Types.ObjectId; show: string }[]>();
+  // A suggestion about words the student has since changed doesn't count
+  const current = new Set(queue.map((s) => `${String(s._id)} ${s.show}`));
+  return {
+    checkIn: worrying.filter((s) => current.has(`${String(s.sentence)} ${s.show}`)).length,
+    waiting: queue.length,
+  };
+};
+
+// Route for the badge on the Teacher link (admins only)
+export const getReviewCounts = async (req: Request, res: Response) => {
+  try {
+    answer(res, 200, ReviewCounts, await reviewCountsFor(req.userId));
+  } catch (error) {
+    res.locals.error = error;
+    res.status(500).json({ message: messageOf(error) });
+  }
 };
 
 // Route for the tips a teacher can send back with "Try again": every tip
