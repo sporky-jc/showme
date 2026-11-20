@@ -6,6 +6,7 @@ import PageLoading from "../components/PageLoading";
 import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
+import { nextDay } from "../days";
 
 // How many of the student's latest sentences to show under their next Tell
 const LATEST = 3;
@@ -42,13 +43,15 @@ function Today() {
     );
   }
 
-  const today = tellSentences[userSentences.length];
+  // The day after the latest one written (see days.ts), or none: all done
+  const next = nextDay(userSentences, tellSentences.length);
+  const today = next === undefined ? undefined : tellSentences[next - 1];
   const shown = userSentences.filter((sentence) => sentence.approved).length;
   // Something is waiting for review: Scribbles is "checking" it
   const checking = userSentences.some((sentence) => !sentence.approved && !sentence.toRedo);
-  // Newest first; each keeps its place in the list, which is its day
+  // Newest first, each with the Tell stored with it
   const latest = userSentences
-    .map((sentence, index) => ({ sentence, tell: tellSentences[index]?.tell }))
+    .map((sentence) => ({ sentence, tell: sentence.tell }))
     .reverse()
     .slice(0, LATEST);
 

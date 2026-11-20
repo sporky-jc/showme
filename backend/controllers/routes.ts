@@ -10,14 +10,15 @@ import {
   ReviewTips,
   SentencesWithAuthors,
   TellSentences,
+  UNKNOWN_DAY,
   User,
 } from "../contract/api.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
 import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
 import { Types } from "mongoose";
-import { Sentence } from "../models/sentences.js";
+import { dayKeyOf, Sentence } from "../models/sentences.js";
 import Profile from "../models/profile.js";
-import tellList from "../public/tellList.js";
+import tellList, { tellForTitle } from "../public/tellList.js";
 import { readSession } from "../middlewares/auth.js";
 import { SESSION_COOKIE, sessionCookieOptions } from "../config/session.js";
 import { answer } from "../utils/answer.js";
@@ -71,6 +72,14 @@ const sentencesWithAuthorNames = async (filter: {
     )
   );
 
+// MongoDB's answer when a unique index already holds the value
+const isDuplicateKey = (error: unknown) =>
+  typeof error === "object" && error !== null && (error as { code?: unknown }).code === 11000;
+
+// What a second sentence for the same day is told (POST /MyPage)
+export const DAY_ALREADY_WRITTEN =
+  "You already wrote a sentence for this day. Edit that one instead.";
+
 export const createNewUserSentence = async (req: Request, res: Response) => {
   try {
     // Only the sentence text comes from the browser. Who wrote it comes from
@@ -81,22 +90,49 @@ export const createNewUserSentence = async (req: Request, res: Response) => {
     if (!body.success) {
       return res.status(400).json({ message: firstProblem(body.error) });
     }
-    const { show, title, tell } = body.data;
+    const { show, title } = body.data;
+    // The day's Tell, from the list: never one from the request, which could
+    // say anything (and would be shown in the gallery and sent to the AI
+    // reviewer). The contract has checked the day is on the list.
+    const tell = tellForTitle(title);
+    if (tell === undefined) {
+      return res.status(400).json({ message: UNKNOWN_DAY });
+    }
 
     const user = await Profile.findOne({ id: req.userId });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // When User creates a new show sentence
+    // One sentence per student per day: a second one for the same day is
+    // refused, so a student changes a day's sentence by editing it (PATCH).
+    // The website only ever asks for the next day it hasn't written, and
+    // never sends a sentence twice. This finds older sentences too, which
+    // have no dayKey (see models/sentences.ts).
+    // ($eq: the title is already a checked day, and this says so to the query)
+    if (await Sentence.exists({ GID: user.id, title: { $eq: title } })) {
+      return res.status(409).json({ message: DAY_ALREADY_WRITTEN });
+    }
+
+    // When User creates a new show sentence. Two requests for the same day
+    // arriving together could both pass the check above; the unique dayKey
+    // lets only one be saved, and the other is refused the same way.
     const newSentence = new Sentence({
       title,
       tell,
       show,
       author: user._id,
       GID: user.id,
+      dayKey: dayKeyOf(user.id, title),
     });
-    await newSentence.save();
+    try {
+      await newSentence.save();
+    } catch (error) {
+      if (isDuplicateKey(error)) {
+        return res.status(409).json({ message: DAY_ALREADY_WRITTEN });
+      }
+      throw error;
+    }
     user.ownSentences.push(newSentence._id);
     await user.save();
     answer(res, 201, OwnSentence, newSentence);
@@ -116,6 +152,10 @@ export const editUserSentence = async (req: Request, res: Response) => {
       return res.status(400).json({ message: firstProblem(body.error) });
     }
     const { title, show } = body.data;
+    // A sentence for a day on the list gets that day's Tell back, mending
+    // any Tell a request supplied before the server looked it up itself.
+    // (An older sentence whose title isn't a day keeps the Tell it has.)
+    const tell = tellForTitle(title);
     // Replace it in one write: reading it, changing it and saving it would
     // leave a gap in which a reviewer's approval could land and then stay on
     // the new words (Mongoose saves only the fields it sees change). It goes
@@ -129,6 +169,7 @@ export const editUserSentence = async (req: Request, res: Response) => {
       {
         $set: {
           show,
+          ...(tell === undefined ? {} : { tell }),
           createdAt: new Date(),
           toRedo: false,
           approved: false,

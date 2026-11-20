@@ -7,6 +7,12 @@ import { z } from "zod";
 import { PRAISE, TIP_IDS } from "./tips.js";
 import type { MechanicsIssue } from "./mechanics.js";
 
+// Longer than any Show sentence. The rule checks hold anything longer (see
+// rules.ts), and the API refuses to save it (contract/api.ts). Kept here,
+// with no imports of its own beyond this file's, so the API contract can
+// share it.
+export const MAX_CHARACTERS = 600;
+
 // approve: ready for the gallery. redo: send back with a tip. unsure: leave
 // it for a person.
 export const VERDICTS = ["approve", "redo", "unsure"] as const;
