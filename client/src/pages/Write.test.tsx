@@ -193,10 +193,12 @@ describe("Write", () => {
     expect(heading).toHaveFocus();
     expect(saves()).toHaveLength(1);
     expect(saves()[0].method).toBe("post");
-    // Only the day and the words: the server stores the day's Tell itself
+    // The day and the words, plus the Tell it shows for an older backend (the
+    // server ignores it and stores the day's Tell itself)
     expect(JSON.parse(saves()[0].data)).toEqual({
       title: "day3",
       show: "Brr, my fingers froze.",
+      tell: "Tell 3",
     });
     expect(screen.getByText("Brr, my fingers froze.")).toBeInTheDocument();
     expect(screen.getByText("Tell 3")).toBeInTheDocument();

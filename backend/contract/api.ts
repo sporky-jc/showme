@@ -41,14 +41,17 @@ const showSentence = z
 // whether it's approved are set by the server, never taken from the request.
 // So is its Tell sentence: the server looks it up from the day (see
 // tellForTitle in public/tellList.ts), so the title must be a day the list
-// has: "day1", "day2", ... A `tell` in the request (older websites sent one)
-// isn't listed here, so zod drops it: it's accepted, and never used.
+// has: "day1", "day2", ... The website still sends the `tell` it shows, so a
+// website build can run against a backend from before this check (a pull
+// request's preview runs against the staging backend), but the server never
+// uses it.
 // (`show` comes first, so a blank sentence is the problem reported first.)
 export const NewSentenceBody = z.object({
   show: showSentence,
   title: z
     .string({ error: TITLE_NOT_TEXT })
     .refine((title) => tellForTitle(title) !== undefined, { error: UNKNOWN_DAY }),
+  tell: z.string().optional(), // ignored: see above
 });
 
 // PATCH /MyPage: new text for one of the student's own sentences, picked by

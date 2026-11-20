@@ -287,7 +287,8 @@ function WriteSentence({ id }: { id: string | undefined }) {
     // and an edit goes back to waiting to be checked, with a new date
     const result = editing
       ? await dispatch(editSentences({ title: editing.title, show: text }))
-      : await dispatch(createSentence({ title: "day" + day, show: text }));
+      : // The Tell goes along only for an older backend; the server looks it up itself
+        await dispatch(createSentence({ title: "day" + day, show: text, tell }));
     setSaving(false);
     if (result.kind === "saved") {
       dispatch(fetchUser());
