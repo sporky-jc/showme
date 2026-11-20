@@ -62,7 +62,7 @@ const newestFirst = <T extends { createdAt: Date }>(sentences: T[]) =>
 const sentencesWithAuthorNames = async (filter: {
   approved: boolean;
   toRedo?: boolean;
-  GID?: RegExp;
+  GID?: RegExp | { $not: RegExp };
 }) =>
   newestFirst(
     await Sentence.find(filter, "-GID -likedBy").populate(
@@ -186,14 +186,16 @@ export const getUserInfo = async (req: Request, res: Response) => {
   }
 };
 
-// The sentences awaiting review that this admin may see and decide on. The
-// test admin (signed in through the staging test login, see testLogin.ts)
-// gets only test accounts' sentences: if the test login's secret ever
-// leaked, whoever used it still couldn't touch a real person's sentence.
+// The sentences awaiting review that this admin sees. The test admin
+// (signed in through the staging test login, see testLogin.ts) gets only
+// test accounts' sentences: if the test login's secret ever leaked, whoever
+// used it still couldn't touch a real person's sentence. A real teacher gets
+// everyone's but the test accounts', so the automated tests' leftovers on
+// staging never crowd their queue (production has no test accounts).
 const reviewQueue = (adminId: string | undefined) => ({
   approved: false,
   toRedo: false,
-  ...(isTestAccount(adminId) ? { GID: TEST_SENTENCES } : {}),
+  GID: isTestAccount(adminId) ? TEST_SENTENCES : { $not: TEST_SENTENCES },
 });
 
 // The review queue for this admin, each sentence with Scribbles' suggestion

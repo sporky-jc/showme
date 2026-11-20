@@ -75,7 +75,7 @@ describe("the test admin only reviews test accounts' sentences", () => {
     }
   );
 
-  it("leaves real admins able to review everyone's sentences", async () => {
+  it("leaves real admins able to review real sentences, without the test accounts' in their queue", async () => {
     const { realSentence } = await setUp();
     const admin = await createAdmin(); // a Google account id, not "test-..."
 
@@ -85,7 +85,7 @@ describe("the test admin only reviews test accounts' sentences", () => {
       .set("Cookie", sessionCookie(admin))
       .send({ status: "approve", sentence: asReviewed(realSentence) });
 
-    expect(showsIn(queue).sort()).toEqual(["Real sentence", "Test sentence"]);
+    expect(showsIn(queue)).toEqual(["Real sentence"]);
     expect(res.status).toBe(201);
   });
 });
