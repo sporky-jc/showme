@@ -23,6 +23,7 @@ import admin from "../middlewares/admin.js";
 import {
   likesRateLimit,
   reviewTipsRateLimit,
+  sentenceWritesRateLimit,
   testLoginRateLimit,
 } from "../middlewares/rateLimit.js";
 
@@ -43,8 +44,10 @@ router.post("/auth/test", testLoginRateLimit, testLogin);
 
 // Route for create/update/fetch user sentences
 router.get("/MyPage", auth, getUserSentences);
-router.post("/MyPage", auth, createNewUserSentence);
-router.patch("/MyPage", auth, editUserSentence);
+// Saving a sentence is limited per user (see middlewares/rateLimit.ts): each
+// save is sent to the AI reviewer
+router.post("/MyPage", sentenceWritesRateLimit, auth, createNewUserSentence);
+router.patch("/MyPage", sentenceWritesRateLimit, auth, editUserSentence);
 
 // // Route for fetching Tell sentences
 // router.get("/Login", getTellSentences);

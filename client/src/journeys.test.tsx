@@ -219,7 +219,8 @@ describe("a student writing a sentence", () => {
           return posted ? { status: 200, data: [day1, day2, posted] } : list.answer;
         }
         if (config.method === "post" && config.url === "/MyPage") {
-          posted = { _id: "s3", ...JSON.parse(config.data), ...saved };
+          // Like the real server, it stores the day's Tell itself
+          posted = { _id: "s3", tell: "Tell 3", ...JSON.parse(config.data), ...saved };
           return { status: 201, data: posted };
         }
         return { status: 200, data: tells };

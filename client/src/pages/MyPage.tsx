@@ -8,6 +8,7 @@ import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import * as config from "../config";
 import type { RootState } from "../reducers/types";
+import { dayOf, nextDay } from "../days";
 
 // My sentences: everything the signed-in student has written, newest first,
 // each on a paper note colored by where it stands, with the way to change
@@ -54,14 +55,12 @@ function MyPage() {
   const pageCount = Math.ceil(userSentences.length / itemsPerPage);
   // If the list shrinks, don't stay on a page that no longer exists
   const page = Math.min(activePage, Math.max(pageCount, 1));
-  // Newest first, then the slice for the open page. Each entry keeps its
-  // position in the original list (index), which matches its day.
-  const pageItems = userSentences
-    .map((sentence, index) => ({ sentence, index }))
+  // Newest first, then the slice for the open page
+  const pageItems = [...userSentences]
     .reverse()
     .slice((page - 1) * itemsPerPage, page * itemsPerPage);
   // There is a Tell sentence the student hasn't written for yet
-  const more = userSentences.length < tellSentences.length;
+  const more = nextDay(userSentences, tellSentences.length) !== undefined;
 
   return (
     <div className="paper-mine">
@@ -80,13 +79,17 @@ function MyPage() {
         </p>
       ) : (
         <ol className="paper-mine__list">
-          {pageItems.map(({ sentence, index }) => {
+          {pageItems.map((sentence) => {
             const { note, label } = standing(sentence);
+            // No number for an older sentence whose title isn't a day: its
+            // place in the list could be another sentence's day
+            const day = dayOf(sentence.title);
+            const name = day ? `sentence ${day}` : `sentence “${sentence.show}”`;
             return (
               <li key={sentence._id} className={note}>
                 <div className="paper-mine__head">
                   <span className="paper-note__status">{label}</span>
-                  <span className="paper-mine__day">Sentence {index + 1}</span>
+                  <span className="paper-mine__day">{day ? `Sentence ${day}` : "Sentence"}</span>
                 </div>
                 <p className="paper-mine__show">{sentence.show}</p>
                 {/* The tip from the teacher's decision, in Scribbles' words:
@@ -114,11 +117,11 @@ function MyPage() {
                   </div>
                 )}
                 <div className="paper-mine__foot">
-                  <p className="paper-mine__tell">{tellSentences[index]?.tell}</p>
+                  <p className="paper-mine__tell">{sentence.tell}</p>
                   <Link
                     to={`/Write/${sentence._id}`}
                     className="paper-mine__edit"
-                    aria-label={`${sentence.toRedo ? "Try again" : "Edit"}: sentence ${index + 1}`}
+                    aria-label={`${sentence.toRedo ? "Try again" : "Edit"}: ${name}`}
                   >
                     {sentence.toRedo ? "Try again" : "Edit"}
                   </Link>

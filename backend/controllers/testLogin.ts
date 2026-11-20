@@ -5,6 +5,7 @@ import { Sentence } from "../models/sentences.js";
 import { messageOf } from "../utils/errors.js";
 import { startSession } from "./auth.js";
 import { isValidTestPass } from "../utils/testPass.js";
+import { TEST_ACCOUNT_PREFIX } from "../config/testAccounts.js";
 
 // A login door for automated browser tests (QA Wolf) on the STAGING backend.
 // A robot can't click through "Sign in with Google", so instead it sends a
@@ -26,13 +27,13 @@ import { isValidTestPass } from "../utils/testPass.js";
 const PRODUCTION_PROJECT = "showme-backend-789";
 const MIN_KEY_LENGTH = 32;
 
-// Every test account's id starts with this. Real accounts' ids are Google
-// account ids, which are all digits, so none can.
-export const TEST_ACCOUNT_PREFIX = "test-";
-export const isTestAccount = (id: string | undefined) =>
-  id?.startsWith(TEST_ACCOUNT_PREFIX) ?? false;
-// Sentences written by test accounts (a sentence's GID is its author's id)
-export const TEST_SENTENCES = new RegExp(`^${TEST_ACCOUNT_PREFIX}`);
+// Every test account's id starts with TEST_ACCOUNT_PREFIX (see
+// config/testAccounts.ts)
+export {
+  TEST_ACCOUNT_PREFIX,
+  TEST_SENTENCES,
+  isTestAccount,
+} from "../config/testAccounts.js";
 
 // Every test student has the same name, so pages show "Test S." whichever
 // one a test uses; only the id and email (built from the role) differ

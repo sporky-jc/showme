@@ -15,7 +15,7 @@
 //
 // Anything else passes on to the next layer ("pass"). Whether a sentence
 // paints a picture is for the AI or a person to judge, not a word list.
-import type { Reason } from "./contract.js";
+import { MAX_CHARACTERS, type Reason } from "./contract.js";
 import { libraryFindsFullName, libraryFindsUnsafe } from "./libraries.js";
 import type { TipId } from "./tips.js";
 import {
@@ -33,9 +33,10 @@ export type RuleOutcome =
   | { outcome: "redo"; tip: TipId; reasons: Reason[] }
   | { outcome: "pass" };
 
-// Longer than any Show sentence: held, and not checked further (long text
-// would make the checks slow)
-export const MAX_CHARACTERS = 600;
+// Longer than any Show sentence (MAX_CHARACTERS, shared with the API
+// contract): held, and not checked further (long text would make the checks
+// slow)
+export { MAX_CHARACTERS };
 
 // ---- Reading the sentence --------------------------------------------------
 
