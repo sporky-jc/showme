@@ -71,15 +71,28 @@ export const cloudflareSafety = ({ accountId, token }: CloudflareSettings): Safe
       { messages: [{ role: "user", content: show }], temperature: 0, max_tokens: 20 },
       signal
     );
-    const answer = asJson(responseOf(body));
-    if (answer && typeof answer === "object" && typeof (answer as { safe?: unknown }).safe === "boolean") {
-      return (answer as { safe: boolean }).safe ? "safe" : "unsafe";
-    }
-    if (typeof answer === "string") {
-      const first = answer.trim().toLowerCase().split(/\s+/)[0];
-      if (first === "safe") return "safe";
-      if (first === "unsafe") return "unsafe";
-    }
-    throw new ProviderError("Unexpected answer from the safety check");
+    return readSafetyAnswer(asJson(responseOf(body)));
   },
 });
+
+// Llama Guard's answer, read strictly. As an object: { safe: true } with no
+// categories is safe; { safe: false }, or any category named, is unsafe (a
+// "safe" answer that names a category is read the careful way). As text:
+// "safe" alone (any case, with an end mark or spaces around it) is safe;
+// "unsafe" first, then anything ("unsafe\nS11", "unsafe,S11"), is unsafe.
+// Anything else is an invalid answer: thrown, and never read as safe.
+export const readSafetyAnswer = (answer: unknown): "safe" | "unsafe" => {
+  if (answer && typeof answer === "object" && typeof (answer as { safe?: unknown }).safe === "boolean") {
+    const { safe, categories } = answer as { safe: boolean; categories?: unknown };
+    const named = Array.isArray(categories)
+      ? categories.length > 0
+      : categories !== undefined && categories !== null && categories !== "";
+    return safe && !named ? "safe" : "unsafe";
+  }
+  if (typeof answer === "string") {
+    const text = answer.trim().toLowerCase();
+    if (/^safe[.!]?$/.test(text)) return "safe";
+    if (/^unsafe(?![a-z])/.test(text)) return "unsafe";
+  }
+  throw new ProviderError("Unexpected answer from the safety check", undefined, true);
+};

@@ -4,6 +4,7 @@ import { groqReviewer } from "../reviewer/providers/groq.js";
 import { REVIEW_INSTRUCTIONS, reviewMessage } from "../reviewer/prompt.js";
 import { reviewerMode, reviewerSetup } from "../reviewer/settings.js";
 import { reviewSentence } from "../reviewer/reviewer.js";
+import { ProviderError } from "../reviewer/providers/http.js";
 
 // The AI providers, with fetch replaced: no real request is ever sent here.
 
@@ -85,16 +86,51 @@ describe("the Cloudflare safety check", () => {
 
   it.each([
     [{ safe: false, categories: ["S1"] }, "unsafe"],
+    [{ safe: false }, "unsafe"],
+    [{ safe: true }, "safe"],
+    [{ safe: true, categories: [] }, "safe"],
+    // A "safe" that names a category is read the careful way
+    [{ safe: true, categories: ["S11"] }, "unsafe"],
     ["safe", "safe"],
+    ["Safe.", "safe"],
+    ["safe\n", "safe"],
+    ["  SAFE  ", "safe"],
     ["unsafe\nS11", "unsafe"],
+    ["unsafe,S11", "unsafe"],
+    ["Unsafe S1", "unsafe"],
+    ["unsafe", "unsafe"],
   ])("reads %o as %s", async (response, expected) => {
     fakeFetch(200, { success: true, result: { response } });
     expect(await cloudflareSafety(CF).check(INPUT, signal())).toBe(expected);
   });
 
-  it.each([["probably fine"], [{ verdict: "approve" }], [null]])("fails on any other answer: %o", async (response) => {
+  it.each([
+    ["probably fine"],
+    ["safe enough"],
+    ["safely"],
+    ["unsafely"],
+    ["The sentence is safe"],
+    [""],
+    [{ verdict: "approve" }],
+    [null],
+  ])("fails on any other answer, as an invalid answer: %o", async (response) => {
     fakeFetch(200, { success: true, result: { response } });
-    await expect(cloudflareSafety(CF).check(INPUT, signal())).rejects.toThrow();
+    const error = await cloudflareSafety(CF).check(INPUT, signal()).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderError);
+    expect((error as ProviderError).invalid).toBe(true);
+  });
+
+  it.each([
+    [429, "rate-limited"],
+    [401, "credentials"],
+    [403, "credentials"],
+    [500, "failed"],
+  ])("an HTTP %i from the safety check is counted as %s", async (status, outcome) => {
+    fakeFetch(status, {});
+    const { safety, providers } = reviewerSetup({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" });
+    const { suggestion, attempts } = await reviewSentence(INPUT, providers, { safety });
+    expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["no-safety-check"] });
+    expect(attempts).toEqual([{ provider: safety!.name, outcome, ms: expect.any(Number) }]);
   });
 });
 

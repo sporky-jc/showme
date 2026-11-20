@@ -308,16 +308,32 @@ const STOP = new Set([
   "outside", "today",
 ]);
 
-// The sentence repeats its Tell instead of showing it: the same words, or
-// the Tell's words with at most two new ones
+// A Tell needs at least this many words that aren't small words before a
+// Show that reuses most of them and adds one or two is read as a copy. Most
+// Tells have only one or two ("cold"; "girl", "happy"), and then two new
+// words are a picture, not a copy: "The scared boy hid, trembling." for
+// "The boy was scared."
+export const COPY_RATIO_MIN_TELL_WORDS = 3;
+
+// The sentence repeats its Tell instead of showing it. Only a real copy:
+//   - it adds no word of its own beyond the Tell's (small words aside):
+//     "It is cold outside.", "It is really cold outside today." for "It is
+//     cold outside."; or
+//   - for a Tell of three or more such words, it reuses at least 80% of them
+//     and adds at most two ("The students were very loud and the teacher
+//     couldn't do anything about it at all.").
+// Anything less clear-cut is for the AI or a person to judge: a sentence
+// wrongly sent back here never reaches anyone who could read it.
 const copiesTell = (tell: string, show: string) => {
   const meaningful = (text: string) => read(text).words.filter((word) => !STOP.has(word));
-  const tellWords = new Set(meaningful(tell));
+  // The Tell's instructions in brackets aren't part of it ("(Use a Simile)")
+  const tellWords = new Set(meaningful(tell.replace(/\([^)]*\)/g, " ")));
   const showWords = meaningful(show);
-  if (tellWords.size === 0) return false;
+  if (tellWords.size === 0 || showWords.length === 0) return false;
   const reused = [...tellWords].filter((word) => showWords.includes(word)).length;
   const added = showWords.filter((word) => !tellWords.has(word)).length;
-  return reused / tellWords.size >= 0.8 && added <= 2;
+  if (added === 0) return true;
+  return tellWords.size >= COPY_RATIO_MIN_TELL_WORDS && reused / tellWords.size >= 0.8 && added <= 2;
 };
 
 // ---- All together ------------------------------------------------------------

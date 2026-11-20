@@ -206,7 +206,9 @@ const reviewQueueFor = async (adminId: string | undefined) => {
   const queue = await sentencesWithAuthorNames(reviewQueue(adminId));
   const suggestions = await ReviewSuggestion.find(
     { sentence: { $in: queue.map((sentence) => sentence._id) } },
-    "-_id -decidedBy -createdAt"
+    // Not who decided, when, or what each provider answered (`attempts`, the
+    // audit trail): those are for the logs, never a browser
+    "-_id -decidedBy -createdAt -attempts"
   ).lean<{ sentence: Types.ObjectId; show: string }[]>();
   const forWords = new Map(suggestions.map((s) => [`${String(s.sentence)} ${s.show}`, s]));
   return queue.map((sentence) => ({

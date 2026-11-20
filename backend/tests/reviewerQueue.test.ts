@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { Sentence } from "../models/sentences.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
-import { reviewWaitingSentences } from "../reviewer/queue.js";
+import { MAX_AGE_DAYS, RUN_DEADLINE_MS, reviewWaitingSentences } from "../reviewer/queue.js";
+import { ProviderError } from "../reviewer/providers/http.js";
 import type { ReviewProvider, SafetyCheck } from "../reviewer/reviewer.js";
 import type { ReviewerSetup } from "../reviewer/settings.js";
 import { createUser } from "./helpers.js";
@@ -108,5 +109,160 @@ describe("the scheduled reviewer", () => {
     await reviewWaitingSentences(setupWith([approving()]));
 
     expect(JSON.stringify(vi.mocked(logger.write).mock.calls)).not.toContain("puffed");
+  });
+
+  it("saves what each provider answered with the suggestion, for the audit trail", async () => {
+    const sentence = await addSentence();
+    await reviewWaitingSentences(setupWith([approving()]));
+
+    const saved = await ReviewSuggestion.findOne({ sentence: sentence._id }).lean();
+    expect(saved?.attempts).toEqual([
+      { provider: "guard", outcome: "safe", ms: expect.any(Number) },
+      { provider: "ai", outcome: "answered", ms: expect.any(Number) },
+    ]);
+    const stored = await Sentence.findById(sentence._id, "+reviewedShow +reviewedAt").lean();
+    expect(stored).toMatchObject({ reviewedShow: GOOD, reviewedAt: expect.any(Date) });
+  });
+
+  // More held sentences waiting for a teacher than one look used to read
+  // (200) must never stop a new sentence from being reviewed
+  it("still finds a new sentence behind any number of sentences already reviewed", async () => {
+    const author = await createUser({ id: "g-many", email: "many@example.com" });
+    const old = Date.now() - 24 * 60 * 60 * 1000;
+    const many = Array.from({ length: 250 }, (_, i) => ({
+      title: `day${i}`,
+      tell: TELL,
+      show: `${GOOD} ${i}`,
+      author: author._id,
+      GID: author.id,
+      createdAt: new Date(old + i * 1000),
+      reviewedShow: `${GOOD} ${i}`,
+      reviewedAt: new Date(),
+    }));
+    const inserted = await Sentence.insertMany(many);
+    await ReviewSuggestion.insertMany(
+      inserted.map((s) => ({ sentence: s._id, show: s.show, verdict: "unsure", reasons: ["worrying"], decidedBy: "rules" }))
+    );
+    const fresh = await addSentence({ show: "The wind bit my ears like a little dog." });
+    const ai = approving();
+
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 1 });
+    expect(ai.review).toHaveBeenCalledTimes(1);
+    expect(await ReviewSuggestion.findOne({ sentence: fresh._id }).lean()).toMatchObject({ verdict: "approve" });
+  });
+
+  it("notes a suggestion saved before sentences kept what was reviewed, without asking again", async () => {
+    const sentence = await addSentence();
+    await ReviewSuggestion.create({ sentence: sentence._id, show: GOOD, verdict: "approve", tip: "great", reasons: ["ai"], decidedBy: "ai" });
+    const ai = approving();
+
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 0 });
+    expect(ai.review).not.toHaveBeenCalled();
+    expect(await Sentence.findById(sentence._id, "+reviewedShow").lean()).toMatchObject({ reviewedShow: GOOD });
+  });
+
+  it(`leaves sentences waiting more than ${MAX_AGE_DAYS} days alone`, async () => {
+    await addSentence({ createdAt: new Date(Date.now() - (MAX_AGE_DAYS + 1) * 24 * 60 * 60 * 1000) });
+    const ai = approving();
+
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 0 });
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  // An unchanged resubmission keeps its suggestion (right for "suggest"
+  // mode, where the teacher reads it), and is never reviewed in a loop
+  it("keeps the suggestion when a student sends the same words again, and doesn't review them again", async () => {
+    const sentence = await addSentence();
+    const ai = approving();
+    await reviewWaitingSentences(setupWith([ai]));
+    // Sent back by the teacher, then sent again unchanged (as editUserSentence does)
+    await Sentence.updateOne({ _id: sentence._id }, { toRedo: true });
+    await Sentence.updateOne({ _id: sentence._id }, { $set: { show: GOOD, createdAt: new Date(), toRedo: false } });
+
+    for (let run = 0; run < 3; run++) expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 0 });
+    expect(ai.review).toHaveBeenCalledTimes(1);
+    expect(await ReviewSuggestion.countDocuments({ sentence: sentence._id })).toBe(1);
+  });
+
+  it("stops the whole run when a provider is out of free requests (HTTP 429)", async () => {
+    for (let i = 0; i < 5; i++) await addSentence({ show: `${GOOD} ${i}` });
+    const limited = { name: "ai", review: vi.fn(async () => Promise.reject(new ProviderError("HTTP 429", 429))) };
+
+    expect(await reviewWaitingSentences(setupWith([limited]))).toEqual({ reviewed: 0, stopped: "rate-limited" });
+    expect(limited.review).toHaveBeenCalledTimes(1);
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+  });
+
+  it("stops the whole run when the safety check is out of free requests", async () => {
+    for (let i = 0; i < 3; i++) await addSentence({ show: `${GOOD} ${i}` });
+    const check = vi.fn(async () => Promise.reject(new ProviderError("HTTP 429", 429)));
+    const ai = approving();
+
+    expect(await reviewWaitingSentences(setupWith([ai], { safety: { name: "guard", check } }))).toEqual({
+      reviewed: 0,
+      stopped: "rate-limited",
+    });
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it("stops the whole run when a key is refused (HTTP 401 or 403), and logs it as an error", async () => {
+    const { logger } = await import("firebase-functions/logger");
+    for (let i = 0; i < 3; i++) await addSentence({ show: `${GOOD} ${i}` });
+    const refused = { name: "ai", review: vi.fn(async () => Promise.reject(new ProviderError("HTTP 403", 403))) };
+
+    expect(await reviewWaitingSentences(setupWith([refused]))).toEqual({ reviewed: 0, stopped: "credentials" });
+    expect(refused.review).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(vi.mocked(logger.write).mock.calls)).toContain("credentials");
+    // And tries again on the next run
+    expect(await reviewWaitingSentences(setupWith([approving()]))).toEqual({ reviewed: 3 });
+  });
+
+  it(`starts no new review after the run's deadline (${RUN_DEADLINE_MS / 1000} seconds by default)`, async () => {
+    for (let i = 0; i < 5; i++) await addSentence({ show: `${GOOD} ${i}`, createdAt: new Date(Date.now() - (5 - i) * 1000) });
+    let clock = 0;
+    const ai = { name: "ai", review: vi.fn(async () => {
+      clock += 100; // each review takes 100 "milliseconds"
+      return { verdict: "approve", tip: "great" };
+    }) };
+
+    expect(await reviewWaitingSentences(setupWith([ai]), { deadlineMs: 250, now: () => clock })).toEqual({
+      reviewed: 3,
+      stopped: "deadline",
+    });
+    expect(ai.review).toHaveBeenCalledTimes(3);
+    // The rest are reviewed on the next run
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 2 });
+  });
+
+  it("tries an invalid safety answer again on a later run, once, then saves the hold", async () => {
+    const sentence = await addSentence();
+    const check = vi.fn(async () => "probably fine" as "safe");
+    const ai = approving();
+    const setup = setupWith([ai], { safety: { name: "guard", check } });
+
+    expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 0 });
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 1 });
+    expect(await ReviewSuggestion.findOne({ sentence: sentence._id }).lean()).toMatchObject({
+      verdict: "unsure",
+      reasons: ["no-safety-check"],
+    });
+    expect(check).toHaveBeenCalledTimes(2);
+    expect(ai.review).not.toHaveBeenCalled();
+    // Done: not asked a third time
+    await reviewWaitingSentences(setup);
+    expect(check).toHaveBeenCalledTimes(2);
+  });
+
+  it("a good answer after one invalid safety answer is saved as usual", async () => {
+    await addSentence();
+    let answer = "garbled";
+    const setup = setupWith([approving()], { safety: { name: "guard", check: async () => answer as "safe" } });
+
+    expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 0 });
+    answer = "safe";
+    expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 1 });
+    expect(await ReviewSuggestion.findOne().lean()).toMatchObject({ verdict: "approve" });
   });
 });

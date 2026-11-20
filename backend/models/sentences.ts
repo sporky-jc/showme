@@ -42,6 +42,20 @@ const sentenceSchema = new mongoose.Schema({
   // their teacher's decision: one they chose with "Try again", or the
   // praise tip once approved. Cleared when the student edits the sentence.
   tip: { type: String, enum: TIP_IDS },
+  // For Scribbles' scheduled reviewer only (reviewer/queue.ts): the exact
+  // words it last saved a suggestion for, and when, so it can find the
+  // sentences still to review in one query. Never read by default (select:
+  // false), and not in any answer the contract sends (contract/api.ts), so
+  // they never reach a student, the gallery or the Teacher page. Left alone
+  // when a student edits: an edit with new words no longer matches
+  // `reviewedShow`, so it's reviewed again; an unchanged resubmission keeps
+  // its suggestion.
+  reviewedShow: { type: String, select: false },
+  reviewedAt: { type: Date, select: false },
+  // The words the safety check last gave an invalid answer about: a second
+  // invalid answer for the same words is saved as a hold, so one bad answer
+  // is tried again on a later run, but never forever (reviewer/queue.ts)
+  safetyInvalidShow: { type: String, select: false },
 });
 
 // Creating mongoose model
