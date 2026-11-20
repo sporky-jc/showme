@@ -606,13 +606,206 @@ describe("held on purpose, though they may be harmless", () => {
     ["I was so tired I could die.", "sensitive-words"],
     // A classroom number with "in", "from", "to": where a child is
     ["We are in room 5 and it smells like crayons.", "personal-details"],
-    // "bully" is always read first, even in a story
-    ["The bully in the book learned to be kind.", "sensitive-words"],
+    // "bully" is read first only with "me" near it (see the bullying rows)
+    ["The bully in the book learned to be kind.", "pass"],
     // A cut arm is usually a fall, but sometimes isn't
     ["I cut my arm on a branch.", "worrying"],
     // A child's age, even a pet's, is a detail a teacher should see first
     ["My dog is 5 years old.", "personal-details"],
     // The games a child can be found on (not consoles: "We played on Switch")
     ["We played on Fortnite all day.", "personal-details"],
+  ]);
+});
+
+// Families of wordings: each mechanism with wordings unlike the rows above,
+// so a rule that matched one sentence only would fail here
+describe("families: people however they're written", () => {
+  check([
+    ["My dady hits me when he is mad.", "worrying"],
+    ["My step dad slaps me.", "worrying"],
+    ["My step-dad punches my mom.", "worrying"],
+    ["My uncles touch me.", "worrying"],
+    ["The big kids kick me every day.", "worrying"],
+    ["The man next door touched me.", "worrying"],
+    ["A grown up touched me in my underwear.", "worrying"],
+    ["My 2 brothers punch me.", "worrying"],
+    ["My two big brothers beat me up.", "worrying"],
+    ["My mumy hits my baby sister.", "worrying"],
+    ["Our neighbour hurts me.", "worrying"],
+    ["The grownups at home hit me with a wooden spoon.", "worrying"],
+    ["My brothers and I raced our sleds to the bottom of the hill.", "pass"],
+    ["My step mom braided my hair before school.", "pass"],
+    ["The man next door shovelled our driveway.", "pass"],
+    ["My 2 brothers built a fort out of snow.", "pass"],
+    ["I kicked my brother's ball over the fence.", "pass"],
+  ]);
+});
+
+describe("families: the whole sentence, end marks and spelled-out letters", () => {
+  check([
+    ["I will bring dads gun and shoot everyone in class.", "worrying"],
+    ["I get hit a lot by my mom.", "worrying"],
+    ["My dad always comes home angry and then he hits me.", "worrying"],
+    ["I really really want to go and kill him.", "worrying"],
+    ["I want to kill. Myself.", "worrying"],
+    ["I want. To die.", "worrying"],
+    ["I want to die. Really. Today.", "worrying"],
+    ["i w a n t t o d i e", "worrying"],
+    ["k i l l m e", "worrying"],
+    ["My teacher hit the bell and everyone ran inside.", "pass"],
+    ["Dad slammed the car door because his hands were full.", "pass"],
+  ]);
+});
+
+describe("families: being hurt, and touched", () => {
+  check([
+    ["Dad slammed me into the door.", "worrying"],
+    ["Mom pulls my hair really hard.", "worrying"],
+    ["He dragged me by my arm.", "worrying"],
+    ["My stepmom puts me in the basement.", "worrying"],
+    ["My mom locks me in the cupboard when I'm bad.", "worrying"],
+    ["Dad makes me kneel on rice.", "worrying"],
+    ["My dad chokes me.", "worrying"],
+    ["I keep getting slapped by my stepfather.", "worrying"],
+    ["My uncle beated me with a belt.", "worrying"],
+    ["Kids push me down at recess every day.", "worrying"],
+    ["Kids at school push me into the lockers every day.", "worrying"],
+    ["My uncle kissed me on the lips.", "worrying"],
+    ["My coach kisses me on the lips after practice.", "worrying"],
+    ["He gets in bed with me.", "worrying"],
+    ["He comes in at night.", "worrying"],
+    ["My uncle comes in my bed at night.", "worrying"],
+    ["My uncle takes photos of me in the bathtub.", "worrying"],
+    ["The babysitter takes pictures of me in the shower.", "worrying"],
+    ["He put his hand in my underwear.", "worrying"],
+    ["He made me sit on his lap and touched my leg under my skirt.", "worrying"],
+    ["My cousin dragged me to the sledding hill.", "pass"],
+    ["Dad threw me up in the air and caught me.", "pass"],
+    ["My grandpa kissed me on the cheek.", "pass"],
+    ["Grandma takes photos of me in my new coat.", "pass"],
+    ["My mom took pictures of me building a snowman.", "pass"],
+    ["Mom put me in the bath and the bubbles tickled.", "pass"],
+    ["My sister pulled my hair when we played, then said sorry.", "pass"],
+    ["Grandpa locked the shed so the goats couldn't get out.", "pass"],
+    ["Every day the kids at recess play tag with me.", "pass"],
+  ]);
+});
+
+describe("families: hurting themselves, eating, and wanting to die", () => {
+  check([
+    ["I cut my leg on purpose.", "worrying"],
+    ["I cuting my arms.", "worrying"],
+    ["I cut my tummy with a pencil sharpener blade.", "worrying"],
+    ["I use a sharpener blade on my skin.", "worrying"],
+    ["I bit myself until I bled.", "worrying"],
+    ["I want to take all the pills.", "worrying"],
+    ["I'm going to swallow all the pills in the cupboard.", "worrying"],
+    ["There is a rope in my closet for me.", "worrying"],
+    ["I should not exist.", "worrying"],
+    ["I wish I didnt exist.", "worrying"],
+    ["My family would be happy without me.", "worrying"],
+    ["My family would be better off if I was gone.", "worrying"],
+    ["Nobody would notice if I died.", "worrying"],
+    ["If I was dead nobody would care.", "worrying"],
+    ["I think about how to die.", "worrying"],
+    ["I am tired of living.", "worrying"],
+    ["I'm tired of being alive.", "worrying"],
+    ["Bye forever everyone.", "worrying"],
+    ["Bye everyone forever.", "worrying"],
+    ["Everything is pointless.", "worrying"],
+    ["I deserve to die.", "worrying"],
+    ["I deserve to be dead.", "worrying"],
+    ["I want too die.", "worrying"],
+    ["I dont deserve to be here.", "worrying"],
+    ["I skip meals so I lose weight.", "worrying"],
+    ["I don't eat lunch so I can be skinny.", "worrying"],
+    ["I throw up so I can lose weight.", "worrying"],
+    ["I cut my finger on a sheet of paper.", "pass"],
+    ["I scratched my arm on the rose bush.", "pass"],
+    ["I skipped breakfast because I woke up late.", "pass"],
+    ["My grandma said I was too skinny and gave me more soup.", "pass"],
+    ["I'm tired of this snow, it's been weeks.", "pass"],
+    ["Goodbye forever, old sneakers!", "pass"],
+    ["Nobody noticed the tiny snowflake on my nose.", "pass"],
+    ["I feel fat after Thanksgiving dinner, haha.", "pass"],
+  ]);
+});
+
+describe("families: not looked after", () => {
+  check([
+    ["There is never any food in our house.", "worrying"],
+    ["We never have food in the house.", "worrying"],
+    ["I am always hungry at home.", "worrying"],
+    ["I havent ate since monday.", "worrying"],
+    ["I haven't ate in two days.", "worrying"],
+    ["I am alone all night.", "worrying"],
+    ["My mom leaves me alone for days.", "worrying"],
+    ["Mom leaves me alone at home all night.", "worrying"],
+    ["There was no snow at the park so we went home.", "pass"],
+    ["We were always hungry after swimming.", "pass"],
+    ["I left my gloves at home and my fingers froze.", "pass"],
+  ]);
+});
+
+describe("families: grooming on apps and games is worrying", () => {
+  check([
+    ["A guy on snapchat wants a selfie with no shirt.", "worrying"],
+    ["My discord friend is nineteen and says I'm special.", "worrying"],
+    ["Someone on tiktok said keep it a secret from my mom.", "worrying"],
+    ["A man on roblox gives me robux for photos.", "worrying"],
+    ["My online boyfriend is twenty five.", "worrying"],
+    ["A guy on instagram asked for a picture of me in my pajamas.", "worrying"],
+    ["My friend on roblox is thirty and said I'm really mature.", "worrying"],
+    ["Someone on discord sends me presents and says it's our secret.", "worrying"],
+    ["The online game crashed and I lost my level.", "pass"],
+    ["We played Roblox together after school.", "pass"],
+    ["I asked my mom for a picture of her when she was little.", "pass"],
+  ]);
+});
+
+describe("families: threats", () => {
+  check([
+    ["I will burn your house down.", "worrying"],
+    ["I'm going to burn down my teacher's house.", "worrying"],
+    ["I'm gonna smash his face.", "worrying"],
+    ["I will smash her face in.", "worrying"],
+    ["I'm going to shoot the school up.", "worrying"],
+    ["I want to murder that kid.", "worrying"],
+    ["I want to murder everyone in my class.", "worrying"],
+    ["I will chop your head off.", "worrying"],
+    ["I'm gonna cut her head off.", "worrying"],
+    ["I'll cut his throat.", "worrying"],
+    ["I'm gonna beat up Liam tomorrow.", "worrying"],
+    ["I'm going to take my dads knife and stab the boys who laugh at me.", "worrying"],
+    ["We burned marshmallows over the campfire.", "pass"],
+    ["The villain in the story wanted to destroy the city.", "pass"],
+    ["I could kill for a slice of pizza right now.", "pass"],
+    ["The game was so hard I wanted to throw my controller.", "pass"],
+  ]);
+});
+
+describe("families: bullying, drugs at home, other languages, details", () => {
+  check([
+    ["They take my lunch money.", "worrying"],
+    ["They call me the n word.", "worrying"],
+    ["They keep calling me fat and ugly.", "worrying"],
+    ["Mason is a monkey.", "unkind"],
+    ["My mom has needles at home.", "sensitive-words"],
+    ["Dad smokes stuff from a pipe.", "sensitive-words"],
+    ["My dad smokes something from a little glass pipe.", "sensitive-words"],
+    ["Mom drinks and falls asleep on the floor.", "sensitive-words"],
+    ["Mom drinks wine and passes out on the floor.", "sensitive-words"],
+    ["Mi papá me pega con el cinturón.", "worrying"],
+    ["Mi mamá me golpea.", "worrying"],
+    ["Chcę umrzeć.", "worrying"],
+    ["Main marna chahta hoon.", "worrying"],
+    ["Text me on 07911 123456.", "personal-details"],
+    ["My tag is SamCool99.", "personal-details"],
+    ["add me samcool123", "personal-details"],
+    ["The gale pushed the flowers around like a bully.", "pass"],
+    ["The bully in the story said sorry.", "pass"],
+    ["My dad smokes the ribs on the grill all day.", "pass"],
+    ["We drank hot chocolate and fell asleep on the couch.", "pass"],
+    ["Add me to the snowball team.", "pass"],
   ]);
 });

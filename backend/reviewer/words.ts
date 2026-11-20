@@ -39,7 +39,10 @@ export const WORRYING_PHRASES = [
   "wish i wasn't here", "wish i was not here", "wish i weren't here", "wish i wasn't born",
   "don't deserve to live", "do not deserve to live", "don't deserve to be alive",
   "no reason to live", "nothing to live for", "done with life", "done with living",
-  "goodbye forever", "life is pointless", "life is meaningless", "no point in living",
+  // (Goodbye for ever to the world, not to old sneakers)
+  "goodbye forever $", "goodbye forever everyone", "goodbye forever world", "goodbye forever mom",
+  "goodbye forever dad", "goodbye forever all", "goodbye everyone forever", "bye everyone forever",
+  "life is pointless", "life is meaningless", "no point in living",
   "point of living", "never wake up", "don't want to wake up", "can't go on",
   "can't take it anymore", "happier without me", "better without me", "better off without me",
   "nobody would miss me", "no one would miss me", "nobody loves me", "no one loves me",
@@ -115,6 +118,38 @@ export const WORRYING_PHRASES = [
   "asks for pictures", "asks for pics", "asked for a picture", "picture with no", "pic with no",
   "photo with no", "friend from fortnite", "friend from roblox",
   "friend from minecraft", "met on roblox", "met on fortnite", "has a gun and said",
+  // Families of wordings (the plain reading joins "step dad", reads
+  // "dady" as "daddy" and so on, rules.ts)
+  "should not exist", "shouldn't exist", "should never have been born", "happy without me",
+  "happier without me", "better without me", "fine without me", "if i was dead", "if i were dead",
+  "if i died", "if i die", "if i was not here", "if i wasn't alive", "nobody would care",
+  "no one would care", "noone would care", "nobody would notice", "no one would notice",
+  "noone would notice", "nobody would miss me", "noone would miss me", "nobody cares if i",
+  "no one cares if i", "how to die", "how to kill myself", "ways to die", "tired of living",
+  "tired of being alive", "tired of life", "sick of living", "bye forever $", "bye forever everyone", "goodbye everyone $",
+  "goodbye cruel world", "everything is pointless", "nothing matters anymore", "deserve to die",
+  "don't deserve to be here", "dont deserve to live", "too die", "want 2 die", "deserve to be dead",
+  "want to stop living", "stop living", "end everything", "rope around my neck", "rope in my closet",
+  "rope in the closet", "take all the pills", "take all my pills", "take all of the pills",
+  "swallow all the pills", "sharpener blade", "pencil sharpener blade", "razor", "on my skin with",
+  "always hungry at home", "always hungry because", "never any food", "no food in the house", "no food in our house",
+  "haven't ate", "havent ate", "haven't eaten", "not eaten since", "didn't eat all day",
+  "alone all night", "alone for days", "leaves me alone", "left me alone for", "locked out all night",
+  "so i lose weight", "so i can lose weight", "so i can get skinny", "so i can be skinny",
+  "to be skinny so", "skip meals", "skipping meals", "skip lunch so", "feel fat so", "feel so fat i", "feel fat all the time",
+  "only eat one meal", "only eat one apple", "make myself vomit",
+  "gets in bed with me", "gets into bed with me", "comes in at night", "comes into my bed",
+  "touches me at night", "kissed me on the lips", "makes me kneel", "pulls my hair",
+  "pulled my hair out", "puts me in the closet", "locks me in", "locked me in",
+  "take my lunch money", "takes my lunch money", "took my lunch money", "steal my lunch",
+  "burn your house down", "burn his house down", "burn her house down", "burn down your house",
+  "burn down his house", "burn the house down", "smash his face", "smash her face", "smash your face",
+  "shoot the school up", "shoot everyone", "shoot up everyone", "chop your head off",
+  "chop his head off", "chop her head off", "chop off your head", "cut his throat",
+  "cut her throat", "cut your throat", "murder that kid", "kill that kid", "make them pay",
+  // Other languages: Spanish abuse, Polish and Hindi (written in our letters)
+  "me pega", "me golpea", "me pegan", "me golpean", "me toca", "chce umrzec", "chce sie zabic",
+  "marna chahta", "marna chahti", "mar jana", "mar jaun", "mar jaunga",
   // Not looked after
   "no food at home", "no food in the house", "nothing to eat at home",
   "nothing to eat in the house", "sleep in the car", "sleep in our car", "slept in the car",
@@ -152,7 +187,7 @@ export const FOREIGN_WORRYING = [
   "morir", "morirme", "muero", "matar", "matarme", "matame", "suicidio", "suicidarme",
   "mourir", "tuer", "suicider", "sterben", "toten", "umbringen",
   // Portuguese and Tagalog
-  "morrer", "matar-me", "suicidio", "mamatay", "magpakamatay",
+  "morrer", "matar-me", "suicidio", "mamatay", "magpakamatay", "cinturon", "umrzec",
 ];
 export const FOREIGN_UNSAFE = [
   "mierda", "puta", "puto", "joder", "pendejo", "pendeja", "cabron", "merde", "putain",
@@ -164,8 +199,9 @@ export const FOREIGN_SENSITIVE = ["muerte", "drogas", "droga", "desnudo", "desnu
 // AI does or it's sent back: held for a person (a "sensitive" hold, quieter
 // than "worrying"). Always held, wherever they are.
 export const SENSITIVE_WORDS = [
-  "suicide", "abuse", "abused", "abusing", "hopeless", "worthless", "bully", "bullied",
-  "bullies", "bullying", "pregnant", "cigarette", "cigarettes", "cigs", "cigar", "alcohol",
+  "suicide", "abuse", "abused", "abusing", "hopeless", "worthless",
+  // (Not "bully": only with "me" near it, rules.ts)
+  "pregnant", "cigarette", "cigarettes", "cigs", "cigar", "alcohol",
   "drugs", "marijuana", "stoned", "hungover", "tipsy",
   // Not "dead", "died", "hurt", "blood", "knife", "alone", "kill", "lonely",
   // "gun" or "die" on their own: "dead leaves", "the fire died down",
@@ -213,7 +249,7 @@ export const UNKIND_WORDS = [
   "stupid", "dumb", "ugly", "fat", "gross", "weird", "lame", "poor", "smelly", "stinky",
   "disgusting", "annoying", "jerk", "dork", "gay", "loser", "idiot", "crybaby", "pig", "freak",
   "nerd", "geek", "dummy", "liar", "weirdo", "dumbass", "terrorist", "vomit", "puke", "barf", "spaz",
-  "dirty", "evil", "lazy", "bad", "worst",
+  "dirty", "evil", "lazy", "bad", "worst", "monkey", "ape", "gorilla", "chimp",
 ];
 // Words that, just after a classmate's name, a person should read first:
 // about their body, or blaming them ("It was Liam's fault")
@@ -239,7 +275,7 @@ export const PERSONAL_PHRASES = [
   // a child can be found)
   "on fortnite", "on minecraft", "on youtube",
   "my youtube", "my yt", "my channel", "subscribe to", "whatsapp", "facetime me", "my user",
-  "my user is", "my handle",
+  "my user is", "my handle", "my tag", "my tag is", "my gamer tag", "my ign",
   // Where and when they live and were born
   "zip code", "zipcode", "postcode", "post code", "my birthday is", "my bday is", "my b day is",
   "i was born on",

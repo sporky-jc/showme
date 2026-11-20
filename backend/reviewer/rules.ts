@@ -196,7 +196,28 @@ const SPELLINGS: Record<string, string> = {
   touchd: "touched", tuchd: "touched", tuches: "touches", tuchs: "touches", privit: "private",
   privat: "private", privits: "privates", privats: "privates", uncel: "uncle", unkle: "uncle",
   dy: "die", shuld: "should", wan: "want", worthles: "worthless", wurthless: "worthless",
+  // ... and the people they might name ("dady", "mumy"), so every check
+  // that looks for a person finds them however they're spelled
+  dady: "daddy", dadi: "daddy", daddi: "daddy", dadd: "dad", momy: "mommy", mumy: "mommy",
+  mommie: "mommy", mumm: "mom", mama: "mom", mamma: "mom", papa: "dad", pappa: "dad",
+  grownup: "adult", grownups: "adults", stepdaddy: "stepdad", stepmum: "stepmom",
+  stepmummy: "stepmom", neighbour: "neighbor", neighbours: "neighbors", babysiter: "babysitter",
+  techer: "teacher", teecher: "teacher", cuting: "cutting", cuttin: "cutting", cutt: "cut",
+  havent: "havent", hungrey: "hungry", alowed: "allowed",
 };
+
+// Two words that are one person ("step dad", "grand pa", "grown up", "the
+// man next door"), joined in the plain reading
+const TWO_WORD_PEOPLE: [string[], string][] = [
+  [["step", "dad"], "stepdad"], [["step", "mom"], "stepmom"], [["step", "father"], "stepfather"],
+  [["step", "mother"], "stepmother"], [["step", "brother"], "stepbrother"], [["step", "sister"], "stepsister"],
+  [["grand", "pa"], "grandpa"], [["grand", "ma"], "grandma"], [["grown", "up"], "adult"],
+  [["grown", "ups"], "adults"], [["man", "next", "door"], "neighbor"], [["lady", "next", "door"], "neighbor"],
+  [["baby", "sitter"], "babysitter"],
+];
+// Person words whose "'s" is kept apart in the plain reading ("mom's
+// pills" is "mom 's pills"), so "my brother's ball" is never "my brothers"
+const OWNED_BY = /^(dad|daddy|mom|mommy|mother|father|stepdad|stepmom|brother|sister|uncle|aunt|grandpa|grandma|cousin|friend|teacher|coach|neighbor|boyfriend|girlfriend|babysitter|man|guy|lady)$/;
 
 // One letter added, left out, changed, or two swapped ("myslef")
 const oneSlipFrom = (word: string, target: string) => {
@@ -239,7 +260,11 @@ const plainWords = (text: string, { ends = true } = {}): string[] => {
     const core = token.replace(/^[^a-z0-9@$]+|[^a-z0-9$]+$/g, "");
     const ended = ends && /[.!?]$/.test(token);
     let word: string;
-    if (/^\d+$/.test(core)) word = core;
+    // "mom's" is "mom 's" (see OWNED_BY)
+    const owner = core.match(/^([a-z]+)'s$/)?.[1];
+    const ownerWord = owner === undefined ? undefined : canonicalWord(owner)[0];
+    if (ownerWord !== undefined && OWNED_BY.test(ownerWord)) word = ownerWord;
+    else if (/^\d+$/.test(core)) word = core;
     else {
       word = core
         .replace(/[0134578@$!|]/g, (c) => SYMBOL_LOOKALIKES[c] ?? c)
@@ -250,6 +275,7 @@ const plainWords = (text: string, { ends = true } = {}): string[] => {
     else {
       flush();
       if (word) out.push(...canonicalWord(word));
+      if (ownerWord !== undefined && OWNED_BY.test(ownerWord)) out.push("'s");
     }
     if (ended) {
       flush();
@@ -258,13 +284,19 @@ const plainWords = (text: string, { ends = true } = {}): string[] => {
   }
   flush();
   if (ends && out[out.length - 1] !== "$") out.push("$");
-  // "my self", "your self": one word
+  // "my self", "your self": one word; and two words that are one person
   const joined: string[] = [];
   for (const word of out) {
     const last = joined[joined.length - 1];
     if (word === "self" && (last === "my" || last === "your" || last === "him" || last === "her")) {
       joined[joined.length - 1] = `${last}self`;
-    } else joined.push(word);
+      continue;
+    }
+    joined.push(word);
+    for (const [parts, person] of TWO_WORD_PEOPLE) {
+      const at = joined.length - parts.length;
+      if (at >= 0 && parts.every((part, j) => joined[at + j] === part)) joined.splice(at, parts.length, person);
+    }
   }
   // "die my hair blue" is "dye"
   return joined.map((word, i) =>
@@ -325,44 +357,80 @@ export const isUnsafe = (text: string) => {
 };
 
 // People who might hurt a child, or be hurt (plain spellings: "mum" is
-// "mom", "neighbour" is "neighbor")
+// "mom", "neighbour" is "neighbor", "step dad" is "stepdad"). Every check
+// asks isPerson or isFamily, which read plurals too ("my uncles", "the big
+// kids", "my 2 brothers").
 const PEOPLE = new Set([
   "dad", "daddy", "mom", "mommy", "mother", "father", "stepdad", "stepmom", "stepfather",
   "stepmother", "stepbrother", "stepsister", "brother", "sister", "uncle", "aunt", "auntie",
   "grandpa", "grandma", "grandfather", "grandmother", "teacher", "coach", "he", "she", "they",
-  "someone", "somebody", "man", "men", "guy", "lady", "woman", "boy", "boys", "girl", "girls",
-  "kids", "kid", "parents", "babysitter", "cousin", "neighbor", "boyfriend", "girlfriend",
-  "stranger", "friend", "friends", "teenager", "bully", "bullies",
+  "someone", "somebody", "man", "guy", "lady", "woman", "boy", "girl", "kid", "parent",
+  "babysitter", "cousin", "neighbor", "boyfriend", "girlfriend", "stranger", "friend",
+  "teenager", "bully", "adult", "principal", "priest", "pastor", "tutor", "nanny",
 ]);
 // Someone close to the child, who can be hurt too ("Dad hits my sister")
 const FAMILY = new Set([
-  // (Not "sisters" or "brothers": with apostrophes left out, "I kicked my
-  // brother's ball" would read as one)
-  "mom", "mommy", "mother", "dad", "daddy", "father", "sister", "brother", "baby", "grandma", "grandpa", "cousin", "friend", "stepbrother", "stepsister",
-  "stepmom", "stepdad", "family", "aunt", "uncle",
+  "mom", "mommy", "mother", "dad", "daddy", "father", "sister", "brother", "baby", "grandma",
+  "grandpa", "cousin", "friend", "stepbrother", "stepsister", "stepmom", "stepdad", "family",
+  "aunt", "uncle", "parent",
 ]);
-const BEFORE_FAMILY = new Set(["little", "big", "baby", "older", "younger", "twin", "best", "new"]);
-const OWNERS = new Set(["my", "his", "her", "our", "their", "your", "the"]);
+const IRREGULAR_PLURALS: Record<string, string> = { men: "man", women: "woman", children: "kid", people: "someone" };
+const singular = (word: string | undefined) =>
+  word === undefined ? undefined : IRREGULAR_PLURALS[word] ?? (word.endsWith("s") && word.length > 3 ? word.slice(0, -1) : word);
+const isPerson = (word: string | undefined) =>
+  word !== undefined && (PEOPLE.has(word) || PEOPLE.has(singular(word) ?? ""));
+const isFamily = (word: string | undefined) =>
+  word !== undefined && word !== "'s" && (FAMILY.has(word) || FAMILY.has(singular(word) ?? ""));
+// Between "my" and the person: "my little brother", "my 2 brothers", "my
+// three big cousins"
+const BEFORE_FAMILY = new Set([
+  "little", "big", "baby", "older", "younger", "twin", "best", "new", "two", "three", "four",
+  "five", "both", "step", "own",
+]);
+const OWNERS = new Set(["my", "his", "her", "our", "their", "your", "the", "that", "this", "those", "these", "a", "some"]);
+// The person a word after "my" names, if it does (skipping up to two words
+// like "little" or "2"), and where
+const personAfter = (words: string[], i: number) => {
+  let j = i;
+  while (j < i + 2 && (BEFORE_FAMILY.has(words[j]) || /^\d+$/.test(words[j] ?? ""))) j++;
+  return words[j + 1] === "'s" ? undefined : words[j];
+};
+
+// The words before and after i within its own sentence, up to n of them:
+// far enough for "I will bring dads gun and shoot everyone in class", never
+// into another sentence
+const before = (words: string[], i: number, n = 8) => {
+  let start = i;
+  while (start > 0 && start > i - n && words[start - 1] !== "$") start--;
+  return words.slice(start, i);
+};
+const after = (words: string[], i: number, n = 8) => {
+  let end = i + 1;
+  while (end < words.length && end <= i + n && words[end] !== "$") end++;
+  return words.slice(i + 1, end);
+};
+
+// What can be done to a child, as families of words
 const DONE_TO = new Set([
   "hit", "hits", "hitting", "hitted", "beat", "beats", "beating", "beated", "beaten", "kick",
-  "kicks", "kicked", "punch", "punches", "punched", "slap", "slaps", "slapped", "smack",
-  "smacks", "smacked", "spank", "spanks", "spanked", "touch", "touches", "touched", "hurt",
-  "hurts", "choke", "chokes", "choked", "strangle", "strangles", "strangled", "grabbed",
-  "yells", "yelled", "screams", "screamed", "whip", "whips", "whipped",
-  "burn", "burns", "burned", "burnt", "lock", "locks", "locked", "starve", "starves", "starved",
-  "molest", "molests", "molested", "abuse", "abuses", "abused",
+  "kicks", "kicking", "kicked", "punch", "punches", "punching", "punched", "slap", "slaps",
+  "slapping", "slapped", "smack", "smacks", "smacked", "spank", "spanks", "spanked", "touch",
+  "touches", "touching", "touched", "hurt", "hurts", "hurting", "choke", "chokes", "choking",
+  "choked", "strangle", "strangles", "strangled", "grab", "grabs", "grabbed", "yells", "yelled",
+  "screams", "screamed", "whip", "whips", "whipped", "burn", "burns", "burned", "burnt", "lock",
+  "locks", "locked", "starve", "starves", "starved", "molest", "molests", "molested", "abuse",
+  "abuses", "abused", "slam", "slams", "slammed", "bite", "bites",
+  "pinch", "pinches", "pinched", "scratch", "scratches", "scratched", "squeeze", "squeezes",
 ]);
-// Throwing or pushing a child is held only when it hurts: "Dad threw me
-// against the wall", "they pushed me down the stairs", not "Dad threw me
-// the ball" or "my sister pushed me on the swing"
-const THROWN = new Set(["threw", "throws", "throw", "pushed", "pushes", "push", "shoved", "shoves", "shove"]);
-const THROWN_WHERE = new Set(["against", "down", "across", "onto", "into", "off", "over", "out"]);
+// Throwing or pushing a child is held only when it hurts or keeps
+// happening: "Dad threw me against the wall", "they push me down every
+// day", not "Dad threw me the ball" or "my sister pushed me on the swing"
+// (Dragging too: "he dragged me by my arm", not "my cousin dragged me to
+// the sledding hill")
+const THROWN = new Set(["threw", "throws", "throw", "pushed", "pushes", "push", "shoved", "shoves", "shove", "tripped", "trips", "drag", "drags", "dragged"]);
+const THROWN_WHERE = new Set(["against", "down", "across", "onto", "into", "off", "over", "out", "by", "along"]);
+const AGAIN_AND_AGAIN = /\b(every day|everyday|all the time|every time|again|always|at recess)\b/;
 
-// Someone doing something to the child, or to someone close to them: "Dad
-// hit me", "they beat me up", "my uncle touched me", "Dad hits my sister",
-// "Dad threw me against the wall". Only with a person doing it, up to four
-// words before: "the cold wind hits me like a wall" is a Show sentence.
-//
 // Not play, or an accident: "Dad hit me with a snowball", "my brother
 // pushed me into the snow", "Dad grabbed me before I slipped", "Mum locked
 // me out by accident". Unless it says how much it hurt: "with a belt", "so
@@ -370,80 +438,167 @@ const THROWN_WHERE = new Set(["against", "down", "across", "onto", "into", "off"
 const PLAY = new Set([
   "snowball", "snowballs", "pillow", "pillows", "ball", "balloon", "balloons", "nerf", "snow",
   "pool", "leaves", "water", "accident", "accidentally", "slipped", "fell", "playing", "laughed",
-  "tag", "game", "giggled", "foam", "sled", "swing",
+  "tag", "game", "giggled", "foam", "sled", "swing", "tickled", "sorry", "played", "air",
+  "caught", "hug", "hugged", "rattle",
 ]);
 const HURTS = new Set(["belt", "stick", "fist", "hand", "shoe", "until", "every", "again", "bleed", "bled", "cried", "bruise", "bruised", "hard"]);
 // (Only for the verbs children play with: "they beat me up" is never play)
-const PLAYFUL = new Set(["hit", "hits", "hitting", "pushed", "pushes", "push", "shoved", "threw", "throws", "throw", "grabbed", "locked", "locks", "lock", "kicked", "kicks"]);
+const PLAYFUL = new Set([
+  "hit", "hits", "hitting", "pushed", "pushes", "push", "shoved", "threw", "throws", "throw",
+  "grabbed", "grab", "locked", "locks", "lock", "kicked", "kicks", "pulled", "pulls", "slammed",
+  "dragged", "drags", "bite", "bites", "pinched", "scratched", "squeeze", "squeezes", "tripped",
+]);
 const isPlay = (words: string[], i: number) => {
   if (!PLAYFUL.has(words[i])) return false;
-  // The sentence it's in, up to eight words either side ("we had a snowball
-  // fight and he hit me in the arm")
-  let start = i;
-  while (start > 0 && start > i - 8 && words[start - 1] !== "$") start--;
-  let end = i + 1;
-  while (end < words.length && end < i + 9 && words[end] !== "$") end++;
-  const around = [...words.slice(start, i), ...words.slice(i + 1, end)];
-  return around.some((w) => PLAY.has(w)) && !words.slice(i + 1, end).some((w) => HURTS.has(w));
+  const around = [...before(words, i), ...after(words, i)];
+  return around.some((w) => PLAY.has(w)) && !after(words, i).some((w) => HURTS.has(w));
 };
+
+// Someone doing something to the child, or to someone close to them: "Dad
+// hit me", "they beat me up", "my uncles touch me", "Dad hits my sister",
+// "Dad gets drunk and hits mom", "Dad threw me against the wall", "Mom
+// pulls my hair", "my stepmom puts me in the basement". Only with a person
+// doing it, earlier in the sentence: "the cold wind hits me like a wall" is
+// a Show sentence.
+const SHUT_IN = new Set(["closet", "basement", "cupboard", "shed", "attic", "cellar", "garage", "room", "car", "box"]);
 const someoneHurts = (words: string[]) => {
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
-    const before = words.slice(Math.max(0, i - 4), i);
-    const thrown = THROWN.has(word) && words[i + 1] === "me" && THROWN_WHERE.has(words[i + 2]);
+    const back = before(words, i);
+    const doer = back.some((w) => isPerson(w));
+    const object = words[i + 1];
+    // "pulls my hair"
+    if ((word === "pulls" || word === "pulled" || word === "pull") && object === "my" && words[i + 2] === "hair") {
+      if (doer && !isPlay(words, i)) return true;
+      continue;
+    }
+    // "puts me in the closet", "makes me kneel"
+    if ((word === "puts" || word === "put" || word === "locks" || word === "locked") && object === "me") {
+      if (doer && after(words, i, 5).some((w) => SHUT_IN.has(w)) && !isPlay(words, i)) return true;
+    }
+    if ((word === "makes" || word === "made") && object === "me" && (words[i + 2] === "kneel" || words[i + 2] === "stand")) {
+      if (doer) return true;
+    }
+    const thrown =
+      THROWN.has(word) &&
+      object === "me" &&
+      (THROWN_WHERE.has(words[i + 2]) || AGAIN_AND_AGAIN.test(after(words, i).join(" ")));
     if (!DONE_TO.has(word) && !thrown) continue;
-    if (isPlay(words, i) && !before.some((w) => w === "bully" || w === "bullies")) continue;
-    if ((words[i + 1] === "me" || words[i + 1] === "us") && before.some((w) => PEOPLE.has(w))) return true;
-    const doer = before.some((w) => PEOPLE.has(w) || w === "i" || w === "we");
+    if (isPlay(words, i) && !back.some((w) => w === "bully" || w === "bullies")) continue;
+    if ((object === "me" || object === "us") && doer) return true;
+    const iOrPerson = doer || back.some((w) => w === "i" || w === "we");
     // Someone close to them: "Dad hits mom", "my sister", "my little brother"
-    if (FAMILY.has(words[i + 1]) && words[i + 1] !== "friend" && doer) return true;
-    if (OWNERS.has(words[i + 1]) && words[i + 1] !== "the") {
-      const next = BEFORE_FAMILY.has(words[i + 2]) ? words[i + 3] : words[i + 2];
-      if (FAMILY.has(next) && doer) return true;
+    if (isFamily(object) && object !== "friend" && words[i + 2] !== "'s" && iOrPerson) return true;
+    if (OWNERS.has(object) && object !== "the" && object !== "a" && object !== "some") {
+      const next = personAfter(words, i + 2);
+      if (isFamily(next) && iOrPerson) return true;
     }
   }
   return false;
 };
 
-// Someone who isn't their parent in their room or bed: "my mom's
-// boyfriend comes in my room", "he sleeps in my bed" (not "my puppy sleeps
-// in my bed", "mom comes in my room to wake me")
+// Someone who isn't their parent in their room or bed, or touching them:
+// "my mom's boyfriend comes in my room", "he gets in bed with me", "he comes
+// in at night", "my uncle kissed me on the lips" (not "my puppy sleeps in
+// my bed", "mom comes in my room to wake me", "grandpa kissed my cheek")
 const NOT_A_PARENT = new Set([
   "boyfriend", "girlfriend", "uncle", "stepdad", "stepmom", "stepfather", "stepbrother",
-  "stepsister", "man", "guy", "men", "neighbor", "stranger", "teacher", "coach", "babysitter",
-  "cousin", "grandpa", "he", "someone", "somebody",
+  "stepsister", "man", "guy", "neighbor", "stranger", "teacher", "coach", "babysitter",
+  "cousin", "grandpa", "he", "someone", "somebody", "adult", "tutor", "priest", "pastor",
 ]);
-const COMES_IN = new Set(["comes", "came", "come", "sleeps", "slept", "sleep", "gets", "got", "climbs", "climbed", "crawls"]);
+const notAParent = (word: string | undefined) => word !== undefined && (NOT_A_PARENT.has(word) || NOT_A_PARENT.has(singular(word) ?? ""));
+const COMES_IN = new Set(["comes", "came", "come", "sleeps", "slept", "sleep", "gets", "got", "climbs", "climbed", "crawls", "creeps", "sneaks"]);
 const inMyRoom = (words: string[]) =>
+  words.some((word, i) => {
+    if (!COMES_IN.has(word)) return false;
+    const who = before(words, i);
+    if (!who.some(notAParent)) return false;
+    const next = after(words, i, 6).join(" ");
+    return /^(in|into) (my )?(room|bed)|^(in|into) bed with me|^in at night|^in my room at night/.test(next);
+  });
+const KISSED = new Set(["kiss", "kisses", "kissed", "kissing"]);
+const kissedOnTheLips = (words: string[]) =>
   words.some(
     (word, i) =>
-      COMES_IN.has(word) &&
-      (words[i + 1] === "in" || words[i + 1] === "into") &&
-      words[i + 2] === "my" &&
-      (words[i + 3] === "room" || words[i + 3] === "bed") &&
-      words.slice(Math.max(0, i - 4), i).some((w) => NOT_A_PARENT.has(w))
+      KISSED.has(word) &&
+      words[i + 1] === "me" &&
+      after(words, i).join(" ").includes("on the lips") &&
+      before(words, i).some(notAParent)
   );
 
-// Someone touching the child's private parts: "he tuched my privit"
-const TOUCHED = new Set(["touch", "touched", "touches", "touching", "licked", "licks", "rubbed", "rubs", "grabbed", "grabs"]);
-const MY_PRIVATE = new Set(["privates", "private", "bottom", "butt", "bum", "chest", "crotch", "pee", "willy"]);
+// Someone touching the child's private parts or under their clothes: "he
+// tuched my privit", "a grown up touched me in my underwear", "he put his
+// hand under my shirt"
+const TOUCHED = new Set([
+  "touch", "touched", "touches", "touching", "licked", "licks", "rubbed", "rubs", "grabbed",
+  "grabs", "feels", "felt", "put", "puts",
+]);
+const MY_PRIVATE = new Set(["privates", "private", "bottom", "butt", "bum", "chest", "crotch", "pee", "willy", "underwear", "undies"]);
+const UNDER_CLOTHES = /\b(in|inside|under|down|up) my (underwear|undies|pants|shirt|skirt|dress|pajamas|pyjamas|clothes|knickers)\b|\bmy (privates|private parts?|private)\b/;
 const touchedMy = (words: string[]) =>
+  words.some((word, i) => {
+    if (!TOUCHED.has(word)) return false;
+    if (!before(words, i).some((w) => isPerson(w))) return false;
+    const next = after(words, i);
+    if (next[0] === "my" && MY_PRIVATE.has(next[1])) return true;
+    return UNDER_CLOTHES.test(next.join(" "));
+  });
+
+// Pictures of the child undressed: "he takes photos of me in the bathtub"
+const PICTURES = new Set(["pic", "pics", "picture", "pictures", "photo", "photos", "selfie", "selfies", "video", "videos"]);
+const UNDRESSED = new Set(["bath", "bathtub", "bathroom", "shower", "naked", "underwear", "undies", "clothes", "shirt", "towel", "bed"]);
+const picturesOfMe = (words: string[]) =>
   words.some(
     (word, i) =>
-      TOUCHED.has(word) &&
-      words[i + 1] === "my" &&
-      MY_PRIVATE.has(words[i + 2]) &&
-      words.slice(Math.max(0, i - 4), i).some((w) => PEOPLE.has(w))
+      PICTURES.has(word) && words[i + 1] === "of" && words[i + 2] === "me" && after(words, i + 2).some((w) => UNDRESSED.has(w)) &&
+      !after(words, i + 2).includes("new")
   );
 
 // Money or presents for a picture: "he gave me robux to send a pic"
 const GIFTS = new Set(["robux", "vbucks", "money", "candy", "gift", "gifts", "giftcard", "presents", "skins", "coins", "gems"]);
-const PICTURES = new Set(["pic", "pics", "picture", "pictures", "photo", "photos", "selfie", "selfies", "video"]);
 const paidForPictures = (words: string[]) =>
-  words.some((word, i) => GIFTS.has(word) && words.slice(Math.max(0, i - 6), i + 7).some((w) => PICTURES.has(w)));
+  words.some((word, i) => GIFTS.has(word) && [...before(words, i, 6), ...after(words, i, 6)].some((w) => PICTURES.has(w)));
+
+// Someone met through an app or a game, with what groomers ask for or say:
+// pictures, clothes, secrets, gifts, "mature", "special", meeting, or being
+// much older ("my discord friend is nineteen"). Held as worrying, whatever
+// personal details it also has.
+const PLATFORMS = new Set([
+  "snapchat", "snap", "roblox", "discord", "fortnite", "tiktok", "instagram", "insta", "online",
+  "minecraft", "whatsapp", "kik", "omegle", "messenger", "chat", "app", "game",
+]);
+const GROOMING = new Set([
+  "shirt", "clothes", "secret", "secrets", "robux", "vbucks", "gift", "gifts", "presents",
+  "mature", "special", "meet", "boyfriend", "girlfriend", "older", "address", "delete", "alone",
+  "kiss", "body", "selfie", "selfies", "naked",
+]);
+// Pictures are a sign only when asked for, or of the child: "wants a
+// picture", "asked for photos", "pics of me" (not "my friend sent me a
+// funny picture of a cat")
+const ASKS_FOR = new Set(["asked", "asks", "ask", "wants", "want", "wanted", "begged", "keeps"]);
+const asksForPictures = (sentence: string[]) =>
+  sentence.some(
+    (w, j) =>
+      PICTURES.has(w) &&
+      (sentence.slice(Math.max(0, j - 4), j).some((x) => ASKS_FOR.has(x)) ||
+        (sentence[j + 1] === "of" && (sentence[j + 2] === "me" || sentence[j + 2] === "you" || sentence[j + 2] === "myself")) ||
+        sentence.slice(Math.max(0, j - 3), j).join(" ").includes("send me"))
+  );
+const AGE_WORDS = /\b(sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|1[6-9]|[2-9]\d)\b/;
+const groomedOnline = (words: string[], text: string) =>
+  words.some((word, i) => {
+    if (!PLATFORMS.has(word)) return false;
+    // (A game or a chat is a platform only for a person in it: "a man in a
+    // game", "my discord friend", not "we played a game")
+    const sentence = [...before(words, i, 12), word, ...after(words, i, 12)];
+    if ((word === "game" || word === "chat" || word === "app") && !sentence.some((w) => isPerson(w) && w !== "i")) return false;
+    if (sentence.some((w) => GROOMING.has(w)) || asksForPictures(sentence)) return true;
+    if (sentence.join(" ").includes("dont tell") || sentence.join(" ").includes("not tell")) return true;
+    return AGE_WORDS.test(sentence.join(" ")) && sentence.some((w) => isPerson(w) && w !== "i") && /\b(is|he's|hes|she's|shes|age|old)\b/.test(text.toLowerCase());
+  });
 
 // The child as the one it was done to: "I was beaten by my dad", "I was
-// molested", "I got hit by my mom". The worst are held however they're
+// molested", "I get hit a lot by my mom". The worst are held however they're
 // said; the rest only by a person ("I got hit by a ball" is fine).
 const DONE_TO_ALWAYS = new Set([
   "beaten", "molested", "raped", "abused", "whipped", "choked", "strangled", "starved",
@@ -452,81 +607,112 @@ const DONE_TO_ALWAYS = new Set([
 const DONE_TO_BY = new Set([
   "hit", "kicked", "punched", "slapped", "smacked", "pushed", "shoved", "touched", "burned",
   "burnt", "hurt", "grabbed", "attacked", "bitten", "thrown", "locked", "hitted", "beated", "beat",
+  "slammed", "dragged", "pinched", "tripped", "bullied", "picked",
 ]);
 const BEING = new Set(["was", "got", "get", "gets", "been", "being", "am", "im", "were", "keep", "getting"]);
 const iWasHurt = (words: string[]) => {
   for (let i = 1; i < words.length; i++) {
     if (!BEING.has(words[i - 1])) continue;
-    const who = words.slice(Math.max(0, i - 4), i);
-    if (!who.some((w) => w === "i" || w === "im" || w === "we")) continue;
+    if (!before(words, i, 5).some((w) => w === "i" || w === "im" || w === "we")) continue;
     if (DONE_TO_ALWAYS.has(words[i])) return true;
     if (DONE_TO_BY.has(words[i])) {
-      const by = words.indexOf("by", i);
-      if (by > i && by <= i + 2 && words.slice(by + 1, by + 4).some((w) => PEOPLE.has(w))) return true;
+      const rest = after(words, i, 6);
+      const by = rest.indexOf("by");
+      if (by >= 0 && rest.slice(by + 1, by + 5).some((w) => isPerson(w))) return true;
     }
   }
   return false;
 };
 
-// Hurting themselves: "kill myself", "gun myself" (🔫), "cut my arm"
+// Hurting themselves: "kill myself", "gun myself" (🔫), "bit myself until
+// I bled", "cut my arm", "I cut my leg on purpose", "I cuting my arms"
 const TO_MYSELF = new Set([
   "kill", "killing", "hurt", "hurting", "cut", "cutting", "stab", "stabbing", "shoot",
   "shooting", "gun", "hang", "hanging", "harm", "harming", "burn", "burning", "starve",
   "starving", "choke", "choking", "drown", "drowning", "poison", "unalive", "knife", "end",
-  "punch", "punching", "hit", "hitting", "slap", "rope",
+  "punch", "punching", "hit", "hitting", "slap", "rope", "strangle", "suffocate", "smother",
 ]);
-// (Not "leg" or "hand": "I cut my leg on a rock" is usually a fall)
-const CUTTING = new Set(["cut", "cuts", "cutting", "slice", "sliced", "slit", "slitting"]);
+const BIT = new Set(["bit", "bite", "bites", "biting", "scratch", "scratched", "scratching", "pinch", "pinched"]);
+const CUTTING = new Set(["cut", "cuts", "cutting", "slice", "sliced", "slit", "slitting", "carve", "carved"]);
 const SKIN = new Set(["arm", "arms", "wrist", "wrists", "thigh", "thighs", "skin"]);
+// Any body part, cut on purpose or with no accident in the sentence
+const BODY_PART = new Set([
+  ...SKIN, "leg", "legs", "hand", "hands", "stomach", "belly", "tummy", "body", "face", "neck",
+  "ankle", "ankles", "hip", "hips", "chest", "finger", "fingers",
+]);
+const ACCIDENT = new Set([
+  "fell", "slipped", "tripped", "accident", "accidentally", "rock", "branch", "fence", "glass",
+  "paper", "nail", "sheet", "can", "knife", "scissors", "broken", "tin", "while", "when", "on",
+]);
 const hurtsThemselves = (words: string[]) =>
-  words.some(
-    (word, i) =>
-      (TO_MYSELF.has(word) && words[i + 1] === "myself") ||
-      (CUTTING.has(word) && words[i + 1] === "my" && SKIN.has(words[i + 2]))
-  );
+  words.some((word, i) => {
+    if (TO_MYSELF.has(word) && words[i + 1] === "myself") return true;
+    if (BIT.has(word) && words[i + 1] === "myself" && after(words, i).some((w) => /^(bleed|bled|bleeds|bleeding|blood)$/.test(w))) return true;
+    if (!CUTTING.has(word) || words[i + 1] !== "my" || !BODY_PART.has(words[i + 2])) return false;
+    const rest = after(words, i + 2).join(" ");
+    if (/\bon purpose\b/.test(rest) || SKIN.has(words[i + 2])) return true;
+    return !after(words, i + 2).some((w) => ACCIDENT.has(w)) && !before(words, i).includes("finger");
+  });
 
 // Hurting someone else. Killing, shooting, stabbing or poisoning a person,
 // by the child or meant by anyone ("I shot him", "I want to kill my
-// teacher", "Dad said he will kill us"); not a story told of someone else
-// ("Godzilla killed everyone in the city"), and "I killed it in the game"
-// isn't a person. Hitting, punching or beating only when they mean to ("I'm
-// going to beat him up", "I want to hurt him"). Meaning to stab anything is
-// held too ("I will stab the snowman"); a stab that was ("the cold air
-// stabbed my lungs", "I stabbed the snowman with a carrot") isn't.
+// teacher", "Dad said he will kill us", "I will bring dads gun and shoot
+// everyone in class"); not a story told of someone else ("Godzilla killed
+// everyone in the city"), and "I killed it in the game" isn't a person.
+// Hitting, punching, smashing or beating up only when they mean to ("I'm
+// going to beat up Liam", "I want to hurt him", "I'm gonna smash his
+// face"). Meaning to stab anything is held too ("I will stab the
+// snowman"); a stab that was ("the cold air stabbed my lungs") isn't.
 const KILL = new Set([
   "kill", "kills", "killed", "killing", "murder", "murders", "murdered", "murdering", "stab",
   "stabs", "stabbed", "shoot", "shoots", "shot", "poison", "poisoned", "strangle", "strangled",
 ]);
 const STAB = new Set(["stab", "stabbing"]);
-const HARM = new Set(["hurt", "punch", "beat", "kick", "slap", "hit", "attack", "fight", "choke", "smash"]);
+const HARM = new Set(["hurt", "punch", "beat", "kick", "slap", "hit", "attack", "fight", "choke", "smash", "break", "stomp", "destroy", "get"]);
 const MEAN_TO = new Set([
   "want", "going", "will", "ill", "gonna", "should", "got", "lets", "plan", "planning", "try",
-  "wish", "would", "could", "gotta",
+  "wish", "would", "could", "gotta", "tomorrow",
 ]);
 const FIRST_PERSON = new Set(["i", "im", "ill", "we", "ive", "id"]);
 const SOMEONE = new Set([
   "him", "her", "them", "you", "us", "everyone", "everybody", "someone", "somebody", "people",
-  "yourself", "himself", "herself", "themselves",
+  "yourself", "himself", "herself", "themselves", "anyone", "anybody",
 ]);
+const FACE = new Set(["face", "head", "nose", "teeth", "neck", "legs", "arms", "skull"]);
 const hurtsSomeone = (words: string[]) => {
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
     if (!KILL.has(word) && !HARM.has(word)) continue;
-    const before = words.slice(Math.max(0, i - 4), i);
-    const meant = before.some((w) => MEAN_TO.has(w));
+    const back = before(words, i);
+    const meant = back.some((w) => MEAN_TO.has(w));
     if (STAB.has(word) && meant) return true;
-    const next = words[i + 1];
+    // "beat up Liam", "beat Liam up"
+    const at = words[i + 1] === "up" ? i + 2 : i + 1;
+    const next = words[at];
     const person =
       SOMEONE.has(next) ||
       FIRST.has(next) ||
-      (OWNERS.has(next) &&
-        [words[i + 2], words[i + 3]].some((w) => w !== undefined && (PEOPLE.has(w) || FAMILY.has(w))));
-    if (!person) continue;
+      isPerson(next) ||
+      (OWNERS.has(next) && [words[at + 1], words[at + 2], words[at + 3]].some((w) => isPerson(w) || isFamily(w))) ||
+      // "smash his face", "break your legs"
+      (word !== "get" && (next === "his" || next === "her" || next === "your" || next === "their") && FACE.has(words[at + 1]));
+    if (!person || (word === "get" && !(SOMEONE.has(next) && meant))) continue;
     if (meant) return true;
-    if (KILL.has(word) && before.some((w) => FIRST_PERSON.has(w))) return true;
+    if (KILL.has(word) && back.some((w) => FIRST_PERSON.has(w))) return true;
   }
   return false;
 };
+
+// Being bullied, when it's happening to the child: "they take my lunch
+// money", "they call me fat", "the big kids call me the n word every day"
+// Calling them names now and again ("they call me", "keeps calling me"), not
+// once ("my brother called me a retard" is held for its word)
+const CALL = new Set(["call", "calls", "calling"]);
+const CALLED_NAMES = new Set([...UNKIND_WORDS, "names", "fat", "ugly", "fatty", "fatso", "loser", "baby", "pig", "monkey", "slurs", "slur", "retard", "word"]);
+const bulliedMe = (words: string[], text: string) =>
+  words.some((word, i) => CALL.has(word) && words[i + 1] === "me" && after(words, i + 1, 4).some((w) => CALLED_NAMES.has(w) || isUnsafe(w))) ||
+  /\b(take|takes|took|steal|steals|stole) my (lunch|lunch money|snack)\b/.test(words.join(" ")) ||
+  /\bthe n word\b/i.test(text) && words.includes("me");
 
 // "My mom is going to kill me", "Mum will kill me if I lose my gloves": a
 // figure of speech about being in trouble (Day 34 asks for hyperbole). A
@@ -535,7 +721,7 @@ const hurtsSomeone = (words: string[]) => {
 const PARENTS = new Set(["mom", "mommy", "mother", "dad", "daddy", "father", "parents", "teacher", "grandma", "grandpa", "sister", "brother"]);
 const killMeAsAFigure = (words: string[], i: number) => {
   if (words[i] !== "kill" || words[i + 1] !== "me") return false;
-  // "mom will kill me", "mom would kill me", "mom's gonna kill me" (moms)
+  // "mom will kill me", "mom would kill me"
   if (["will", "would", "ill"].includes(words[i - 1]) && PARENTS.has(words[i - 2])) return true;
   if (words[i - 1] === "to" && words[i - 2] === "going") {
     const who = words[i - 3] === "is" || words[i - 3] === "are" ? words[i - 4] : words[i - 3];
@@ -545,27 +731,72 @@ const killMeAsAFigure = (words: string[], i: number) => {
 };
 const withoutFigures = (words: string[]) => words.map((word, i) => (killMeAsAFigure(words, i) ? "kill(figure)" : word));
 
-// An older boyfriend or girlfriend: "I got a boyfriend who is 19"
-const OLDER_PARTNER = /\b(boyfriend|girlfriend|bf|gf)\b[^.!?]{0,30}?\b(1[6-9]|[2-9]\d)\b/;
+// No food at home, in any wording: "there is never any food in our house",
+// "we have no food at home"
+const NO = new Set(["no", "never", "nothing", "any", "isnt", "aint", "dont", "doesnt", "without"]);
+const noFoodAtHome = (words: string[]) =>
+  words.some(
+    (word, i) =>
+      (word === "food" || word === "eat" || word === "dinner" || word === "breakfast") &&
+      before(words, i, 4).some((w) => NO.has(w)) &&
+      [...before(words, i), ...after(words, i)].some((w) => w === "home" || w === "house" || w === "fridge")
+  );
+
+// An older boyfriend or girlfriend: "I got a boyfriend who is 19", "my
+// online boyfriend is twenty five"
+const OLDER_PARTNER =
+  /\b(boyfriend|girlfriend|bf|gf)\b[^.!?]{0,30}?\b(1[6-9]|[2-9]\d|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty)\b/;
 
 const WORRYING_PLAIN = plainPhrases(WORRYING_PHRASES);
 const WORRYING_RUN_TOGETHER = runTogether(WORRYING_PLAIN);
+// Run-together phrases inside a longer run of letters ("iwanttodie"), only
+// in words that aren't English words themselves
+const LONG_RUN_TOGETHER = [...WORRYING_RUN_TOGETHER].filter((joined) => joined.length >= 9);
+// Shorter phrases spelled out letter by letter ("k i l l m e"), when the
+// letters make no English word
+const SHORT_RUN_TOGETHER = new Set(
+  WORRYING_PLAIN.filter((parts) => parts.length > 1 && !parts.includes("$")).map((parts) => parts.join("")).filter((joined) => joined.length >= 6)
+);
+
+// Burning a home or a school down: "I'm going to burn down my teacher's
+// house", "I will burn the school" (not "we burned marshmallows")
+const BURN = new Set(["burn", "burns", "burning", "torch", "torching"]);
+const BURNED_DOWN = new Set(["house", "home", "school", "classroom", "apartment", "flat", "car", "church"]);
+const burnsItDown = (words: string[]) =>
+  words.some(
+    (word, i) =>
+      BURN.has(word) &&
+      after(words, i, 5).some((w) => BURNED_DOWN.has(w)) &&
+      before(words, i).some((w) => MEAN_TO.has(w) || FIRST_PERSON.has(w))
+  );
 const FOREIGN_WORRY = new Set(FOREIGN_WORRYING);
 
 // (Every phrase is matched on the plain reading, which includes the words
-// as written)
+// as written, and again with end marks left out: "I want to kill. Myself.")
 export const isWorrying = (text: string) => {
   const words = withoutFigures(plainWords(text));
+  const joinedUp = words.filter((word) => word !== "$");
   return (
-    WORRYING_PLAIN.some((parts) => hasParts(words, parts)) ||
-    words.some((word) => WORRYING_RUN_TOGETHER.has(word)) ||
+    WORRYING_PLAIN.some((parts) => hasParts(words, parts) || (!parts.includes("$") && hasParts(joinedUp, parts))) ||
+    words.some(
+      (word) =>
+        WORRYING_RUN_TOGETHER.has(word) ||
+        (SHORT_RUN_TOGETHER.has(word) && !inDictionaryLowerCase(word)) ||
+        (word.length >= 10 && !inDictionaryLowerCase(word) && LONG_RUN_TOGETHER.some((joined) => word.includes(joined)))
+    ) ||
+    burnsItDown(words) ||
     someoneHurts(words) ||
     iWasHurt(words) ||
     hurtsThemselves(words) ||
     hurtsSomeone(words) ||
     inMyRoom(words) ||
+    kissedOnTheLips(words) ||
     touchedMy(words) ||
+    picturesOfMe(words) ||
     paidForPictures(words) ||
+    groomedOnline(words, text) ||
+    bulliedMe(words, text) ||
+    noFoodAtHome(words) ||
     words.some((word) => FOREIGN_WORRY.has(word)) ||
     OLDER_PARTNER.test(plain(text))
   );
@@ -585,6 +816,9 @@ export const isWorrying = (text: string) => {
 //   - "naked" with a person just before or after: "I saw my sister naked",
 //     not "the naked trees"
 //   - touching someone's chest, bottom or privates
+//   - "bully" only with "me" ("bullies me" is worrying, "is a bully to me"):
+//     not "the gale pushed the flowers around like a bully"
+//   - drink or drugs, and someone asleep on the floor or passed out
 const BEFORE_DIE = new Set(["to", "could", "should", "will", "would", "might", "may", "just", "ill", "i", "you", "gonna"]);
 const ME = new Set(["i", "im", "me", "you", "we", "myself"]);
 const DIE_IDIOM = new Set(["of", "for", "laughing", "from", "trying"]);
@@ -595,24 +829,33 @@ const NEAR_NAKED = new Set([...PEOPLE, "i", "im", "me", "my", "him", "her", "the
 const TOUCHING = new Set(["touch", "touched", "touches", "touching", "grab", "grabbed", "grabs", "rub", "rubbed"]);
 const WHOSE = new Set(["my", "his", "her", "your", "their"]);
 const PRIVATE = new Set(["chest", "butt", "bum", "bottom", "breasts", "boobs", "crotch", "thigh", "privates", "private"]);
+const BULLY = new Set(["bully", "bullies", "bullied", "bullying"]);
+const DRINK = new Set(["drunk", "drinks", "drinking", "beer", "wine", "vodka", "drugs", "pills", "weed", "pipe", "needle", "needles"]);
 const sensitiveNearAPerson = (words: string[]) =>
   words.some((word, i) => {
-    const before = words.slice(Math.max(0, i - 4), i);
+    const back = before(words, i, 4);
     const prev = words[i - 1];
     // Not "I would die for a hot chocolate", "I could die of cold", "did
     // you die in the game?"
     if (word === "die") {
       const inAGame = words[i + 1] === "in" && words.slice(i + 2, i + 6).includes("game");
-      return BEFORE_DIE.has(prev) && before.some((w) => ME.has(w)) && !DIE_IDIOM.has(words[i + 1]) && !inAGame;
+      return BEFORE_DIE.has(prev) && back.some((w) => ME.has(w)) && !DIE_IDIOM.has(words[i + 1]) && !inAGame;
     }
     // "I'm dying, it's so cold!", "I'm dying to go sledding": nearly always
     // a figure of speech. Only "dying inside".
     if (word === "dying") return words[i + 1] === "inside";
     if (GUN.has(word)) return words.slice(Math.max(0, i - 3), i).some((w) => NEAR_GUN.has(w));
-    if (word === "lonely") return BEFORE_LONELY.has(prev) && before.some((w) => w === "i" || w === "im" || w === "me");
+    if (word === "lonely") return BEFORE_LONELY.has(prev) && back.some((w) => w === "i" || w === "im" || w === "me");
     if (word === "beer" || word === "beers") return prev !== "root" && prev !== "ginger";
     if (word === "naked") return [...words.slice(Math.max(0, i - 3), i), ...words.slice(i + 1, i + 4)].some((w) => NEAR_NAKED.has(w));
     if (TOUCHING.has(word)) return WHOSE.has(words[i + 1]) && PRIVATE.has(words[i + 2]);
+    if (BULLY.has(word)) return [...before(words, i), ...after(words, i)].some((w) => w === "me" || w === "i" || w === "my" || w === "im");
+    if (word === "asleep" || word === "passed") {
+      const sentence = [...before(words, i), ...after(words, i)];
+      return sentence.some((w) => DRINK.has(w)) && (word === "asleep" ? sentence.includes("floor") : words[i + 1] === "out");
+    }
+    if (word === "needles" || word === "needle") return [...before(words, i), ...after(words, i)].some((w) => w === "home" || w === "house" || w === "moms" || w === "dads" || w === "'s");
+    if (word === "pipe") return [...before(words, i, 6)].some((w) => w === "smokes" || w === "smoke" || w === "smoking" || w === "stuff");
     return false;
   });
 
@@ -956,6 +1199,11 @@ const NUMBER_WORD = "(?:zero|oh|one|two|three|four|five|six|seven|eight|nine|ten
 const AGE_IN_WORDS = new RegExp(`\\b${NUMBER_WORD}\\s+(?:years?|yrs?)\\s+old\\b|\\b(?:i\\s+am|i'?m|i\\s+turned)\\s+${NUMBER_WORD}\\s*(?:[.!,]|$|years|and\\b)`, "i");
 const PHONE_IN_WORDS = new RegExp(`\\b(?:(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)[\\s,-]+){6,}(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)\\b`, "i");
 const MY_NUMBER = /\bmy\s+(?:phone|cell|mobile|number)\s+(?:number\s+)?is\s+(?:\d|\(|\+)/i;
+// A UK mobile: 07911 123456, 07911123456, +44 7911 123456
+const UK_MOBILE = /(?:\b0|\+44\s?)7\d{3}\s?\d{3}\s?\d{3}\b/;
+// A gamer tag: "add me samcool123", "my username is CoolSam", "my tag is
+// SamCool99" (a word with a digit, an underscore or a capital inside)
+const GAMER_TAG = /\b(?:add me|my (?:user ?name|tag|gamer ?tag|ign) is)\s+@?(?=[A-Za-z0-9_]*(?:\d|_|[a-z][A-Z]))[A-Za-z0-9_]{3,}/i;
 // A phone number, but not counting: "I counted 1 2 3 4 5 6 7 8 snowflakes"
 const hasPhone = (text: string) => {
   const match = text.match(PHONE);
@@ -989,6 +1237,8 @@ export const hasPersonalDetails = (text: string) => {
     HANDLE.test(visible) ||
     hasPhone(visible) ||
     MY_NUMBER.test(visible) ||
+    UK_MOBILE.test(visible) ||
+    GAMER_TAG.test(visible) ||
     PHONE_IN_WORDS.test(visible) ||
     hasAddress(visible) ||
     NUMBERED_STREET.test(visible) ||
