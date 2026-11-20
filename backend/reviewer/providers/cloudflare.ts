@@ -41,7 +41,8 @@ export const isOutOfNeurons = (body: unknown) => {
   if (!Array.isArray(errors)) return false;
   return errors.some((error: { code?: unknown; message?: unknown } | null) =>
     error?.code === OUT_OF_NEURONS ||
-    (typeof error?.message === "string" && /daily free allocation|neurons/i.test(error.message))
+    // (Not any message about Neurons: only the daily allocation running out)
+    (typeof error?.message === "string" && /daily free allocation/i.test(error.message))
   );
 };
 const statusOf = (errorBody: unknown, status: number) => (isOutOfNeurons(errorBody) ? 429 : status);

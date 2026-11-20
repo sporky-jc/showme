@@ -1031,14 +1031,21 @@ const STOP = new Set([
 // it repeats ("Like a ninja, he dodged all the traps with ease.", "The
 // party was fun, so lonely."): a sentence wrongly sent back here never
 // reaches anyone who could read it, so anything else is for the AI or a
-// person to judge.
+// person to judge. Anything else left once the Tell's words and the small
+// words are taken out is the child's own too: letters in any script,
+// digits or emoji ("It is cold outside. 😢😢", "It is cold outside 911",
+// "It is cold outside 救命").
+const OWN_CONTENT = /[\p{L}\p{N}\p{Extended_Pictographic}]/u;
+// The Tell's instructions in brackets aren't part of it ("(Use a Simile)"),
+// in the Tell or pasted into the Show
+const withoutInstructions = (text: string) => text.replace(/\([^)]*\)/g, " ");
 const copiesTell = (tell: string, show: string) => {
   const meaningful = (text: string) => read(text).words.filter((word) => !STOP.has(word));
-  // The Tell's instructions in brackets aren't part of it ("(Use a Simile)")
-  const tellWords = new Set(meaningful(tell.replace(/\([^)]*\)/g, " ")));
-  const showWords = meaningful(show);
-  if (tellWords.size === 0 || showWords.length === 0) return false;
-  return showWords.every((word) => tellWords.has(word));
+  const tellWords = new Set(meaningful(withoutInstructions(tell)));
+  const shown = withoutInstructions(show);
+  if (tellWords.size === 0 || meaningful(shown).length === 0) return false;
+  const left = plain(shown).replace(/[a-z]+(?:'[a-z]+)*/g, (word) => (tellWords.has(word) || STOP.has(word) ? " " : word));
+  return !OWN_CONTENT.test(left);
 };
 
 // ---- All together ------------------------------------------------------------
