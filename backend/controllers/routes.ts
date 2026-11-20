@@ -109,7 +109,8 @@ export const createNewUserSentence = async (req: Request, res: Response) => {
     // The website only ever asks for the next day it hasn't written, and
     // never sends a sentence twice. This finds older sentences too, which
     // have no dayKey (see models/sentences.ts).
-    if (await Sentence.exists({ GID: user.id, title })) {
+    // ($eq: the title is already a checked day, and this says so to the query)
+    if (await Sentence.exists({ GID: user.id, title: { $eq: title } })) {
       return res.status(409).json({ message: DAY_ALREADY_WRITTEN });
     }
 
