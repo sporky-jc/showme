@@ -18,6 +18,8 @@ import {
   User,
 } from "../contract/api.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
+import { ReviewDecision } from "../models/reviewDecisions.js";
+import { logger } from "firebase-functions/logger";
 import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
 import { Types } from "mongoose";
 import { dayKeyOf, Sentence } from "../models/sentences.js";
@@ -319,7 +321,8 @@ export const updatePendingApprovalSentences = async (
       approved: 1,
       toRedo: 1,
       createdAt: 1,
-    }).lean<{ approved?: boolean; toRedo?: boolean; createdAt?: Date | string }>();
+      show: 1,
+    }).lean<{ approved?: boolean; toRedo?: boolean; createdAt?: Date | string; show: string }>();
     if (!stored) {
       return res.status(404).json({ message: "Sentence not found" });
     }
@@ -347,6 +350,8 @@ export const updatePendingApprovalSentences = async (
         approved: false,
         toRedo: false,
         createdAt: stored.createdAt ?? { $exists: false },
+        // The words read above are the words decided on (recorded below)
+        show: stored.show,
       },
       // approve (with the praise tip), or "redo" (with the tip the reviewer
       // chose, or none), the only other decision the contract allows
@@ -360,6 +365,19 @@ export const updatePendingApprovalSentences = async (
     if (matchedCount === 0) {
       // It changed between the check and the update
       return res.status(409).json({ message: REVIEW_STALE });
+    }
+
+    // Kept for the shadow report (models/reviewDecisions.ts). The decision
+    // has already been made, so a failure here is only logged.
+    try {
+      await ReviewDecision.create({
+        sentence: sentence._id,
+        show: stored.show,
+        status,
+        tip: status === "approve" ? PRAISE : (tip ?? null),
+      });
+    } catch (error) {
+      logger.warn(`Could not record a teacher's decision: ${messageOf(error)}`, { sentence: sentence._id });
     }
 
     // send back the updated queue, newest first
