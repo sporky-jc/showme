@@ -1,0 +1,98 @@
+name: Shadow report
+
+# How often Scribbles' suggestions agreed with the teacher's decisions on
+# the Teacher page (backend/reviewer/agreement.ts), so we can tell whether
+# Scribbles could ever be trusted to approve on its own. Run it from the
+# Actions tab with "Run workflow"; the report is in the run's summary.
+#
+# Read-only: it changes nothing in either database
+# (backend/scripts/shadow-report.ts). Production asks for the production
+# approval first, like a promotion, since it reads real students' work.
+#
+# Prints counts, tips, reasons and dates, and the shortened words of the
+# sentences Scribbles would have approved and the teacher sent back; never a
+# name, an email or an account id.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which database
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shadow-report
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    name: Staging
+    if: ${{ inputs.target == 'staging' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24' # keep in sync with "engines" in backend/package.json
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Staging's database login only reaches the practice database
+      - name: Report
+        env:
+          DATABASE_ACCESS: ${{ secrets.STAGING_DATABASE_ACCESS }}
+          DATABASE_NAME: ShowME-dev
+        run: node lib/scripts/shadow-report.js
+
+  production:
+    name: Production
+    if: ${{ inputs.target == 'production' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # The "production" environment asks a required reviewer to approve first
+    environment: production
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24' # keep in sync with "engines" in backend/package.json
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # The production database, as the production backend reads it (the one
+      # named in DATABASE_ACCESS)
+      - name: Report
+        env:
+          DATABASE_ACCESS: ${{ secrets.DATABASE_ACCESS }}
+        run: node lib/scripts/shadow-report.js

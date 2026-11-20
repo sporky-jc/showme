@@ -16,7 +16,8 @@
     "check:contract": "npm run build && node --env-file=.env --env-file-if-exists=.env.local lib/scripts/check-contract.js",
     "check:contract:production": "npm run build && node --env-file=.env lib/scripts/check-contract.js",
     "measure:reviewer": "npm run build && node --env-file-if-exists=.env.local lib/scripts/measure-reviewer.js",
-    "score:rules": "npm run build && node lib/scripts/score-rules.js"
+    "score:rules": "npm run build && node lib/scripts/score-rules.js",
+    "shadow:report": "npm run build && node --env-file=.env --env-file-if-exists=.env.local lib/scripts/shadow-report.js"
   },
   "keywords": [],
   "author": "",
