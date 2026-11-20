@@ -23,6 +23,7 @@ import {
 import auth from "../middlewares/auth.js";
 import admin from "../middlewares/admin.js";
 import {
+  decisionsRateLimit,
   likesRateLimit,
   reviewTipsRateLimit,
   sentenceWritesRateLimit,
@@ -65,9 +66,10 @@ router.get("/Admin", auth, admin, getPendingApprovalSentences);
 router.patch("/Admin", auth, admin, updatePendingApprovalSentences);
 // The sentences approved or sent back most recently, and taking one of those
 // decisions back (out of the gallery, or no longer sent back), so it waits
-// for review again. Protected exactly like the decisions themselves.
-router.get("/Admin/decisions", auth, admin, getRecentDecisions);
-router.patch("/Admin/undo", auth, admin, undoDecision);
+// for review again. Protected like the decisions themselves, and limited
+// per user like the tips (see middlewares/rateLimit.ts).
+router.get("/Admin/decisions", decisionsRateLimit, auth, admin, getRecentDecisions);
+router.patch("/Admin/undo", decisionsRateLimit, auth, admin, undoDecision);
 // The tips a teacher can send back with "Try again", limited per user (see
 // middlewares/rateLimit.ts)
 router.get("/Admin/tips", reviewTipsRateLimit, auth, admin, getReviewTips);

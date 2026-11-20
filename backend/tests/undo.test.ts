@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import app from "../app.js";
 import { UNDO_STALE } from "../contract/api.js";
+import { DECISION_REQUESTS_PER_MINUTE } from "../middlewares/rateLimit.js";
 import { RECENT_DECISIONS } from "../controllers/routes.js";
 import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
@@ -289,5 +290,18 @@ describe("PATCH /Admin/undo", () => {
     expect((await Sentence.findById(real._id))?.approved).toBe(true);
     expect(allowed.status).toBe(201);
     expect((await Sentence.findById(test._id))?.approved).toBe(false);
+  });
+});
+
+describe("Recent decisions: rate limit", () => {
+  it("refuses a user's requests past the limit for the minute", async () => {
+    const admin = await createAdmin();
+    for (let i = 0; i < DECISION_REQUESTS_PER_MINUTE; i++) {
+      await request(app).get("/Admin/decisions").set("Cookie", sessionCookie(admin));
+    }
+
+    const res = await request(app).get("/Admin/decisions").set("Cookie", sessionCookie(admin));
+
+    expect(res.status).toBe(429);
   });
 });
