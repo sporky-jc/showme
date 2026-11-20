@@ -154,3 +154,23 @@ export const decisionsRateLimit = rateLimit({
   message: { message: "Too many requests. Wait a minute, then try again." },
   validate: { xForwardedForHeader: false, forwardedHeader: false },
 });
+
+// How many times one signed-in user may ask how many sentences wait for
+// them (GET /Admin/count, the badge on the Teacher link) in a minute. The
+// site asks when a page loads, every few minutes while the tab is showing,
+// and after each decision on the Teacher page: a teacher deciding quickly
+// sends a few a minute, never dozens. Counted per user from the login
+// cookie, before auth's database lookup, like the tips above.
+export const REVIEW_COUNT_REQUESTS_PER_MINUTE = 60;
+export const reviewCountRateLimitStore = new MemoryStore();
+
+export const reviewCountRateLimit = rateLimit({
+  store: reviewCountRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: REVIEW_COUNT_REQUESTS_PER_MINUTE,
+  keyGenerator: perUser,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many requests. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});

@@ -8,6 +8,7 @@ import { useSelector } from "react-redux";
 import LoadingOverlay from "react-loading-overlay-ts";
 import useAuthService from "../service/authService";
 import { OpenLoginContext } from "./loginPopup";
+import useReviewCount from "./useReviewCount";
 import type { RootState } from "../reducers/types";
 
 // Home is the first page most visitors see, so it ships with the main file.
@@ -60,6 +61,42 @@ function OpenLogin({ onOpen }: { onOpen: () => void }) {
 // The first and last initial for the account button ("MR" for Maya Rivera)
 const initials = (first?: string, last?: string) =>
   ((first?.trim()[0] ?? "") + (last?.trim()[0] ?? "")).toUpperCase() || "?";
+
+// What the badge on the Teacher link says to a screen reader, as the link's
+// description: "2 to check in, 5 waiting"
+const countsSaid = (checkIn: number, waiting: number) =>
+  [checkIn > 0 && `${checkIn} to check in`, waiting > 0 && `${waiting} waiting`]
+    .filter(Boolean)
+    .join(", ");
+
+// The Teacher link, with a badge on its corner when sentences wait: red with
+// how many to check in on (Scribbles held them as worrying), or else a quiet
+// grey with how many wait. The badge sits beside the link, not inside it,
+// so the link's name stays exactly "Teacher" (automated browser tests find
+// it by that name); screen readers hear the count as the link's
+// description instead ("Teacher, link, 2 to check in, 5 waiting").
+function TeacherLink({ checkIn, waiting }: { checkIn: number; waiting: number }) {
+  const said = countsSaid(checkIn, waiting);
+  return (
+    <span className="paper-nav__badged">
+      <NavLink to="/admin" aria-describedby={said ? "teacher-count" : undefined}>
+        Teacher
+      </NavLink>
+      {said && (
+        // Hidden from screen readers here: they hear it with the link
+        <span
+          className={checkIn > 0 ? "paper-nav__badge" : "paper-nav__badge paper-nav__badge--quiet"}
+          aria-hidden="true"
+        >
+          {checkIn > 0 ? checkIn : waiting}
+          <span id="teacher-count" className="visually-hidden">
+            {said}
+          </span>
+        </span>
+      )}
+    </span>
+  );
+}
 
 // The account button (the signed-in person's initials) and its menu: who is
 // signed in, About, and Log out.
@@ -152,6 +189,8 @@ function NavbarComp() {
   const signedIn = Object.keys(user).length !== 0;
 
   const authService = useAuthService();
+  // Teachers only: how many sentences wait for them, for the Teacher link
+  const counts = useReviewCount(signedIn && user.isAdmin === true);
 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -201,7 +240,9 @@ function NavbarComp() {
                 </NavLink>
                 <NavLink to="/MySentences">My sentences</NavLink>
                 <NavLink to="/Gallery">Gallery</NavLink>
-                {user.isAdmin && <NavLink to="/admin">Teacher</NavLink>}
+                {user.isAdmin && (
+                  <TeacherLink checkIn={counts?.checkIn ?? 0} waiting={counts?.waiting ?? 0} />
+                )}
               </>
             ) : (
               <>

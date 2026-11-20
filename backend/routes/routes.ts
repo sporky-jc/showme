@@ -8,6 +8,7 @@ import {
   getPendingApprovalSentences,
   updatePendingApprovalSentences,
   getReviewTips,
+  getReviewCounts,
   getRecentDecisions,
   undoDecision,
   fetchApprovedSentences,
@@ -25,6 +26,7 @@ import admin from "../middlewares/admin.js";
 import {
   decisionsRateLimit,
   likesRateLimit,
+  reviewCountRateLimit,
   reviewTipsRateLimit,
   sentenceWritesRateLimit,
   testLoginRateLimit,
@@ -73,6 +75,11 @@ router.patch("/Admin/undo", decisionsRateLimit, auth, admin, undoDecision);
 // The tips a teacher can send back with "Try again", limited per user (see
 // middlewares/rateLimit.ts)
 router.get("/Admin/tips", reviewTipsRateLimit, auth, admin, getReviewTips);
+// How many sentences wait for this teacher, and how many to check in on,
+// for the badge on the Teacher link. Protected like the queue itself, and
+// limited per user (see middlewares/rateLimit.ts): every teacher's open tab
+// asks every few minutes.
+router.get("/Admin/count", reviewCountRateLimit, auth, admin, getReviewCounts);
 
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);

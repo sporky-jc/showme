@@ -7,6 +7,7 @@ import type {
   OwnSentence,
   QueueSentence,
   ReviewBody,
+  ReviewCounts,
   ReviewDecision,
   ReviewTip,
   ReviewTipId,
@@ -65,6 +66,10 @@ export const updatePendingApprovalSentences = (
 };
 // The tips a teacher can send back with "Try again"
 export const fetchReviewTips = () => API.get<ReviewTip[]>("/Admin/tips");
+
+// How many sentences wait for the signed-in teacher, and how many to check
+// in on: the badge on the Teacher link (components/useReviewCount.ts)
+export const fetchReviewCounts = () => API.get<ReviewCounts>("/Admin/count");
 
 // The sentences approved or sent back most recently, and taking one of those
 // decisions back so it waits for review again. `status` is the decision

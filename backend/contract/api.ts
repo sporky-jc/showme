@@ -272,6 +272,14 @@ export const RecentDecisions = z.array(SentenceWithAuthor);
 export const UndoAnswer = z.object({ queue: ReviewQueue, decisions: RecentDecisions });
 export const ReviewTips = z.array(ReviewTip);
 
+// GET /Admin/count: how many sentences wait in this teacher's queue, and how
+// many of those Scribbles held as worrying ("Check in" on the Teacher page),
+// for the badge on the Teacher link. Only counts: no words, no names.
+export const ReviewCounts = z.object({
+  checkIn: z.number().int().nonnegative(),
+  waiting: z.number().int().nonnegative(),
+});
+
 // An approved sentence's likes, as a signed-in student sees them: GET
 // /Collections/likes lists every approved sentence's, and PUT and DELETE
 // /Collections/:id/like send back the one changed. Likes are for signed-in
@@ -311,5 +319,6 @@ export type GalleryAuthor = z.infer<typeof GalleryAuthor>;
 export type GallerySentence = z.infer<typeof GallerySentence>;
 export type UndoBody = z.infer<typeof UndoBody>;
 export type UndoAnswer = z.infer<typeof UndoAnswer>;
+export type ReviewCounts = z.infer<typeof ReviewCounts>;
 export type SentenceLikes = z.infer<typeof SentenceLikes>;
 export type ErrorAnswer = z.infer<typeof ErrorAnswer>;
