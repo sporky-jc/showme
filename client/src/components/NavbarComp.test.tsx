@@ -48,7 +48,7 @@ describe("NavbarComp", () => {
       { route: "/login", respond: () => 401 }
     );
 
-    expect(await screen.findByText("Sign in with Google")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Hi! Ready to write?" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/$/));
   });
 
@@ -63,7 +63,7 @@ describe("NavbarComp", () => {
 
     await userEvent.click(await screen.findByRole("link", { name: "Join Us!" }));
 
-    expect(await screen.findByText("Sign in with Google")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Hi! Ready to write?" })).toBeInTheDocument();
     expect(screen.getByTestId("where")).toHaveTextContent(/^\/about$/);
   });
 
@@ -74,7 +74,7 @@ describe("NavbarComp", () => {
       await within(await screen.findByRole("main")).findByRole("button", { name: "Sign in" })
     );
 
-    expect(await screen.findByText("Sign in with Google")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Hi! Ready to write?" })).toBeInTheDocument();
   });
 });
 

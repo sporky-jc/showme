@@ -48,7 +48,7 @@ class PageErrorBoundary extends React.Component<Props, State> {
     if (!this.state.failed) return this.props.children;
 
     return (
-      <div className="container text-center my-5">
+      <div className="page-message" role="alert">
         <p>
           {this.state.downloadFailed
             ? "Sorry, we couldn't load this page. Check your connection and try again."
@@ -56,7 +56,7 @@ class PageErrorBoundary extends React.Component<Props, State> {
         </p>
         <button
           type="button"
-          className="btn btn-primary"
+          className="paper-btn paper-btn--action"
           onClick={() => window.location.reload()}
         >
           Refresh
