@@ -8,6 +8,8 @@ import {
   getPendingApprovalSentences,
   updatePendingApprovalSentences,
   getReviewTips,
+  getRecentDecisions,
+  undoDecision,
   fetchApprovedSentences,
   logoutUser,
 } from "../controllers/routes.js";
@@ -61,6 +63,11 @@ router.post("/Logout", logoutUser);
 router.get("/Admin", auth, admin, getPendingApprovalSentences);
 // Route for updating status on sentences awaiting approval
 router.patch("/Admin", auth, admin, updatePendingApprovalSentences);
+// The sentences approved or sent back most recently, and taking one of those
+// decisions back (out of the gallery, or no longer sent back), so it waits
+// for review again. Protected exactly like the decisions themselves.
+router.get("/Admin/decisions", auth, admin, getRecentDecisions);
+router.patch("/Admin/undo", auth, admin, undoDecision);
 // The tips a teacher can send back with "Try again", limited per user (see
 // middlewares/rateLimit.ts)
 router.get("/Admin/tips", reviewTipsRateLimit, auth, admin, getReviewTips);

@@ -1,11 +1,11 @@
-import type { SentenceWithAuthor } from "../api/types";
+import type { GallerySentence } from "../api/types";
 import type { AppAction } from "./types";
 
 //  Approved sentences reducer, keep track of approved sentences
 const approvedsentences = (
-  approvedsentences: SentenceWithAuthor[] = [],
+  approvedsentences: GallerySentence[] = [],
   action: AppAction
-): SentenceWithAuthor[] => {
+): GallerySentence[] => {
   switch (action.type) {
     case "FETCH_APPROVED":
       return action.payload;

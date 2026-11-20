@@ -2104,10 +2104,38 @@ h3,
   gap: 4px 12px;
 }
 
-.paper-review__who h2 {
+.paper-review__who h2,
+.paper-review__who h3 {
   margin: 0;
   font-size: 1.3rem;
   overflow-wrap: anywhere;
+}
+
+/* Recent decisions, under the queue (RecentDecisions.tsx): closed until
+   the teacher opens it, then the same cards as the queue's */
+.paper-review__recent {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.paper-review__recent > p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.paper-review__recent-toggle {
+  align-self: flex-start;
+}
+
+.paper-review__decisions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
 }
 
 .paper-review__waited {

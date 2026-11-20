@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import Cards from "./Cards";
 import { renderWithApp } from "../test/testUtils";
-import type { SentenceWithAuthor } from "../api/types";
+import type { GallerySentence } from "../api/types";
 
 // The gallery's cards: one per approved sentence, under its Tell sentence's
 // photo.
@@ -12,7 +12,7 @@ const tellsentences = [
   { key: 2, title: "Day 2", tell: "It is hot outside.", image: "/hot.jpg" },
 ];
 
-const approved = (n: number, prefix = "Show"): SentenceWithAuthor[] =>
+const approved = (n: number, prefix = "Show"): GallerySentence[] =>
   Array.from({ length: n }, (_, i) => ({
     _id: `${prefix}-${i}`,
     title: `day${(i % 2) + 1}`,
@@ -21,10 +21,11 @@ const approved = (n: number, prefix = "Show"): SentenceWithAuthor[] =>
     approved: true,
     toRedo: false,
     createdAt: "2026-10-01T00:00:00.000Z",
-    author: { firstName: "Ada", lastName: "Lovelace" },
+    // The server sends only the initial (see GalleryAuthor in the contract)
+    author: { firstName: "Ada", lastName: "L" },
   }));
 
-const renderCards = (sentences: SentenceWithAuthor[]) =>
+const renderCards = (sentences: GallerySentence[]) =>
   renderWithApp(<Cards displaySentences={sentences} />, {
     state: { tellsentences },
   });
@@ -94,5 +95,15 @@ describe("Cards", () => {
     expect(screen.getByText("Ada L.")).toBeInTheDocument();
     expect(screen.getByText("Bo")).toBeInTheDocument();
     expect(screen.getByText("Cy")).toBeInTheDocument();
+  });
+
+  // A server from before surnames were cut to their initial sent the whole
+  // surname: the card still shows just its first letter
+  it("shows the same name from a whole surname", () => {
+    const [ada] = approved(1);
+    renderCards([{ ...ada, author: { firstName: "Ada", lastName: "Lovelace" } }]);
+
+    expect(screen.getByText("Ada L.")).toBeInTheDocument();
+    expect(screen.queryByText(/Lovelace/)).not.toBeInTheDocument();
   });
 });

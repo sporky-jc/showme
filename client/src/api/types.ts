@@ -16,8 +16,11 @@ export type {
   LoginBody,
   NewSentenceBody,
   ReviewBody,
+  UndoBody,
   // what it reads back
   Author,
+  GalleryAuthor,
+  GallerySentence,
   OwnSentence,
   QueueSentence,
   ReviewTip,
@@ -26,6 +29,7 @@ export type {
   SentenceLikes,
   SentenceWithAuthor,
   TellSentence,
+  UndoAnswer,
   User,
 } from "../../../backend/contract/api";
 
