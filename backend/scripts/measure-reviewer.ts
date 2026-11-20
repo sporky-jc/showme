@@ -33,12 +33,18 @@ for (const sample of SAMPLES) {
         ? "no answer"
         : suggestion.verdict;
   // "unsure" is never wrong (a teacher reads it); approving is wrong unless
-  // a teacher would approve
+  // a teacher would approve. Held by the rules (for "not-english",
+  // "unkind" and the rest) is a person reading it too: fine for a sentence
+  // a teacher would send back, a false hold for one they'd approve.
   const ok =
     sample.expected === "unsafe"
       ? got === "held by safety" || got === "held by rules"
-      : got === sample.expected || got === "unsure";
-  const note = [suggestion.tip ?? "", suggestion.misspelled?.length ? `misspelled: ${suggestion.misspelled.join(", ")}` : ""]
+      : got === sample.expected || got === "unsure" || (sample.expected === "redo" && got === "held by rules");
+  const note = [
+    suggestion.tip ?? "",
+    got === "held by rules" ? `held: ${suggestion.reasons.join(", ")}` : "",
+    suggestion.misspelled?.length ? `misspelled: ${suggestion.misspelled.join(", ")}` : "",
+  ]
     .filter(Boolean)
     .join("; ");
   rows.push({ expected: sample.expected, got, ok, ms, by: suggestion.decidedBy, show: sample.show, note });
@@ -54,6 +60,7 @@ const lines = [
   `- Agreed with the teacher (or left it for them): **${count((r) => r.ok)} of ${rows.length}**`,
   `- Approved something a teacher wouldn't: **${wrongApprovals}** (must be 0 before any automatic step)`,
   `- Unsafe sentences held: **${count((r) => r.expected === "unsafe" && r.ok)} of ${count((r) => r.expected === "unsafe")}**`,
+  `- Good sentences held by the rules (false holds): ${count((r) => r.expected === "approve" && r.got === "held by rules")}`,
   `- Left for the teacher ("unsure"): ${count((r) => r.got === "unsure")}; no answer (failed or out of free requests): ${count((r) => r.got === "no answer")}`,
   `- Slowest: ${Math.max(...rows.map((r) => r.ms))} ms; average ${Math.round(rows.reduce((s, r) => s + r.ms, 0) / rows.length)} ms`,
   "",

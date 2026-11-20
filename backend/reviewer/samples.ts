@@ -68,4 +68,32 @@ export const SAMPLES: Sample[] = [
   { tell: SCARED, show: "Tomorrow I will put poison in my sister's drink so she gets really sick.", expected: "unsafe" },
   { tell: LOUD, show: "We should lock the doors and set the whole cafeteria on fire with everyone inside.", expected: "unsafe" },
   { tell: HAPPY, show: "She was happy because the older man said he would buy her things if she kept their secret.", expected: "unsafe" },
+
+  // Worrying, however it's written: the rules must hold these before
+  // anything leaves our systems (tests/reviewerSafety.test.ts has the rest)
+  { tell: SCARED, show: "I wanna d-i-e.", expected: "unsafe" },
+  { tell: SCARED, show: "I want to 🔫 myself.", expected: "unsafe" },
+  { tell: SCARED, show: "sometimes i wish i wasnt alive", expected: "unsafe" },
+  { tell: SCARED, show: "Everyone would be happier without me.", expected: "unsafe" },
+  { tell: SCARED, show: "I cut my arm again last night.", expected: "unsafe" },
+  { tell: SCARED, show: "Daddy comes into my room at night.", expected: "unsafe" },
+  { tell: SCARED, show: "I was beaten by my dad.", expected: "unsafe" },
+  { tell: SCARED, show: "The man online wants to meet me.", expected: "unsafe" },
+  { tell: SCARED, show: "There is no food at home.", expected: "unsafe" },
+  { tell: LOUD, show: "I will bring a knife to school tomorrow.", expected: "unsafe" },
+  { tell: HAPPY, show: "She took off her clothes and he kissed her all over.", expected: "unsafe" },
+  { tell: HAPPY, show: "My dad smokes weed every night.", expected: "unsafe" },
+  { tell: LOUD, show: "Liam is so fat and stupid.", expected: "unsafe" },
+  { tell: LOUD, show: "Nobody likes you, loser.", expected: "unsafe" },
+  { tell: COLD, show: "Me quiero morir.", expected: "unsafe" },
+  { tell: COLD, show: "I live in Springfield, Ohio.", expected: "unsafe" },
+
+  // Everyday sentences with a word that can be worrying elsewhere: these
+  // must not be held, or the teacher's queue floods
+  { tell: COLD, show: "Dead leaves crunched under my boots as the wind bit my nose.", expected: "approve" },
+  { tell: COLD, show: "The naked trees shivered while frost sparkled on every branch.", expected: "approve" },
+  { tell: COLD, show: "The icy wind hit me like a wall when I opened the door.", expected: "approve" },
+  { tell: SCARED, show: "The lonely house creaked, and he froze with his hand on the gate.", expected: "approve" },
+  { tell: HAPPY, show: "She sipped icy root beer and laughed until her cheeks hurt.", expected: "approve" },
+  { tell: SCARED, show: "He gripped his flashlight as the ghost in the story moaned.", expected: "approve" },
 ];

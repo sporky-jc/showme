@@ -432,6 +432,19 @@ describe("Scribbles' notes", () => {
     expect(screen.getByRole("list", { name: "Scribbles' notes" })).toHaveTextContent(/1 to check in on.*1 ready.*1 try again/);
   });
 
+  it.each([
+    [["unkind", "names-someone"], "It may be unkind about someone, so I held it for you. No AI saw it."],
+    [["names-someone"], "It may name someone in an unkind or hurtful way, so I held it for you. No AI saw it."],
+    [["not-english"], "It's mostly not in English, so I held it for you. No AI saw it."],
+  ] as const)("says why the rules held a sentence: %o", async (reasons, said) => {
+    renderAdmin({ queue: [sentence("h", "Noa", "Held words.", { verdict: "unsure", tip: null, reasons: [...reasons] })] });
+    await screen.findByText("Noa K");
+
+    const [note] = screen.getAllByRole("note");
+    expect(note).toHaveTextContent("Please read this one.");
+    expect(note).toHaveTextContent(said);
+  });
+
   it("marks the misspelled words in the sentence", async () => {
     renderAdmin({ queue: [again] });
     await screen.findByText("Maya K");

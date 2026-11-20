@@ -79,7 +79,7 @@ describe("the rule checks: held for a person, never sent to an AI", () => {
       outcome: "hold",
       reasons: ["worrying", "unsafe-words", "personal-details"],
     });
-    expect(checkRules(COLD, "My frozen toes were killing me, damn it was cold.")).toEqual({
+    expect(checkRules(COLD, "I felt so lonely, damn it was cold.")).toEqual({
       outcome: "hold",
       reasons: ["sensitive-words", "unsafe-words"],
     });
@@ -170,7 +170,17 @@ describe("the rule checks: what the review found", () => {
   });
 
   it("checks the longest allowed sentence quickly, whatever it holds", () => {
-    for (const text of ["a".repeat(600), "a@".repeat(300), "1 ".repeat(300), "a.".repeat(300)]) {
+    // (The dictionary loads once, on first use: not counted)
+    checkRules(COLD, "Warm up the dictionary first, please.");
+    for (const text of [
+      "a".repeat(600),
+      "a@".repeat(300),
+      "1 ".repeat(300),
+      "a.".repeat(300),
+      "Qwzx ".repeat(120),
+      "k ".repeat(300),
+      "Liam is so ".repeat(54),
+    ]) {
       const started = Date.now();
       checkRules(COLD, text);
       expect(Date.now() - started).toBeLessThan(100);
@@ -439,7 +449,7 @@ describe("the reviewer", () => {
     for (const show of [
       "The students were very loud and the teacher couldn't do anything about it, help me.",
       "The students were loud and the teacher couldn't do anything about it, I'm scared.",
-      "The students were very loud and the teacher couldn't do anything about it loser.",
+      "The students were very loud and the teacher couldn't do anything about it, please help.",
     ]) {
       // (The rules alone would send each back as a copy)
       expect(checkRules(tell, show)).toMatchObject({ outcome: "redo", reasons: ["copies-tell"] });

@@ -22,6 +22,14 @@ const ALLOWED = new Set([
 ]);
 const sound = (word: string) => word.toLowerCase().replace(/([a-z])\1{2,}/g, "$1$1");
 
+// Is this a sound word children write ("Brrrr", "Wheee")?
+export const isSoundWord = (word: string) => ALLOWED.has(sound(word));
+
+// Is this word, in lower case, an English word? Names are in the dictionary
+// only with their capital ("Springfield"), so "springfield" isn't: this
+// tells an ordinary word ("brown", "wow") from a name or a foreign word.
+export const inDictionaryLowerCase = (word: string) => spell().correct(word.toLowerCase());
+
 // The misspelled words, each once, as written. Words written with a capital
 // after the first word are names ("Lily", "Minecraft") and aren't checked;
 // nor are words with digits or symbols in them.
