@@ -2,10 +2,13 @@
 // them into process.env before this file runs, both when deployed and in the
 // emulator, so no library is needed here.
 import { onRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions/logger";
 import mongoose from "mongoose";
 import app from "./app.js";
 import { connectWithRetry } from "./config/db.js";
+import { reviewWaitingSentences } from "./reviewer/queue.js";
+import { reviewerSetup } from "./reviewer/settings.js";
 
 mongoose.set("strictQuery", false);
 // Connect to mongodb via mongoose. DATABASE_NAME overrides the database in the
@@ -36,4 +39,28 @@ export const apiv2 = onRequest(
     maxInstances: 10,
   },
   app
+);
+
+// Scribbles the reviewer: every 10 minutes, suggestions for the sentences
+// waiting for the teacher (reviewer/queue.ts). It does nothing unless
+// REVIEWER_MODE is "suggest" and a provider is set up, and nothing it does
+// changes what students or the gallery see. Google's Cloud Scheduler runs
+// it (free for up to 3 schedules per billing account).
+export const reviewer = onSchedule(
+  {
+    schedule: "every 10 minutes",
+    region: "us-central1",
+    memory: "256MiB",
+    timeoutSeconds: 300,
+    // One run at a time
+    maxInstances: 1,
+    // A missed run is simply picked up by the next one
+    retryCount: 0,
+  },
+  async () => {
+    const setup = reviewerSetup();
+    if (setup.mode === "off") return;
+    const { reviewed } = await reviewWaitingSentences(setup);
+    logger.info(`Reviewer saved ${reviewed} suggestion(s)`);
+  }
 );

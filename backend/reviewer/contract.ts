@@ -22,9 +22,13 @@ export const REASONS = [
   "too-long", // longer than any Show sentence
   // Sent back by the rule checks
   "copies-tell",
+  // Held by the AI safety check (a model that only judges whether text is
+  // safe), before any AI reviewer reads it
+  "safety-check",
   // Decided by an AI provider
   "ai",
   // No layer could decide
+  "no-safety-check", // the safety check isn't set up, failed or ran out: no AI reviewer is asked
   "no-provider", // none set up, or every one failed or ran out
 ] as const;
 export type Reason = (typeof REASONS)[number];
