@@ -6,11 +6,11 @@ import { useLikes } from "../components/useLikes";
 import LoadingOverlay from "react-loading-overlay-ts";
 import { fetchApprovedSentences } from "../actions/approvedsentences";
 import { DisplayCollectionSentences } from "../config";
-import type { SentenceWithAuthor } from "../api/types";
+import type { GallerySentence } from "../api/types";
 import type { AppDispatch, RootState } from "../reducers/types";
 
 // A copy of the list in a random order
-const shuffle = (sentences: SentenceWithAuthor[]) =>
+const shuffle = (sentences: GallerySentence[]) =>
   [...sentences]
     .map((sentence) => ({ sentence, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
@@ -22,8 +22,8 @@ function Collection() {
   // The server's list (newest first), the order chosen for display (random by
   // default), whether we're still waiting for the server, and whether the
   // last request failed. Bumping `attempt` asks the server again.
-  const [sentences, setSentences] = useState<SentenceWithAuthor[]>([]);
-  const [displaySentences, setDisplay] = useState<SentenceWithAuthor[]>([]);
+  const [sentences, setSentences] = useState<GallerySentence[]>([]);
+  const [displaySentences, setDisplay] = useState<GallerySentence[]>([]);
   const [order, setOrder] = useState<"shuffle" | "newest">("shuffle");
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);

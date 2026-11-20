@@ -132,3 +132,45 @@ const sentenceWritesPerDay = rateLimit({
 
 // Both limits, for POST and PATCH /MyPage (routes/routes.ts)
 export const sentenceWritesRateLimit = [sentenceWritesPerMinute, sentenceWritesPerDay];
+
+// How many times one signed-in user may load or use the Teacher page's
+// "Recent decisions" (GET /Admin/decisions, PATCH /Admin/undo) in a minute:
+// a teacher opens the list and takes back a few decisions, never dozens a
+// minute. Counted per user from the login cookie, before auth's database
+// lookup, like the tips above.
+export const DECISION_REQUESTS_PER_MINUTE = 30;
+export const decisionsRateLimitStore = new MemoryStore();
+
+export const decisionsRateLimit = rateLimit({
+  store: decisionsRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: DECISION_REQUESTS_PER_MINUTE,
+  keyGenerator: (req: Request) => {
+    const session = readSession(req);
+    return session ? `user:${session.id}` : "signed-out";
+  },
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many requests. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});
+
+// How many times one signed-in user may ask how many sentences wait for
+// them (GET /Admin/count, the badge on the Teacher link) in a minute. The
+// site asks when a page loads, every few minutes while the tab is showing,
+// and after each decision on the Teacher page: a teacher deciding quickly
+// sends a few a minute, never dozens. Counted per user from the login
+// cookie, before auth's database lookup, like the tips above.
+export const REVIEW_COUNT_REQUESTS_PER_MINUTE = 60;
+export const reviewCountRateLimitStore = new MemoryStore();
+
+export const reviewCountRateLimit = rateLimit({
+  store: reviewCountRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: REVIEW_COUNT_REQUESTS_PER_MINUTE,
+  keyGenerator: perUser,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many requests. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});

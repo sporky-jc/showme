@@ -8,6 +8,9 @@ import {
   getPendingApprovalSentences,
   updatePendingApprovalSentences,
   getReviewTips,
+  getReviewCounts,
+  getRecentDecisions,
+  undoDecision,
   fetchApprovedSentences,
   logoutUser,
 } from "../controllers/routes.js";
@@ -21,7 +24,9 @@ import {
 import auth from "../middlewares/auth.js";
 import admin from "../middlewares/admin.js";
 import {
+  decisionsRateLimit,
   likesRateLimit,
+  reviewCountRateLimit,
   reviewTipsRateLimit,
   sentenceWritesRateLimit,
   testLoginRateLimit,
@@ -61,9 +66,20 @@ router.post("/Logout", logoutUser);
 router.get("/Admin", auth, admin, getPendingApprovalSentences);
 // Route for updating status on sentences awaiting approval
 router.patch("/Admin", auth, admin, updatePendingApprovalSentences);
+// The sentences approved or sent back most recently, and taking one of those
+// decisions back (out of the gallery, or no longer sent back), so it waits
+// for review again. Protected like the decisions themselves, and limited
+// per user like the tips (see middlewares/rateLimit.ts).
+router.get("/Admin/decisions", decisionsRateLimit, auth, admin, getRecentDecisions);
+router.patch("/Admin/undo", decisionsRateLimit, auth, admin, undoDecision);
 // The tips a teacher can send back with "Try again", limited per user (see
 // middlewares/rateLimit.ts)
 router.get("/Admin/tips", reviewTipsRateLimit, auth, admin, getReviewTips);
+// How many sentences wait for this teacher, and how many to check in on,
+// for the badge on the Teacher link. Protected like the queue itself, and
+// limited per user (see middlewares/rateLimit.ts): every teacher's open tab
+// asks every few minutes.
+router.get("/Admin/count", reviewCountRateLimit, auth, admin, getReviewCounts);
 
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);

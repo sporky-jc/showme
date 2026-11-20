@@ -6,6 +6,7 @@ import ScribblesNote from "../components/ScribblesNote";
 import { noteKind } from "../components/noteKind";
 import type { NoteKind } from "../components/noteKind";
 import PageLoading from "../components/PageLoading";
+import RecentDecisions from "../components/RecentDecisions";
 import * as api from "../api";
 import {
   updatePendingApprovalSentences,
@@ -94,6 +95,9 @@ function Admin() {
   // open: the tip chosen there (null: none), and whether every tip shows
   const [tips, setTips] = useState<ReviewTip[]>([]);
   const [choosing, setChoosing] = useState<{ id: string; tip: ReviewTipId | null; all: boolean } | null>(null);
+  // How many decisions have been saved here, so the recent decisions (when
+  // open) are asked for again after each one
+  const [decided, setDecided] = useState(0);
 
   // Retrieve all sentences pending approval (the server checks again), once
   // the user is an admin. Only when that changes (or on Try again), not on
@@ -178,6 +182,7 @@ function Admin() {
     focusNext.current = { place };
     setChoosing(null);
     setSaving(null);
+    setDecided((n) => n + 1);
     // How many are left, so two decisions in a row never read the same
     // (a screen reader stays silent when the words don't change)
     const left = store.getState().approvalsentences.length;
@@ -364,6 +369,17 @@ function Admin() {
             })}
           </ol>
         </>
+      )}
+      {/* Under the queue (or "All caught up!"): taking back an approval or
+          a "Try again", which puts the sentence back in the queue above */}
+      {loaded === "ready" && (
+        <RecentDecisions
+          refresh={decided}
+          onQueue={(queue) => dispatch({ type: "UPDATE_APPROVAL_SENTENCES", payload: queue })}
+          onSaid={setSaid}
+          saving={saving}
+          onSaving={setSaving}
+        />
       )}
     </div>
   );

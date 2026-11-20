@@ -42,6 +42,12 @@ const sentenceSchema = new mongoose.Schema({
   // their teacher's decision: one they chose with "Try again", or the
   // praise tip once approved. Cleared when the student edits the sentence.
   tip: { type: String, enum: TIP_IDS },
+  // When a teacher last approved it or sent it back (PATCH /Admin), so the
+  // Teacher page can list its most recent decisions to take one back
+  // (GET /Admin/decisions). Cleared when the decision is taken back or the
+  // student edits the sentence: it is waiting again. Sentences decided
+  // before this was added have none. Not in any answer the contract sends.
+  decidedAt: { type: Date },
   // For Scribbles' scheduled reviewer only (reviewer/queue.ts): the exact
   // words it last saved a suggestion for, and when, so it can find the
   // sentences still to review in one query. Never read by default (select:

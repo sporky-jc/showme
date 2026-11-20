@@ -101,6 +101,28 @@ export const ReviewBody = z.object({
   path: ["tip"],
 });
 
+// PATCH /Admin/undo: an admin takes back a decision, so the sentence waits
+// for review again: "approve" takes an approved sentence out of the gallery,
+// "redo" takes back a "Try again". Like ReviewBody's, the id must be a real
+// id written as text, and the date the one the teacher's page showed: the
+// decision is taken back only if the sentence still has that decision and
+// the words the teacher saw, never after the student has edited it.
+export const UNDO_STALE =
+  "This sentence changed or its decision was already taken back. Here is the latest list.";
+export const UndoBody = z.object({
+  sentence: z.object(
+    {
+      _id: sentenceId,
+      createdAt: z.iso.datetime({ error: "The sentence's date is missing" }),
+    },
+    { error: INVALID_ID }
+  ),
+  // The decision being taken back
+  status: z.enum(["approve", "redo"], {
+    error: "The status must be approve or redo",
+  }),
+});
+
 // PUT and DELETE /Collections/:id/like: the sentence to like or unlike, from
 // the address. It goes into a database query, so, like ReviewBody's, it
 // must be a real id written as text.
@@ -177,12 +199,37 @@ export const OwnSentence = Sentence.extend({
     .optional(),
 });
 
-// Who wrote a sentence, as Collections (which anyone can see) and the review
-// queue show it: only the name
+// Who wrote a sentence, as the Teacher page (admins only) shows it: only the
+// name, but all of it, so a teacher knows which Mia it is
 export const Author = User.pick({ firstName: true, lastName: true });
 
-// GET /Collections (approved sentences) and GET/PATCH /Admin (the queue)
+// The first letter of a last name, or none for no last name (or a blank one).
+// Array.from splits by letter, not by UTF-16 code unit, so a name starting
+// with a letter outside the basic set isn't cut in half.
+const initialOf = (name: string | null | undefined) =>
+  Array.from(name?.trim() ?? "")[0];
+
+// Who wrote a sentence, as the gallery shows it: "Mia T.". Anyone can load
+// the gallery without signing in, and anyone can read its whole answer, not
+// just what the page shows, so the surname itself never leaves the server:
+// only its first letter does. The field is still called lastName, holding
+// just that letter, because the website that is live while a new backend
+// deploys (the backend goes out a few minutes first, see
+// promote-production.yml) shows the first letter of lastName: it shows the
+// same "Mia T." from "T" as it did from "Torres". Every answer goes through
+// the contract (utils/answer.ts), so the cut is made for every sentence the
+// gallery sends, whatever the database query returned.
+export const GalleryAuthor = z.object({
+  firstName: z.string(),
+  lastName: z.string().nullish().transform(initialOf).optional(),
+});
+
+// GET/PATCH /Admin (the queue) and GET /Admin/decisions: the whole name
 export const SentenceWithAuthor = Sentence.extend({ author: Author });
+
+// GET /Collections (approved sentences): only the author's first name and
+// last initial
+export const GallerySentence = Sentence.extend({ author: GalleryAuthor });
 
 // What Scribbles suggests for a sentence waiting for review (reviewer/,
 // saved by the scheduled reviewer), for the Teacher page only: never sent to
@@ -214,9 +261,24 @@ export const ReviewTip = z.object({ id: z.enum(TIP_IDS), text: z.string() });
 export const TellSentences = z.array(TellSentence);
 export const Sentences = z.array(Sentence);
 export const OwnSentences = z.array(OwnSentence);
-export const SentencesWithAuthors = z.array(SentenceWithAuthor);
+export const GallerySentences = z.array(GallerySentence);
 export const ReviewQueue = z.array(QueueSentence);
+
+// GET /Admin/decisions: the sentences teachers approved or sent back most
+// recently, newest decision first, so one can be taken back (approved and
+// toRedo say which decision it was). PATCH /Admin/undo answers with the
+// queue and this list as they are after the undo.
+export const RecentDecisions = z.array(SentenceWithAuthor);
+export const UndoAnswer = z.object({ queue: ReviewQueue, decisions: RecentDecisions });
 export const ReviewTips = z.array(ReviewTip);
+
+// GET /Admin/count: how many sentences wait in this teacher's queue, and how
+// many of those Scribbles held as worrying ("Check in" on the Teacher page),
+// for the badge on the Teacher link. Only counts: no words, no names.
+export const ReviewCounts = z.object({
+  checkIn: z.number().int().nonnegative(),
+  waiting: z.number().int().nonnegative(),
+});
 
 // An approved sentence's likes, as a signed-in student sees them: GET
 // /Collections/likes lists every approved sentence's, and PUT and DELETE
@@ -253,5 +315,10 @@ export type QueueSentence = z.infer<typeof QueueSentence>;
 export type ReviewTip = z.infer<typeof ReviewTip>;
 export type Author = z.infer<typeof Author>;
 export type SentenceWithAuthor = z.infer<typeof SentenceWithAuthor>;
+export type GalleryAuthor = z.infer<typeof GalleryAuthor>;
+export type GallerySentence = z.infer<typeof GallerySentence>;
+export type UndoBody = z.infer<typeof UndoBody>;
+export type UndoAnswer = z.infer<typeof UndoAnswer>;
+export type ReviewCounts = z.infer<typeof ReviewCounts>;
 export type SentenceLikes = z.infer<typeof SentenceLikes>;
 export type ErrorAnswer = z.infer<typeof ErrorAnswer>;

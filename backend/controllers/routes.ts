@@ -1,19 +1,26 @@
 import type { Request, Response } from "express";
 import {
   EditSentenceBody,
+  GallerySentences,
   NewSentenceBody,
   OwnSentence,
   OwnSentences,
+  RecentDecisions,
   REVIEW_STALE,
   ReviewBody,
+  ReviewCounts,
   ReviewQueue,
   ReviewTips,
-  SentencesWithAuthors,
   TellSentences,
+  UNDO_STALE,
+  UndoAnswer,
+  UndoBody,
   UNKNOWN_DAY,
   User,
 } from "../contract/api.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
+import { ReviewDecision } from "../models/reviewDecisions.js";
+import { logger } from "firebase-functions/logger";
 import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
 import { Types } from "mongoose";
 import { dayKeyOf, Sentence } from "../models/sentences.js";
@@ -56,7 +63,8 @@ const newestFirst = <T extends { createdAt: Date }>(sentences: T[]) =>
 // Sentences matching `filter`, newest first, with each author's name filled
 // in. Used by the review queue (/Admin, admins only) and Collections (anyone,
 // no login needed). Both pages show only the author's name, so only the name
-// is sent: the rest of a profile holds the student's email, their Google
+// is sent (and to Collections only the last name's first letter: its
+// contract, GalleryAuthor, cuts the rest off before it's sent): the rest of a profile holds the student's email, their Google
 // account id and their login details. A sentence's own GID is that same
 // Google account id, so it's left out too, as is who liked it (likes are
 // only for signed-in users, through their own routes).
@@ -177,7 +185,8 @@ export const editUserSentence = async (req: Request, res: Response) => {
         },
         // ... and when the reviewer last tried and failed (its new words go
         // in line with the other new sentences, reviewer/queue.ts)
-        $unset: { tip: "", lastTriedAt: "" },
+        // ... and when a teacher decided it: it's waiting again
+        $unset: { tip: "", lastTriedAt: "", decidedAt: "" },
       },
       { new: true }
     );
@@ -260,6 +269,43 @@ const reviewQueueFor = async (adminId: string | undefined) => {
   }));
 };
 
+// How many sentences wait in this admin's queue, and how many of them
+// Scribbles held as worrying ("Check in" on the Teacher page, the first
+// cards there), for the badge on the site's Teacher link. The same queue as
+// the Teacher page (reviewQueue, so the same test-account rule), and the
+// same rule for which suggestion counts: only one for a sentence's current
+// words. Only each waiting sentence's id and words are read, with no
+// authors, so it's much lighter than loading the queue: the waiting
+// sentences come through the index on approved and toRedo
+// (models/sentences.ts), and their suggestions through the one on sentence
+// and show (models/reviewSuggestions.ts).
+const reviewCountsFor = async (adminId: string | undefined) => {
+  const queue = await Sentence.find(reviewQueue(adminId), { _id: 1, show: 1 }).lean<
+    { _id: Types.ObjectId; show: string }[]
+  >();
+  if (queue.length === 0) return { checkIn: 0, waiting: 0 };
+  const worrying = await ReviewSuggestion.find(
+    { sentence: { $in: queue.map((s) => s._id) }, reasons: { $eq: "worrying" } },
+    { _id: 0, sentence: 1, show: 1 }
+  ).lean<{ sentence: Types.ObjectId; show: string }[]>();
+  // A suggestion about words the student has since changed doesn't count
+  const current = new Set(queue.map((s) => `${String(s._id)} ${s.show}`));
+  return {
+    checkIn: worrying.filter((s) => current.has(`${String(s.sentence)} ${s.show}`)).length,
+    waiting: queue.length,
+  };
+};
+
+// Route for the badge on the Teacher link (admins only)
+export const getReviewCounts = async (req: Request, res: Response) => {
+  try {
+    answer(res, 200, ReviewCounts, await reviewCountsFor(req.userId));
+  } catch (error) {
+    res.locals.error = error;
+    res.status(500).json({ message: messageOf(error) });
+  }
+};
+
 // Route for the tips a teacher can send back with "Try again": every tip
 // but the praise, which only goes with an approval
 export const getReviewTips = (req: Request, res: Response) => {
@@ -313,7 +359,8 @@ export const updatePendingApprovalSentences = async (
       approved: 1,
       toRedo: 1,
       createdAt: 1,
-    }).lean<{ approved?: boolean; toRedo?: boolean; createdAt?: Date | string }>();
+      show: 1,
+    }).lean<{ approved?: boolean; toRedo?: boolean; createdAt?: Date | string; show: string }>();
     if (!stored) {
       return res.status(404).json({ message: "Sentence not found" });
     }
@@ -341,18 +388,34 @@ export const updatePendingApprovalSentences = async (
         approved: false,
         toRedo: false,
         createdAt: stored.createdAt ?? { $exists: false },
+        // The words read above are the words decided on (recorded below)
+        show: stored.show,
       },
       // approve (with the praise tip), or "redo" (with the tip the reviewer
       // chose, or none), the only other decision the contract allows
+      // (and when, for the Teacher page's recent decisions)
       status === "approve"
-        ? { $set: { approved: true, toRedo: false, tip: PRAISE } }
+        ? { $set: { approved: true, toRedo: false, tip: PRAISE, decidedAt: new Date() } }
         : tip
-          ? { $set: { approved: false, toRedo: true, tip } }
-          : { $set: { approved: false, toRedo: true }, $unset: { tip: "" } }
+          ? { $set: { approved: false, toRedo: true, tip, decidedAt: new Date() } }
+          : { $set: { approved: false, toRedo: true, decidedAt: new Date() }, $unset: { tip: "" } }
     );
     if (matchedCount === 0) {
       // It changed between the check and the update
       return res.status(409).json({ message: REVIEW_STALE });
+    }
+
+    // Kept for the shadow report (models/reviewDecisions.ts). The decision
+    // has already been made, so a failure here is only logged.
+    try {
+      await ReviewDecision.create({
+        sentence: sentence._id,
+        show: stored.show,
+        status,
+        tip: status === "approve" ? PRAISE : (tip ?? null),
+      });
+    } catch (error) {
+      logger.warn(`Could not record a teacher's decision: ${messageOf(error)}`, { sentence: sentence._id });
     }
 
     // send back the updated queue, newest first
@@ -372,9 +435,137 @@ export const fetchApprovedSentences = async (req: Request, res: Response) => {
       approved: true,
     });
 
-    answer(res, 200, SentencesWithAuthors, approvedSentences);
+    // GallerySentences, not the Teacher page's SentencesWithAuthor: anyone
+    // can read this answer, so each author goes out as a first name and a
+    // last initial only (see GalleryAuthor)
+    answer(res, 200, GallerySentences, approvedSentences);
   } catch (error) {
     res.locals.error = error;
     res.status(409).json({ message: messageOf(error) });
+  }
+};
+
+// How many decisions the Teacher page lists to take back: a few days of a
+// class's sentences. Older ones can't be taken back from the page.
+export const RECENT_DECISIONS = 50;
+
+// The sentences teachers approved or sent back most recently, newest
+// decision first, each with its author's whole name (admins only, like the
+// queue). The same test-account rule as the queue (see reviewQueue): the
+// test admin sees only test accounts' decisions, a real teacher everyone's
+// but theirs. Sentences decided before decisions were dated have no
+// decidedAt; the database puts those after every dated one, newest written
+// first among themselves.
+const recentDecisionsFor = (adminId: string | undefined) =>
+  Sentence.find(
+    {
+      $or: [{ approved: true }, { toRedo: true }],
+      GID: isTestAccount(adminId) ? TEST_SENTENCES : { $not: TEST_SENTENCES },
+    },
+    "-GID -likedBy"
+  )
+    .sort({ decidedAt: -1, createdAt: -1 })
+    .limit(RECENT_DECISIONS)
+    .populate("author", "firstName lastName -_id");
+
+// Route for the Teacher page's recent decisions
+export const getRecentDecisions = async (req: Request, res: Response) => {
+  try {
+    answer(res, 200, RecentDecisions, await recentDecisionsFor(req.userId));
+  } catch (error) {
+    res.locals.error = error;
+    res.status(500).json({ message: messageOf(error) });
+  }
+};
+
+// Route for taking back a decision: an approved sentence comes out of the
+// gallery, or one sent back with "Try again" stops asking the student to,
+// and either way it waits in the Teacher page's queue again, with its words,
+// date and likes as they were. Admins only, like the review itself. Who took
+// it back, and when, is in the request's log line (its userId, see
+// middlewares/requestLog.ts), as it is for the decision itself.
+export const undoDecision = async (req: Request, res: Response) => {
+  try {
+    // The admin middleware on this route has already checked isAdmin. As
+    // with a decision, the id must be a real id written as text (see the
+    // contract), and $eq says so to the query as well.
+    const body = UndoBody.safeParse(req.body ?? {});
+    if (!body.success) {
+      return res.status(400).json({ message: firstProblem(body.error) });
+    }
+    const { status, sentence } = body.data;
+    const id = new Types.ObjectId(sentence._id);
+    // The test admin may only touch test accounts' sentences (see reviewQueue)
+    const testOnly = isTestAccount(req.userId) ? { GID: TEST_SENTENCES } : {};
+
+    // As stored, without Mongoose's conversions (see
+    // updatePendingApprovalSentences: some early dates are text)
+    const stored = await Sentence.findOne(
+      { _id: { $eq: id }, ...testOnly },
+      { approved: 1, toRedo: 1, createdAt: 1, show: 1 }
+    ).lean<{ approved?: boolean; toRedo?: boolean; createdAt?: Date | string; show: string }>();
+    if (!stored) {
+      return res.status(404).json({ message: "Sentence not found" });
+    }
+
+    // Only the decision the teacher's page showed, on the words it showed: a
+    // sentence the student has edited since is already waiting (and may say
+    // something new), and one already taken back has nothing to undo
+    const decided =
+      status === "approve" ? stored.approved === true : stored.toRedo === true && !stored.approved;
+    const sameDate =
+      stored.createdAt === undefined ||
+      new Date(stored.createdAt).getTime() === new Date(sentence.createdAt).getTime();
+    if (!decided || !sameDate) {
+      return res.status(409).json({ message: UNDO_STALE });
+    }
+
+    // One write, matching what was just checked, so nothing can change the
+    // sentence in between. Its tip goes too: it came with the decision.
+    const { matchedCount } = await Sentence.collection.updateOne(
+      {
+        _id: { $eq: id },
+        ...testOnly,
+        ...(status === "approve" ? { approved: true } : { approved: false, toRedo: true }),
+        createdAt: stored.createdAt ?? { $exists: false },
+        // The words read above are the words whose decision is taken back
+        // (marked below)
+        show: { $eq: stored.show },
+      },
+      { $set: { approved: false, toRedo: false }, $unset: { tip: "", decidedAt: "" } }
+    );
+    if (matchedCount === 0) {
+      return res.status(409).json({ message: UNDO_STALE });
+    }
+
+    // The shadow report (models/reviewDecisions.ts) mustn't count a decision
+    // the teacher took back: the latest one recorded for these words, if it
+    // was recorded, is marked undone. The undo has already happened, so a
+    // failure here is only logged, as when a decision is recorded.
+    try {
+      await ReviewDecision.findOneAndUpdate(
+        {
+          sentence: { $eq: id },
+          show: { $eq: stored.show },
+          status: { $eq: status },
+          undoneAt: { $exists: false },
+        },
+        { $set: { undoneAt: new Date() } },
+        { sort: { decidedAt: -1 } }
+      );
+    } catch (error) {
+      logger.warn(`Could not mark a teacher's decision undone: ${messageOf(error)}`, { sentence: sentence._id });
+    }
+
+    // Both lists as they are now: the sentence is back in the queue, and no
+    // longer among the decisions
+    answer(res, 201, UndoAnswer, {
+      queue: await reviewQueueFor(req.userId),
+      decisions: await recentDecisionsFor(req.userId),
+    });
+  } catch (error) {
+    res.locals.error = error;
+    // 500, not 409: the page reads 409 as "changed or already taken back"
+    res.status(500).json({ message: messageOf(error) });
   }
 };

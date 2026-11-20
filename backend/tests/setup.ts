@@ -3,7 +3,9 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { logger } from "firebase-functions/logger";
 import {
+  decisionsRateLimitStore,
   likesRateLimitStore,
+  reviewCountRateLimitStore,
   reviewTipsRateLimitStore,
   sentenceWritesPerDayStore,
   sentenceWritesPerMinuteStore,
@@ -35,6 +37,8 @@ afterEach(async () => {
   await sentenceWritesPerMinuteStore.resetAll();
   await sentenceWritesPerDayStore.resetAll();
   await reviewTipsRateLimitStore.resetAll();
+  await decisionsRateLimitStore.resetAll();
+  await reviewCountRateLimitStore.resetAll();
   await testLoginRateLimitStore.resetAll();
 });
 
