@@ -41,10 +41,16 @@ export const REASONS = [
   // Held by the AI safety check (a model that only judges whether text is
   // safe), before any AI reviewer reads it
   "safety-check",
+  // Held by the AI welfare check (a model that only judges whether the child
+  // who wrote it may be at risk), always alongside "worrying" so it's shown
+  // first ("Check in"). Its verdict is the only one used: no AI reviewer's
+  // answer is.
+  "welfare-check",
   // Decided by an AI provider
   "ai",
   // No layer could decide
   "no-safety-check", // the safety check isn't set up, failed or ran out: no AI reviewer is asked
+  "no-welfare-check", // the welfare check isn't set up, failed, ran out or gave an invalid answer: held as "worrying" all the same
   "no-provider", // none set up, or every one failed or ran out
 ] as const;
 export type Reason = (typeof REASONS)[number];
@@ -55,6 +61,8 @@ export const ATTEMPT_OUTCOMES = [
   "answered", // a provider gave an answer in the fixed form
   "safe", // the safety check said safe
   "unsafe", // the safety check said unsafe
+  "concern", // the welfare check said the child may be at risk
+  "no-concern", // the welfare check saw nothing worrying
   "invalid", // an answer, but not in the form asked for
   "rate-limited", // HTTP 429: out of free requests for now (the run stops)
   "credentials", // HTTP 401 or 403: the key is wrong or lacks permission (the run stops)
@@ -78,6 +86,13 @@ export const ProviderAnswer = z
     { error: "The tip doesn't match the verdict" }
   );
 export type ProviderAnswer = z.infer<typeof ProviderAnswer>;
+
+// The welfare check's answer, exactly: one field, "yes" or "no". Anything
+// else (free text, "maybe", an extra field) is invalid, and an invalid
+// answer holds the sentence as worrying (reviewer.ts), never lets it through.
+export const WELFARE_CONCERNS = ["yes", "no"] as const;
+export const WelfareAnswer = z.object({ concern: z.enum(WELFARE_CONCERNS) }).strict();
+export type WelfareAnswer = z.infer<typeof WelfareAnswer>;
 
 // What the reviewer decided about one sentence
 export interface Suggestion {

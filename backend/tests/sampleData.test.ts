@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
-import { reviewSentence, type ReviewProvider, type SafetyCheck } from "../reviewer/reviewer.js";
+import { reviewSentence, type ReviewProvider, type SafetyCheck, type WelfareCheck } from "../reviewer/reviewer.js";
 import { reviewWaitingSentences } from "../reviewer/queue.js";
 import { PRAISE } from "../reviewer/tips.js";
 import { backfillPraise, countWithoutPraise } from "../utils/backfillPraise.js";
@@ -14,6 +14,7 @@ import { createSentence, createUser } from "./helpers.js";
 // (utils/backfillPraise.ts)
 
 const safe: SafetyCheck = { name: "guard", check: async () => "safe" };
+const calm: WelfareCheck = { name: "welfare", check: async () => ({ concern: "no" }) };
 const approving: ReviewProvider = { name: "ai", review: async () => ({ verdict: "approve", tip: "great" }) };
 
 describe("the sample data", () => {
@@ -63,7 +64,7 @@ describe("the sample data", () => {
   it("has waiting sentences that make each kind of Scribbles note", async () => {
     const outcome = async (kind: string) => {
       const [, , show] = SAMPLE_SENTENCES.find(([, , , s]) => "waiting" in s && s.waiting === kind)!;
-      return (await reviewSentence({ tell: "It is cold outside.", show }, [approving], { safety: safe })).suggestion;
+      return (await reviewSentence({ tell: "It is cold outside.", show }, [approving], { safety: safe, welfare: calm })).suggestion;
     };
 
     expect((await outcome("check-in")).reasons).toContain("worrying");
@@ -85,7 +86,7 @@ describe("the sample data", () => {
     const ai = { ...approving, review: vi.fn(approving.review) };
 
     const { reviewed } = await reviewWaitingSentences(
-      { mode: "suggest", safety: safe, providers: [ai] },
+      { mode: "suggest", safety: safe, welfare: calm, providers: [ai] },
       { limit: waiting.length, only: { _id: { $in: waiting } } }
     );
 
@@ -133,7 +134,7 @@ describe("sample sentences for a real staging account", () => {
 
   it("make the notes they're written for", async () => {
     const review = async (show: string) =>
-      (await reviewSentence({ tell: "It is cold outside.", show }, [approving], { safety: safe })).suggestion;
+      (await reviewSentence({ tell: "It is cold outside.", show }, [approving], { safety: safe, welfare: calm })).suggestion;
     for (const [, show, state] of DEMO_SENTENCES) {
       if (!("waiting" in state)) continue;
       expect(await review(show)).toMatchObject({ verdict: state.waiting === "ready" ? "approve" : "redo" });

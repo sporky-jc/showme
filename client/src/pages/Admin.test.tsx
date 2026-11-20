@@ -432,6 +432,27 @@ describe("Scribbles' notes", () => {
     expect(screen.getByRole("list", { name: "Scribbles' notes" })).toHaveTextContent(/1 to check in on.*1 ready.*1 try again/);
   });
 
+  // The welfare check read it (an AI), so the note says so, and it still
+  // comes first as a check-in
+  it.each([
+    [["worrying", "welfare-check"], "Our welfare check thinks it may be worrying, so I held it just for you. Please read it and check in with Ava."],
+    [
+      ["worrying", "no-welfare-check"],
+      "Our welfare check couldn't answer for this one, and it may be worrying, so I held it just for you. Please read it and check in with Ava.",
+    ],
+  ] as const)("puts a sentence the welfare check held first, with a note to check in: %o", async (reasons, said) => {
+    const held = { ...worrying, suggestion: { ...worrying.suggestion!, reasons: [...reasons] } };
+    renderAdmin({ queue: [ready, held] });
+    await screen.findByText("Ava K");
+
+    expect(names()).toEqual(["Ava K", "Leo K"]);
+    const [note] = screen.getAllByRole("note");
+    expect(note).toHaveTextContent("Ava may need help.");
+    expect(note).toHaveTextContent(said);
+    expect(note).not.toHaveTextContent("No AI saw it.");
+    expect(note).toHaveTextContent("Check in");
+  });
+
   it.each([
     [["unkind", "names-someone"], "It may be unkind about someone, so I held it for you. No AI saw it."],
     [["names-someone"], "It may name someone in an unkind or hurtful way, so I held it for you. No AI saw it."],

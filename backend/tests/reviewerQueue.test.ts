@@ -4,7 +4,7 @@ import { ReviewSuggestion } from "../models/reviewSuggestions.js";
 import { MAX_AGE_DAYS, MAX_FAILED_RUNS, RUN_DEADLINE_MS, reviewWaitingSentences } from "../reviewer/queue.js";
 import { ProviderError } from "../reviewer/providers/http.js";
 import { cloudflareSafety } from "../reviewer/providers/cloudflare.js";
-import type { ReviewProvider, SafetyCheck } from "../reviewer/reviewer.js";
+import type { ReviewProvider, SafetyCheck, WelfareCheck } from "../reviewer/reviewer.js";
 import type { ReviewerSetup } from "../reviewer/settings.js";
 import request from "supertest";
 import app from "../app.js";
@@ -17,6 +17,7 @@ const TELL = "It is cold outside.";
 const GOOD = "My breath puffed out like a little cloud, and the grass crunched.";
 
 const safe: SafetyCheck = { name: "guard", check: async () => "safe" };
+const calm: WelfareCheck = { name: "welfare", check: async () => ({ concern: "no" }) };
 const approving = (): ReviewProvider & { review: ReturnType<typeof vi.fn> } => ({
   name: "ai",
   review: vi.fn(async () => ({ verdict: "approve", tip: "great" })),
@@ -24,6 +25,7 @@ const approving = (): ReviewProvider & { review: ReturnType<typeof vi.fn> } => (
 const setupWith = (providers: ReviewProvider[], overrides: Partial<ReviewerSetup> = {}): ReviewerSetup => ({
   mode: "suggest",
   safety: safe,
+  welfare: calm,
   providers,
   ...overrides,
 });
@@ -47,6 +49,8 @@ describe("the scheduled reviewer", () => {
     await addSentence();
     expect(await reviewWaitingSentences(setupWith([]))).toEqual({ reviewed: 0 });
     expect(await reviewWaitingSentences(setupWith([approving()], { safety: undefined }))).toEqual({ reviewed: 0 });
+    // ... and the welfare check: without it, every sentence would be held
+    expect(await reviewWaitingSentences(setupWith([approving()], { welfare: undefined }))).toEqual({ reviewed: 0 });
     expect(await ReviewSuggestion.countDocuments()).toBe(0);
   });
 
@@ -121,6 +125,7 @@ describe("the scheduled reviewer", () => {
     const saved = await ReviewSuggestion.findOne({ sentence: sentence._id }).lean();
     expect(saved?.attempts).toEqual([
       { provider: "guard", outcome: "safe", ms: expect.any(Number) },
+      { provider: "welfare", outcome: "no-concern", ms: expect.any(Number) },
       { provider: "ai", outcome: "answered", ms: expect.any(Number) },
     ]);
     const stored = await Sentence.findById(sentence._id, "+reviewedShow +reviewedAt").lean();
@@ -415,7 +420,7 @@ describe("the scheduled reviewer", () => {
     expect(await ReviewSuggestion.findOne({ sentence: sentence._id }).lean()).toMatchObject({
       verdict: "unsure",
       reasons: ["no-provider"],
-      attempts: [{ outcome: "safe" }, { outcome: "refused" }],
+      attempts: [{ outcome: "safe" }, { outcome: "no-concern" }, { outcome: "refused" }],
     });
   });
 
@@ -435,5 +440,142 @@ describe("the scheduled reviewer", () => {
     expect(await reviewWaitingSentences(setupWith([first, second]))).toEqual({ reviewed: 0, stopped: "rate-limited" });
     expect(first.review).toHaveBeenCalledTimes(1);
     expect(second.review).toHaveBeenCalledTimes(1);
+  });
+});
+
+// The welfare check in the scheduled reviewer: it fails closed like the
+// safety check, and stops a run the same way when it's out of free requests
+// or its key is refused
+describe("the scheduled reviewer and the welfare check", () => {
+  const HINT = "My tummy growled all night because the fridge was empty again and nobody came home.";
+  const welfareWith = (check: WelfareCheck["check"]) => ({ name: "welfare", check: vi.fn(check) });
+
+  it("saves a worrying hold when it's worried, without asking the reviewer", async () => {
+    const sentence = await addSentence({ show: HINT });
+    const ai = approving();
+    const welfare = welfareWith(async () => ({ concern: "yes" }));
+
+    expect(await reviewWaitingSentences(setupWith([ai], { welfare }))).toEqual({ reviewed: 1 });
+    expect(await ReviewSuggestion.findOne({ sentence: sentence._id }).lean()).toMatchObject({
+      verdict: "unsure",
+      reasons: ["worrying", "welfare-check"],
+      decidedBy: "welfare",
+      attempts: [{ provider: "guard", outcome: "safe" }, { provider: "welfare", outcome: "concern" }],
+    });
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it("checks a copy of the Tell too, before it's sent back", async () => {
+    const sentence = await addSentence({ show: TELL });
+    const welfare = welfareWith(async () => ({ concern: "yes" }));
+
+    expect(await reviewWaitingSentences(setupWith([approving()], { welfare }))).toEqual({ reviewed: 1 });
+    expect(welfare.check).toHaveBeenCalledTimes(1);
+    expect(await ReviewSuggestion.findOne({ sentence: sentence._id }).lean()).toMatchObject({
+      verdict: "unsure",
+      reasons: ["worrying", "welfare-check"],
+    });
+  });
+
+  it("stops the whole run when it's out of free requests, and holds nothing", async () => {
+    for (let i = 0; i < 3; i++) await addSentence({ show: `${GOOD} ${i}` });
+    const welfare = welfareWith(async () => Promise.reject(new ProviderError("HTTP 429", 429)));
+    const ai = approving();
+
+    expect(await reviewWaitingSentences(setupWith([ai], { welfare }))).toEqual({ reviewed: 0, stopped: "rate-limited" });
+    expect(welfare.check).toHaveBeenCalledTimes(1);
+    expect(ai.review).not.toHaveBeenCalled();
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    // And reviews them once it's back
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 3 });
+  });
+
+  it("stops the whole run when its key is refused, and logs it as an error", async () => {
+    const { logger } = await import("firebase-functions/logger");
+    for (let i = 0; i < 3; i++) await addSentence({ show: `${GOOD} ${i}` });
+    const welfare = welfareWith(async () => Promise.reject(new ProviderError("HTTP 401", 401)));
+
+    expect(await reviewWaitingSentences(setupWith([approving()], { welfare }))).toEqual({ reviewed: 0, stopped: "credentials" });
+    expect(welfare.check).toHaveBeenCalledTimes(1);
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    expect(JSON.stringify(vi.mocked(logger.write).mock.calls)).toContain("ERROR");
+  });
+
+  it("tries an invalid answer again on a later run, once, then saves a worrying hold", async () => {
+    const sentence = await addSentence();
+    const welfare = welfareWith(async () => "Probably fine, nothing to see.");
+    const ai = approving();
+    const setup = setupWith([ai], { welfare });
+
+    expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 0 });
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 1 });
+    expect(await ReviewSuggestion.findOne({ sentence: sentence._id }).lean()).toMatchObject({
+      verdict: "unsure",
+      reasons: ["worrying", "no-welfare-check"],
+      decidedBy: "none",
+      attempts: [{ outcome: "safe" }, { outcome: "invalid" }],
+    });
+    expect(welfare.check).toHaveBeenCalledTimes(2);
+    expect(ai.review).not.toHaveBeenCalled();
+    await reviewWaitingSentences(setup);
+    expect(welfare.check).toHaveBeenCalledTimes(2);
+  });
+
+  it("holds nothing after an outage, and reviews everything once it's over", async () => {
+    for (let i = 0; i < 4; i++) await addSentence({ show: `${GOOD} ${i}` });
+    let down = true;
+    const welfare = welfareWith(async () => {
+      if (down) throw new Error("read ECONNRESET");
+      return { concern: "no" };
+    });
+    const setup = setupWith([approving()], { welfare });
+
+    for (let run = 0; run < MAX_FAILED_RUNS + 1; run++) expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 0 });
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    down = false;
+    expect(await reviewWaitingSentences(setup)).toEqual({ reviewed: 4 });
+    expect((await ReviewSuggestion.find().lean()).map((s) => s.decidedBy)).toEqual(Array(4).fill("ai"));
+  });
+
+  it(`saves a worrying hold for a sentence it fails on ${MAX_FAILED_RUNS} runs in a row while it answers for others`, async () => {
+    const broken = await addSentence({ show: HINT, createdAt: new Date(Date.now() - 60_000) });
+    const welfare = welfareWith(async ({ show }) => {
+      if (show === HINT) throw new Error("Unexpected answer from Workers AI");
+      return { concern: "no" };
+    });
+
+    for (let run = 0; run < MAX_FAILED_RUNS; run++) {
+      await addSentence({ show: `${GOOD} ${run}` });
+      await reviewWaitingSentences(setupWith([approving()], { welfare }));
+    }
+    expect(await ReviewSuggestion.findOne({ sentence: broken._id }).lean()).toMatchObject({
+      verdict: "unsure",
+      reasons: ["worrying", "no-welfare-check"],
+      decidedBy: "none",
+    });
+  });
+
+  it("saves a worrying hold at once when its API refuses the request", async () => {
+    const sentence = await addSentence();
+    const welfare = welfareWith(async () => Promise.reject(new ProviderError("HTTP 400", 400)));
+
+    expect(await reviewWaitingSentences(setupWith([approving()], { welfare }))).toEqual({ reviewed: 1 });
+    expect(await ReviewSuggestion.findOne({ sentence: sentence._id }).lean()).toMatchObject({
+      reasons: ["worrying", "no-welfare-check"],
+      attempts: [{ outcome: "safe" }, { outcome: "refused" }],
+    });
+  });
+
+  it("is never asked when the safety check is out of free requests", async () => {
+    await addSentence();
+    const welfare = welfareWith(async () => ({ concern: "no" }));
+    const safety = { name: "guard", check: vi.fn(async () => Promise.reject(new ProviderError("HTTP 429", 429))) };
+
+    expect(await reviewWaitingSentences(setupWith([approving()], { safety, welfare }))).toEqual({
+      reviewed: 0,
+      stopped: "rate-limited",
+    });
+    expect(welfare.check).not.toHaveBeenCalled();
   });
 });

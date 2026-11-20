@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { misspelledWords } from "../reviewer/spelling.js";
-import { reviewSentence, type ReviewProvider, type SafetyCheck } from "../reviewer/reviewer.js";
+import { reviewSentence, type ReviewProvider, type SafetyCheck, type WelfareCheck } from "../reviewer/reviewer.js";
 import { REVIEW_INSTRUCTIONS } from "../reviewer/prompt.js";
 import { TIPS } from "../reviewer/tips.js";
 
@@ -8,6 +8,8 @@ import { TIPS } from "../reviewer/tips.js";
 
 const COLD = "It is cold outside.";
 const safety: SafetyCheck = { name: "guard", check: async () => "safe" };
+// The welfare check, seeing nothing worrying
+const welfare: WelfareCheck = { name: "welfare", check: async () => ({ concern: "no" }) };
 const answering = (answer: unknown): ReviewProvider => ({ name: "ai", review: async () => answer });
 
 describe("the spelling check", () => {
@@ -42,7 +44,7 @@ describe("the reviewer and spelling", () => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "My breth puffed out like a little cloud." },
       [answering({ verdict: "approve", tip: "great" })],
-      { safety }
+      { safety, welfare }
     );
     expect(suggestion).toEqual({
       verdict: "redo",
@@ -57,7 +59,7 @@ describe("the reviewer and spelling", () => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "The wind felt realy sharp on my face." },
       [answering({ verdict: "redo", tip: "senses" })],
-      { safety }
+      { safety, welfare }
     );
     expect(suggestion).toMatchObject({ verdict: "redo", tip: "senses", misspelled: ["realy"] });
   });
@@ -71,7 +73,7 @@ describe("the reviewer and spelling", () => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "Nobody loves me and I am so lonley in the cold." },
       [answering({ verdict: "approve", tip: "great" })],
-      { safety }
+      { safety, welfare }
     );
     expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "rules" });
   });
@@ -80,7 +82,7 @@ describe("the reviewer and spelling", () => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "My breath puffed out like a little cloud." },
       [answering({ verdict: "approve", tip: "great" })],
-      { safety }
+      { safety, welfare }
     );
     expect(suggestion).toEqual({ verdict: "approve", tip: "great", reasons: ["ai"], decidedBy: "ai" });
   });

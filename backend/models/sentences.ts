@@ -52,9 +52,10 @@ const sentenceSchema = new mongoose.Schema({
   // its suggestion.
   reviewedShow: { type: String, select: false },
   reviewedAt: { type: Date, select: false },
-  // The words the safety check last gave an invalid answer about: a second
-  // invalid answer for the same words is saved as a hold, so one bad answer
-  // is tried again on a later run, but never forever (reviewer/queue.ts)
+  // The words the safety check (or the welfare check) last gave an invalid
+  // answer about: a second invalid answer for the same words is saved as a
+  // hold, so one bad answer is tried again on a later run, but never
+  // forever (reviewer/queue.ts)
   safetyInvalidShow: { type: String, select: false },
   // How many runs in a row a review of these exact words failed or took
   // too long, and when the reviewer last tried and couldn't save one: after
