@@ -309,16 +309,29 @@ const STOP = new Set([
   "outside", "today",
 ]);
 
-// The sentence repeats its Tell instead of showing it: the same words, or
-// the Tell's words with at most two new ones
+// The sentence repeats its Tell instead of showing it: it adds no word of
+// its own beyond the Tell's, small words aside ("It is cold outside.", "it
+// is very cold outside", "It is really cold outside today." for "It is cold
+// outside.": "very", "really", "outside" and "today" are small words here).
+// One word of the child's own and it isn't a copy, however much of the Tell
+// it repeats ("Like a ninja, he dodged all the traps with ease.", "The
+// party was fun, so lonely."): a sentence wrongly sent back here never
+// reaches anyone who could read it, so anything else is for the AI or a
+// person to judge. Anything else left once the Tell's words and the small
+// words are taken out is the child's own too: letters in any script,
+// digits or emoji ("It is cold outside. 😢😢", "It is cold outside 911",
+// "It is cold outside 救命").
+const OWN_CONTENT = /[\p{L}\p{N}\p{Extended_Pictographic}]/u;
+// The Tell's instructions in brackets aren't part of it ("(Use a Simile)"),
+// in the Tell or pasted into the Show
+const withoutInstructions = (text: string) => text.replace(/\([^)]*\)/g, " ");
 const copiesTell = (tell: string, show: string) => {
   const meaningful = (text: string) => read(text).words.filter((word) => !STOP.has(word));
-  const tellWords = new Set(meaningful(tell));
-  const showWords = meaningful(show);
-  if (tellWords.size === 0) return false;
-  const reused = [...tellWords].filter((word) => showWords.includes(word)).length;
-  const added = showWords.filter((word) => !tellWords.has(word)).length;
-  return reused / tellWords.size >= 0.8 && added <= 2;
+  const tellWords = new Set(meaningful(withoutInstructions(tell)));
+  const shown = withoutInstructions(show);
+  if (tellWords.size === 0 || meaningful(shown).length === 0) return false;
+  const left = plain(shown).replace(/[a-z]+(?:'[a-z]+)*/g, (word) => (tellWords.has(word) || STOP.has(word) ? " " : word));
+  return !OWN_CONTENT.test(left);
 };
 
 // ---- All together ------------------------------------------------------------

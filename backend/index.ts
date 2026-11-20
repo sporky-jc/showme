@@ -60,7 +60,9 @@ export const reviewer = onSchedule(
   async () => {
     const setup = reviewerSetup();
     if (setup.mode === "off") return;
-    const { reviewed } = await reviewWaitingSentences(setup);
-    logger.info(`Reviewer saved ${reviewed} suggestion(s)`);
+    // No new review starts after 240 seconds (RUN_DEADLINE_MS), well inside
+    // the 300 above
+    const { reviewed, stopped } = await reviewWaitingSentences(setup);
+    logger.info(`Reviewer saved ${reviewed} suggestion(s)${stopped ? `, stopped early: ${stopped}` : ""}`);
   }
 );

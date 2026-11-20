@@ -26,9 +26,31 @@ export const CLOUDFLARE_SAFETY_MODEL = "@cf/meta/llama-guard-3-8b";
 const runUrl = (accountId: string, model: string) =>
   `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`;
 
+// Out of the day's free Neurons. Not checked against a live account (no
+// request is ever sent from here to find out): Cloudflare's API reports
+// errors as { success: false, errors: [{ code, message }] }, and as we
+// understand it the daily free allocation running out is error code 3036,
+// "you have used up your daily free allocation of 10,000 neurons", sent
+// with HTTP 429. In case it comes with another status, or with a 200 and
+// success: false, that code or that message is read as 429 wherever it
+// comes, so the run stops (reviewer/queue.ts) rather than trying every
+// other sentence. If the real answer turns out different, change this.
+const OUT_OF_NEURONS = 3036;
+export const isOutOfNeurons = (body: unknown) => {
+  const errors = (body as { errors?: unknown } | null)?.errors;
+  if (!Array.isArray(errors)) return false;
+  return errors.some((error: { code?: unknown; message?: unknown } | null) =>
+    error?.code === OUT_OF_NEURONS ||
+    // (Not any message about Neurons: only the daily allocation running out)
+    (typeof error?.message === "string" && /daily free allocation/i.test(error.message))
+  );
+};
+const statusOf = (errorBody: unknown, status: number) => (isOutOfNeurons(errorBody) ? 429 : status);
+
 // Workers AI wraps every answer: { success, result: { response } }
 const responseOf = (body: unknown): unknown => {
   const envelope = body as { success?: boolean; result?: { response?: unknown } } | null;
+  if (isOutOfNeurons(envelope)) throw new ProviderError("Out of free Neurons", 429);
   if (!envelope || envelope.success === false || !envelope.result) {
     throw new ProviderError("Unexpected answer from Workers AI");
   }
@@ -51,7 +73,8 @@ export const cloudflareReviewer = ({ accountId, token, model = CLOUDFLARE_REVIEW
         temperature: 0,
         max_tokens: 40,
       },
-      signal
+      signal,
+      { statusOf }
     );
     return asJson(responseOf(body));
   },
@@ -69,17 +92,31 @@ export const cloudflareSafety = ({ accountId, token }: CloudflareSettings): Safe
       runUrl(accountId, CLOUDFLARE_SAFETY_MODEL),
       token,
       { messages: [{ role: "user", content: show }], temperature: 0, max_tokens: 20 },
-      signal
+      signal,
+      { statusOf }
     );
-    const answer = asJson(responseOf(body));
-    if (answer && typeof answer === "object" && typeof (answer as { safe?: unknown }).safe === "boolean") {
-      return (answer as { safe: boolean }).safe ? "safe" : "unsafe";
-    }
-    if (typeof answer === "string") {
-      const first = answer.trim().toLowerCase().split(/\s+/)[0];
-      if (first === "safe") return "safe";
-      if (first === "unsafe") return "unsafe";
-    }
-    throw new ProviderError("Unexpected answer from the safety check");
+    return readSafetyAnswer(asJson(responseOf(body)));
   },
 });
+
+// Llama Guard's answer, read strictly. As an object: { safe: true } with no
+// categories is safe; { safe: false }, or any category named, is unsafe (a
+// "safe" answer that names a category is read the careful way). As text:
+// "safe" alone (any case, with an end mark or spaces around it) is safe;
+// "unsafe" first, then anything ("unsafe\nS11", "unsafe,S11"), is unsafe.
+// Anything else is an invalid answer: thrown, and never read as safe.
+export const readSafetyAnswer = (answer: unknown): "safe" | "unsafe" => {
+  if (answer && typeof answer === "object" && typeof (answer as { safe?: unknown }).safe === "boolean") {
+    const { safe, categories } = answer as { safe: boolean; categories?: unknown };
+    const named = Array.isArray(categories)
+      ? categories.length > 0
+      : categories !== undefined && categories !== null && categories !== "";
+    return safe && !named ? "safe" : "unsafe";
+  }
+  if (typeof answer === "string") {
+    const text = answer.trim().toLowerCase();
+    if (/^safe[.!]?$/.test(text)) return "safe";
+    if (/^unsafe(?![a-z])/.test(text)) return "unsafe";
+  }
+  throw new ProviderError("Unexpected answer from the safety check", undefined, true);
+};

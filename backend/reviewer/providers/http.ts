@@ -2,13 +2,28 @@
 // anything but a successful JSON answer, so the reviewer counts it as a
 // failure and moves on (reviewer.ts). The key goes in a header only, and
 // error messages never include it or the student's text.
-export class ProviderError extends Error {}
+export class ProviderError extends Error {
+  // The HTTP status, when the API answered with one: 429 means out of free
+  // requests for now, 401/403 a wrong key or one without permission. And
+  // whether the API answered, but not in the form asked for (`invalid`).
+  readonly status?: number;
+  readonly invalid: boolean;
+  constructor(message: string, status?: number, invalid = false) {
+    super(message);
+    this.status = status;
+    this.invalid = invalid;
+  }
+}
 
 export const postJson = async (
   url: string,
   apiKey: string,
   body: unknown,
-  signal: AbortSignal
+  signal: AbortSignal,
+  // A provider whose error answers say more than their status can read
+  // them here, and give the status to count it as (cloudflare.ts reads an
+  // "out of free requests" answer as 429 whatever its status)
+  { statusOf }: { statusOf?: (errorBody: unknown, status: number) => number } = {}
 ): Promise<unknown> => {
   const response = await fetch(url, {
     method: "POST",
@@ -18,8 +33,11 @@ export const postJson = async (
   });
   if (!response.ok) {
     // 429: out of free requests for now; 401/403: the key is wrong or lacks
-    // permission. The status is all that's logged.
-    throw new ProviderError(`HTTP ${response.status}`);
+    // permission. The status is all that's logged: the error answer itself
+    // is only read here, never kept or logged.
+    let status = response.status;
+    if (statusOf) status = statusOf(await response.json().catch(() => null), status);
+    throw new ProviderError(`HTTP ${status}`, status);
   }
   return response.json();
 };

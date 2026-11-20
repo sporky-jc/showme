@@ -46,6 +46,21 @@ export const REASONS = [
 ] as const;
 export type Reason = (typeof REASONS)[number];
 
+// What happened when the reviewer asked the safety check or a provider, kept
+// with the suggestion for the teacher's audit trail (never sent to a browser)
+export const ATTEMPT_OUTCOMES = [
+  "answered", // a provider gave an answer in the fixed form
+  "safe", // the safety check said safe
+  "unsafe", // the safety check said unsafe
+  "invalid", // an answer, but not in the form asked for
+  "rate-limited", // HTTP 429: out of free requests for now (the run stops)
+  "credentials", // HTTP 401 or 403: the key is wrong or lacks permission (the run stops)
+  "refused", // any other HTTP 4xx: it won't take this request, now or later (a hold is saved)
+  "failed", // any other failure
+  "timeout", // took too long
+] as const;
+export type AttemptOutcome = (typeof ATTEMPT_OUTCOMES)[number];
+
 // An AI provider's answer, exactly: nothing more, nothing less
 export const ProviderAnswer = z
   .object({

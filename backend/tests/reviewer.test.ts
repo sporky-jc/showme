@@ -316,6 +316,54 @@ describe("the rule checks: the one plain case sent back with a tip", () => {
     expect(checkRules(COLD, show)).toMatchObject({ outcome: "redo", tip: "ownWords" });
   });
 
+  it.each([
+    ["It is cold outside.", "It is cold outside."],
+    ["It is cold outside.", "it is very cold outside"],
+    ["It is cold outside.", "It is really cold outside today."],
+    ["It is cold outside.", "Cold."],
+    ["The boy was scared.", "The boy was so scared."],
+    ["The girl was happy.", "The girl is really happy."],
+    ["The students were very loud, and the teacher couldn't do anything about it.", "The students were loud and the teacher couldn't do anything about it."],
+    // The Tell's instructions in brackets aren't counted, in the Tell or
+    // pasted into the Show with it
+    ["He dodged all the traps with ease. (Use a Simile)", "He dodged all the traps with ease."],
+    ["He dodged all the traps with ease. (Use a Simile)", "He dodged all the traps with ease. (Use a Simile)"],
+  ])("a copy of the Tell %s: %s", (tell, show) => {
+    expect(checkRules(tell, show)).toMatchObject({ outcome: "redo", tip: "ownWords", reasons: ["copies-tell"] });
+  });
+
+  // One word of the child's own and it's for the AI or a person to judge,
+  // never sent back as a copy: however much of the Tell it repeats (the
+  // figurative-language Tells ask for exactly that), and above all when the
+  // word added is a cry for help. The Tells are the real ones
+  // (public/tellList.ts).
+  it.each([
+    ["The boy was scared.", "The scared boy hid, trembling."],
+    ["The girl was happy.", "The girl hugged her happy puppy."],
+    ["The cafeteria was loud.", "The loud cafeteria shook my ears."],
+    ["It is cold outside.", "The cold kills my fingers."],
+    ["The boy was scared.", "Boy, was I scared when it hit me."],
+    ["It is cold outside.", "It is cold and windy outside."],
+    ["It is cold outside.", "It is cold outside, help me."],
+    ["He dodged all the traps with ease. (Use a Simile)", "Like a ninja, he dodged all the traps with ease."],
+    ["The hot soup burned my mouth. (Use a Metaphor)", "The hot soup was lava that burned my mouth."],
+    ["The gale blew the flowers back and forth. (Use Personification)", "The gale danced, pushing the flowers back and forth."],
+    ["I lost my bike, and I got an F on my math test. (Use Hyperbole)", "I lost my bike and got an F on my math test; the world ended."],
+    ["The car is super fast.", "Zoom! The super fast car vanished."],
+    ["The movie scared the little boy.", "The movie scared the little boy, who hid."],
+    ["She almost drowned in the pool.", "She almost drowned in the pool, gasping, sputtering."],
+    ["The students were very loud, and the teacher couldn't do anything about it.", "The students were very loud, and the teacher couldn't do anything about it, help me."],
+    ["The party was fun.", "The party was fun, so lonely."],
+    // Anything of their own: emoji, digits, other scripts, chat words
+    ["It is cold outside.", "It is cold outside. 😢😢"],
+    ["It is cold outside.", "It is cold outside 911"],
+    ["It is cold outside.", "It is cold outside 救命"],
+    ["It is cold outside.", "It is cold outside, ayúdame"],
+    ["It is cold outside.", "It is cold outside plz"],
+  ])("not a copy of the Tell %s: %s", (tell, show) => {
+    expect(checkRules(tell, show).outcome).not.toBe("redo");
+  });
+
   it("passes a short sentence without listed sense words on (painting a picture is for the AI or a person)", () => {
     expect(checkRules(COLD, "The kitten purred on my lap.")).toEqual({ outcome: "pass" });
   });
@@ -372,6 +420,9 @@ const safetyCheck = (answer: unknown): SafetyCheck & { check: ReturnType<typeof 
   }),
 });
 const SAFE = { safety: safetyCheck("safe") };
+// Who answered what, without how long it took
+const outcomes = (attempts: { provider: string; outcome: string }[]) =>
+  attempts.map(({ provider, outcome }) => ({ provider, outcome }));
 
 describe("the reviewer", () => {
   it("never sends a held sentence to any provider", async () => {
@@ -383,13 +434,99 @@ describe("the reviewer", () => {
     expect(ai.review).not.toHaveBeenCalled();
   });
 
-  it("sends back the plain cases itself, without asking a provider", async () => {
+  it("sends back a copy of the Tell itself, once the safety check says it's safe, without asking a provider", async () => {
     const ai = provider("ai", { verdict: "approve", tip: "great" });
+    const safety = safetyCheck("safe");
 
-    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside." }, [ai]);
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: "It is cold outside." }, [ai], { safety });
 
     expect(suggestion).toEqual({ verdict: "redo", tip: "ownWords", reasons: ["copies-tell"], decidedBy: "rules" });
+    expect(safety.check).toHaveBeenCalledTimes(1);
+    expect(outcomes(attempts)).toEqual([{ provider: "guard", outcome: "safe" }]);
     expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  // A copy of the Tell is only sent back once the safety check passes it
+  it.each([
+    ["unsafe", safetyCheck("unsafe"), ["safety-check"], "guard"],
+    ["failed", safetyCheck(new Error("down")), ["no-safety-check"], "none"],
+    ["not set up", undefined, ["no-safety-check"], "none"],
+  ])("holds a copy of the Tell when the safety check is %s", async (_, safety, reasons, decidedBy) => {
+    for (const show of ["It is cold outside.", "it is very cold outside", "It is really cold outside today."]) {
+      // (The rules alone would send each back as a copy)
+      expect(checkRules(COLD, show)).toMatchObject({ outcome: "redo", reasons: ["copies-tell"] });
+      const { suggestion } = await reviewSentence({ tell: COLD, show }, [provider("ai", {})], { safety });
+      expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons, decidedBy });
+    }
+  });
+
+  it("asks the safety check and the AI about a copy with a cry for help added", async () => {
+    const ai = provider("ai", { verdict: "unsure", tip: "great" });
+    const safety = safetyCheck("safe");
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, help me." }, [ai], { safety });
+    expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "ai" });
+    expect(ai.review).toHaveBeenCalledTimes(1);
+  });
+
+  it("still holds a sentence the rules held before any request, a copy of the Tell or not", async () => {
+    const safety = safetyCheck("safe");
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, damn." }, [provider("ai", {})], { safety });
+    expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "rules" });
+    expect(safety.check).not.toHaveBeenCalled();
+  });
+
+  it("records how long each request took", async () => {
+    const { attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [provider("ai", { verdict: "approve", tip: "great" })], SAFE);
+    expect(attempts).toEqual([
+      { provider: "guard", outcome: "safe", ms: expect.any(Number) },
+      { provider: "ai", outcome: "answered", ms: expect.any(Number) },
+    ]);
+  });
+
+  it("tells out of free requests (429) and a refused key (401, 403) apart from other failures", async () => {
+    const { ProviderError } = await import("../reviewer/providers/http.js");
+    const { attempts } = await reviewSentence(
+      { tell: COLD, show: GOOD },
+      [
+        provider("limited", new ProviderError("HTTP 429", 429)),
+        provider("refused", new ProviderError("HTTP 401", 401)),
+        provider("forbidden", new ProviderError("HTTP 403", 403)),
+        provider("broken", new ProviderError("HTTP 500", 500)),
+      ],
+      SAFE
+    );
+    expect(outcomes(attempts)).toEqual([
+      { provider: "guard", outcome: "safe" },
+      { provider: "limited", outcome: "rate-limited" },
+      { provider: "refused", outcome: "credentials" },
+      { provider: "forbidden", outcome: "credentials" },
+      { provider: "broken", outcome: "failed" },
+    ]);
+  });
+
+  it("keeps only hold reasons on a hold, with the mistakes as evidence", async () => {
+    for (const { safety, ai, reasons } of [
+      { safety: safetyCheck("unsafe"), ai: provider("ai", {}), reasons: ["safety-check"] },
+      { safety: safetyCheck("safe"), ai: provider("ai", { verdict: "unsure", tip: "great" }), reasons: ["ai"] },
+    ]) {
+      const { suggestion } = await reviewSentence({ tell: COLD, show: "the wind bit my noze" }, [ai], { safety });
+      expect(suggestion).toMatchObject({ verdict: "unsure", reasons, misspelled: ["noze"] });
+      expect(suggestion.mechanics?.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps the writing checks' reasons when the AI itself sends a sentence back", async () => {
+    const { suggestion } = await reviewSentence(
+      { tell: COLD, show: "the wind bit my noze" },
+      [provider("ai", { verdict: "redo", tip: "smell" })],
+      SAFE
+    );
+    expect(suggestion).toMatchObject({
+      verdict: "redo",
+      tip: "smell",
+      reasons: ["ai", "spelling", "punctuation"],
+      misspelled: ["noze"],
+    });
   });
 
   it("asks the first provider, showing it only the Tell and the sentence", async () => {
@@ -402,7 +539,7 @@ describe("the reviewer", () => {
     expect(suggestion).toEqual({ verdict: "redo", tip: "hear", reasons: ["ai"], decidedBy: "first" });
     expect(first.review).toHaveBeenCalledWith({ tell: COLD, show: GOOD }, expect.any(AbortSignal));
     expect(second.review).not.toHaveBeenCalled();
-    expect(attempts).toEqual([
+    expect(outcomes(attempts)).toEqual([
       { provider: "guard", outcome: "safe" },
       { provider: "first", outcome: "answered" },
     ]);
@@ -434,7 +571,7 @@ describe("the reviewer", () => {
     });
 
     expect(suggestion).toEqual({ verdict: "redo", tip: "smell", reasons: ["ai"], decidedBy: "backup" });
-    expect(attempts).toEqual([
+    expect(outcomes(attempts)).toEqual([
       { provider: "guard", outcome: "safe" },
       { provider: "broken", outcome: "failed" },
       { provider: "chatty", outcome: "invalid" },
@@ -492,7 +629,7 @@ describe("the reviewer", () => {
     const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], { safety: safetyCheck("unsafe") });
 
     expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: "guard" });
-    expect(attempts).toEqual([{ provider: "guard", outcome: "unsafe" }]);
+    expect(outcomes(attempts)).toEqual([{ provider: "guard", outcome: "unsafe" }]);
     expect(ai.review).not.toHaveBeenCalled();
   });
 
@@ -516,7 +653,7 @@ describe("the reviewer", () => {
     const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], { safety: slow, timeoutMs: 20 });
 
     expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["no-safety-check"] });
-    expect(attempts).toEqual([{ provider: "guard", outcome: "timeout" }]);
+    expect(outcomes(attempts)).toEqual([{ provider: "guard", outcome: "timeout" }]);
     expect(ai.review).not.toHaveBeenCalled();
   });
 

@@ -64,6 +64,43 @@ describe("Scribbles' suggestions on the review queue", () => {
     expect(JSON.stringify(gallery.body)).not.toContain("suggestion");
     expect(JSON.stringify(gallery.body)).not.toContain("tip");
   });
+
+  it("never send the reviewer's own records anywhere: who was asked (attempts), or what was last reviewed", async () => {
+    const admin = await createAdmin();
+    const student = await createUser();
+    const waiting = await createSentence(student, { show: "The cafateria was loud" });
+    const approved = await createSentence(student, { title: "day2", show: "Trays clattered.", approved: true });
+    await Sentence.collection.updateMany(
+      {},
+      { $set: { reviewedShow: "The cafateria was loud", reviewedAt: new Date(), safetyInvalidShow: "x" } }
+    );
+    await Sentence.collection.updateMany({}, { $set: { failedShow: "x", failedCount: 2, lastTriedAt: new Date() } });
+    await suggest(waiting, { attempts: [{ provider: "cloudflare:guard", outcome: "safe", ms: 120 }] });
+    // The fields are there in the database, but a query that names no
+    // fields (as every route's does) doesn't read them
+    const RECORDS = ["reviewedShow", "reviewedAt", "safetyInvalidShow", "failedShow", "failedCount", "lastTriedAt"];
+    const raw = await Sentence.collection.findOne({ _id: waiting._id });
+    for (const field of RECORDS) expect(raw).toHaveProperty(field);
+    const read = (await Sentence.findById(waiting._id).lean()) as Record<string, unknown>;
+    for (const field of RECORDS) expect(read).not.toHaveProperty(field);
+    await suggest(approved, { verdict: "approve", tip: "great", reasons: ["ai"] });
+
+    const queue = await request(app).get("/Admin").set("Cookie", sessionCookie(admin));
+    const mine = await request(app).get("/MyPage").set("Cookie", sessionCookie(student));
+    const gallery = await request(app).get("/Collections");
+
+    expect(queue.body[0].suggestion).toBeDefined();
+    for (const body of [queue.body, mine.body, gallery.body]) {
+      const text = JSON.stringify(body);
+      for (const field of ["attempts", "cloudflare", ...RECORDS]) {
+        expect(text).not.toContain(field);
+      }
+    }
+    // And the saved suggestion does keep them
+    expect(await ReviewSuggestion.findOne({ sentence: waiting._id }).lean()).toMatchObject({
+      attempts: [{ provider: "cloudflare:guard", outcome: "safe", ms: 120 }],
+    });
+  });
 });
 
 describe("tips with the teacher's decision", () => {

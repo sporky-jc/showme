@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { REASONS, VERDICTS } from "../reviewer/contract.js";
+import { ATTEMPT_OUTCOMES, REASONS, VERDICTS } from "../reviewer/contract.js";
 import { TIP_IDS } from "../reviewer/tips.js";
 import { MECHANICS } from "../reviewer/mechanics.js";
 
@@ -24,6 +24,20 @@ const reviewSuggestionSchema = new mongoose.Schema({
   // Capitals, end marks, punctuation, repeated words, "a"/"an"
   mechanics: {
     type: [{ _id: false, kind: { type: String, enum: MECHANICS, required: true }, text: { type: String, required: true } }],
+    default: undefined,
+  },
+  // What happened at the safety check and each provider asked, in order:
+  // for the audit trail only. Never sent to a browser (controllers/routes.ts
+  // leaves it out, and the contract's ScribblesSuggestion has no such field).
+  attempts: {
+    type: [
+      {
+        _id: false,
+        provider: { type: String, required: true },
+        outcome: { type: String, enum: ATTEMPT_OUTCOMES, required: true },
+        ms: { type: Number },
+      },
+    ],
     default: undefined,
   },
   createdAt: { type: Date, default: Date.now },
