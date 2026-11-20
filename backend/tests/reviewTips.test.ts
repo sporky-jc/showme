@@ -5,6 +5,7 @@ import app from "../app.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
 import { Sentence } from "../models/sentences.js";
 import { TIPS } from "../reviewer/tips.js";
+import { REVIEW_TIP_REQUESTS_PER_MINUTE } from "../middlewares/rateLimit.js";
 import { asReviewed, createAdmin, createSentence, createUser, sessionCookie } from "./helpers.js";
 
 // Step 3: Scribbles' suggestions on the Teacher page, and the tips students
@@ -143,5 +144,16 @@ describe("GET /Admin/tips", () => {
     expect(res.body).toContainEqual({ id: "spelling", text: TIPS.spelling });
     expect(res.body.map((tip: { id: string }) => tip.id)).not.toContain("great");
     expect(refused.status).toBe(403);
+  });
+
+  it("limits how often one user can ask, before any database lookup", async () => {
+    const admin = await createAdmin();
+    for (let i = 0; i < REVIEW_TIP_REQUESTS_PER_MINUTE; i++) {
+      await request(app).get("/Admin/tips").set("Cookie", sessionCookie(admin));
+    }
+
+    const res = await request(app).get("/Admin/tips").set("Cookie", sessionCookie(admin));
+
+    expect(res.status).toBe(429);
   });
 });
