@@ -83,6 +83,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      # How the rule checks do on the practice set (reviewer/eval/score.ts),
+      # shown on the run's summary page. Fails if they catch fewer worrying
+      # or unsuitable sentences, or hold more good ones, than the baseline.
+      # No AI is called, so it uses none of the free daily allowance.
+      - name: Score the rules
+        run: node lib/scripts/score-rules.js
+
   client:
     name: Client checks
     runs-on: ubuntu-24.04
