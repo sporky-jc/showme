@@ -8,8 +8,9 @@ name: Fill staging with sample data
 # scheduled reviewer would. Run it from the Actions tab with "Run workflow".
 #
 # Staging only: staging's database login can only reach the practice
-# database (ShowME-dev), and the script refuses the production one. It only
-# deletes the sample data it created itself, never anyone else's sentences.
+# database (ShowME-dev), and the script refuses the production one. It
+# replaces only the sample data it created itself; other sentences are only
+# ever deleted with "old_sentences" set to "delete" (below).
 # QA Wolf's test teacher only sees test accounts' sentences, so its flows
 # don't see the sample data. Uses about 400 of Cloudflare's 10,000 free daily
 # Neurons per run.
@@ -21,6 +22,14 @@ name: Fill staging with sample data
 # Its own sentences are never touched. The email isn't stored in the code,
 # and it's masked in the log (it still shows in the run's inputs, which only
 # people with access to the repository can see).
+#
+# "old_sentences": the Teacher page shows every sentence waiting for review,
+# so leftovers from QA Wolf's test students and older testing crowd out the
+# samples. "count" says how many there are; "delete" clears them, so the
+# queue holds only the sample sentences (backend/utils/cleanQueue.ts). It
+# only ever deletes sentences waiting for review that were written more than
+# an hour ago: never approved or sent-back ones, the samples, your demo
+# sentences, or anything written in the last hour.
 on:
   workflow_dispatch:
     inputs:
@@ -29,6 +38,14 @@ on:
         type: string
         required: false
         default: ""
+      old_sentences:
+        description: Old sentences waiting on the Teacher page (leave, count, or delete them)
+        type: choice
+        options:
+          - leave
+          - count
+          - delete
+        default: count
 
 permissions:
   contents: read
@@ -81,9 +98,12 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}
           CLOUDFLARE_REVIEW_MODEL: ${{ vars.CLOUDFLARE_REVIEW_MODEL }}
+          OLD_SENTENCES: ${{ inputs.old_sentences }}
         run: |
-          if [ -n "${ACCOUNT:-}" ]; then
-            node lib/scripts/seed-dev.js --review --demo "$ACCOUNT"
-          else
-            node lib/scripts/seed-dev.js --review
-          fi
+          args=(--review)
+          if [ -n "${ACCOUNT:-}" ]; then args+=(--demo "$ACCOUNT"); fi
+          case "$OLD_SENTENCES" in
+            count) args+=(--clean-queue) ;;
+            delete) args+=(--clean-queue --apply-clean) ;;
+          esac
+          node lib/scripts/seed-dev.js "${args[@]}"

@@ -10,17 +10,23 @@
 //   npm run seed:dev -- --demo <email>    also give that account sample
 //                                         sentences in every state, and make
 //                                         it a teacher (it must have signed in)
+//   npm run seed:dev -- --clean-queue     also count the old sentences still
+//                                         waiting on the Teacher page
+//                                         (utils/cleanQueue.ts); add
+//                                         --apply-clean to delete them
 //
 // Run on staging by the "Fill staging with sample data" workflow.
 //
 // Safety lock: it only runs when DATABASE_NAME names a database other than
-// the production one, and it only ever deletes the sample data it created
-// itself (emails ending in @seed.example).
+// the production one. It replaces only the sample data it created itself
+// (emails ending in @seed.example); other sentences are deleted only with
+// --clean-queue --apply-clean, and only old ones waiting for review.
 // Settings come from Node's built-in --env-file flags in package.json:
 // .env first, then .env.local, whose DATABASE_NAME wins.
 import mongoose from "mongoose";
 import Profile from "../models/profile.js";
 import { SAMPLE_SENTENCES, seedDemoAccount, seedSampleData } from "../utils/sampleData.js";
+import { cleanQueue, countQueueClutter } from "../utils/cleanQueue.js";
 import { reviewWaitingSentences } from "../reviewer/queue.js";
 import { reviewerSetup } from "../reviewer/settings.js";
 import { messageOf } from "../utils/errors.js";
@@ -68,6 +74,20 @@ const seed = async () => {
           (result.skipped ? ` (${result.skipped} skipped: it already wrote for those Tells).` : ".")
       );
       waiting.push(...result.waiting);
+    }
+  }
+
+  if (process.argv.includes("--clean-queue")) {
+    const clutter = await countQueueClutter();
+    console.log(
+      `The Teacher page also has ${clutter.total} old sentences waiting: ` +
+        `${clutter.testAccounts} from QA Wolf's test accounts, ` +
+        `${clutter.otherSentences} from ${clutter.otherAccounts} other accounts.`
+    );
+    if (process.argv.includes("--apply-clean")) {
+      console.log(`Deleted ${await cleanQueue()} old waiting sentences.`);
+    } else if (clutter.total > 0) {
+      console.log("Counted only, nothing deleted. Choose \"delete\" to clear them.");
     }
   }
 
