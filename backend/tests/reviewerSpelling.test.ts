@@ -31,6 +31,51 @@ describe("the spelling check", () => {
     expect(misspelledWords(show)).toEqual([]);
   });
 
+  // British (and Australian, Canadian, New Zealand) spellings are right
+  it.each([
+    "My favourite colour is grey.",
+    "The neighbours' theatre was in the centre of town.",
+    "We organise our things before we realise it's time to go.",
+    "We travelled a metre past the kerb on an aeroplane with Mum.",
+    "My mum packed my pyjamas, the programme and her jewellery.",
+    "The colourful catalogue was an honour for the defence team.",
+    "The tyre went flat after maths.",
+  ])("accepts British spelling: %s", (show) => {
+    expect(misspelledWords(show)).toEqual([]);
+  });
+
+  // Sound words are what "Show, don't tell" asks for
+  it.each([
+    "Crunch crunch went the snow.",
+    "Whoosh!",
+    "Brrr, it was cold.",
+    "Zzzz went my dad.",
+    "Shhh, the baby is asleep.",
+    "Ssssplash went the puddle.",
+    "Grrrr went the dog.",
+    "Mmmm, hot cocoa.",
+    "Pitter-patter went the rain.",
+    "Tick-tock, splish-splash, the hurly-burly of the storm.",
+    "Drip, drip, drip went the icicles.",
+    "Boom! Kaboom! Vroom went the snowplough.",
+    "Achoo! Eek!",
+    "It was sooooo cold.",
+    "Nooooo, my snowman melted!",
+  ])("accepts sound words: %s", (show) => {
+    expect(misspelledWords(show)).toEqual([]);
+  });
+
+  it.each([
+    ["I was late becuase my frend was wierd.", ["becuase", "frend", "wierd"]],
+    ["He climed the hill.", ["climed"]],
+    // Only looks stretched: neither "blorrp" nor "blorp" is a word
+    ["The slime went blorrrp.", ["blorrrp"]],
+    // Echoes, but neither half is a word
+    ["The frog went zorp-zarp.", ["zorp", "zarp"]],
+  ])("still finds the misspelled words: %s", (show, words) => {
+    expect(misspelledWords(show)).toEqual(words);
+  });
+
   it("has a tip, and the AI is told about spelling", () => {
     expect(TIPS.spelling).toMatch(/spelling/i);
     expect(REVIEW_INSTRUCTIONS).toContain("Every word is spelled correctly");
