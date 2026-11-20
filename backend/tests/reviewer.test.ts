@@ -259,6 +259,50 @@ describe("the rule checks: what the second review found", () => {
   });
 });
 
+describe("the rule checks: the libraries asked as well", () => {
+  // obscenity: words not on our own list, and disguised ones
+  it.each([
+    "The snow is bollocks and so cold.",
+    "It is so cold, b0ll0cks to winter.",
+    "My brother called me a retard in the snow.",
+    "The cold made me want to wank.",
+  ])("holds bad language our own list doesn't have: %s", (show) => {
+    expect(isUnsafe(show)).toBe(true);
+    expect(checkRules(COLD, show)).toMatchObject({ outcome: "hold", reasons: ["unsafe-words"] });
+  });
+
+  // compromise: full names whose first name isn't on our list
+  it.each([
+    "Harry Smith and I threw snowballs until our gloves froze.",
+    "HARRY SMITH shivered next to me at the bus stop.",
+    "My friend Sofia Ramirez and I built a snow fort.",
+    "Grandpa Joe Murphy laughed as the wind stole his hat.",
+  ])("holds a full name: %s", (show) => {
+    expect(hasPersonalDetails(show)).toBe(true);
+    expect(checkRules(COLD, show)).toMatchObject({ outcome: "hold", reasons: ["personal-details"] });
+  });
+
+  // And neither holds what children ordinarily write
+  it.each([
+    "The cock crowed as frost sparkled on the barn roof.",
+    "A blue tit fluffed its feathers on the icy branch.",
+    "I felt the prick of the cold like tiny needles.",
+    "I yelled scat and the cat ran off through the snow.",
+    "Mr. Brown smiled and handed me a mug of cocoa.",
+    "My sister Lily giggled as snow fell on her nose.",
+    "Coach Davis blew his whistle and his breath made a cloud.",
+    "Aunt May wrapped me in a scarf that smelled like cinnamon.",
+    "Peter Pan would have frozen up here in the clouds.",
+    "Harry Potter would need a warm spell for this wind.",
+    "Max Barked at the snowflakes landing on his nose.",
+    "Jack and Jill slid down the icy hill on a sled.",
+    "The bass from the snowplow's radio thumped in my chest.",
+    "I passed the class snowman and it had a carrot nose.",
+  ])("passes an ordinary Show sentence on: %s", (show) => {
+    expect(checkRules(COLD, show)).toEqual({ outcome: "pass" });
+  });
+});
+
 describe("the rule checks: the one plain case sent back with a tip", () => {
   it("passes a short sentence on instead of sending it back (a word list can miss a worrying one)", () => {
     expect(checkRules(COLD, "Brrr, my poor toes!")).toEqual({ outcome: "pass" });

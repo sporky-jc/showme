@@ -93,4 +93,9 @@ export const FIRST_NAMES = [
 export const PRETEND_NAMES = [
   "jack frost", "santa claus", "sesame street", "rainbow road", "yellow brick road",
   "brick road", "monster high", "abbey road", "easy street", "mr freeze", "olaf",
+  // Story and cartoon characters, which read as a first and last name
+  "peter pan", "harry potter", "hermione granger", "ron weasley", "captain hook",
+  "tinker bell", "mickey mouse", "minnie mouse", "donald duck", "daisy duck",
+  "buzz lightyear", "peppa pig", "winnie the pooh", "curious george", "bugs bunny",
+  "daffy duck", "frosty the snowman", "spider man", "willy wonka", "alice in wonderland",
 ];
