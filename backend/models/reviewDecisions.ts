@@ -23,6 +23,12 @@ const reviewDecisionSchema = new mongoose.Schema({
   // here, so the report can keep the two apart.
   decidedBy: { type: String, enum: ["teacher"], default: "teacher", required: true },
   decidedAt: { type: Date, default: Date.now, required: true },
+  // When a teacher took this decision back (PATCH /Admin/undo: out of the
+  // gallery, or no longer sent back), so the sentence waits again. The
+  // shadow report leaves these out: the teacher changed their mind, so it
+  // isn't what they decided. Like the rest, it names no teacher (the
+  // request's log line has who).
+  undoneAt: { type: Date },
 });
 reviewDecisionSchema.index({ sentence: 1, show: 1 });
 

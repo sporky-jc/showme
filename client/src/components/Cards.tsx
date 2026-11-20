@@ -3,21 +3,23 @@ import { useSelector } from "react-redux";
 import * as config from "../../src/config";
 import LikeButton from "./LikeButton";
 import type { LikesById } from "./useLikes";
-import type { SentenceWithAuthor } from "../api/types";
+import type { GallerySentence } from "../api/types";
 import type { RootState } from "../reducers/types";
 
 // Nothing to do when there are no likes to press
 const noLikes = () => {};
 
-// First name and last initial. Some accounts have no last name (the database
-// doesn't require one).
-const authorName = ({ firstName, lastName }: SentenceWithAuthor["author"]) =>
-  lastName ? `${firstName} ${lastName[0]}.` : firstName;
+// First name and last initial. The server sends only the initial as lastName
+// (see GalleryAuthor in the contract), but older servers sent the whole
+// surname, so this still takes its first letter either way. Some accounts
+// have no last name (the database doesn't require one).
+const authorName = ({ firstName, lastName }: GallerySentence["author"]) =>
+  lastName ? `${firstName} ${Array.from(lastName)[0]}.` : firstName;
 
 // The gallery's cards: each approved sentence under its Tell sentence's
 // photo, with who wrote it and, for signed-in users, its likes.
 function Cards(props: {
-  displaySentences?: SentenceWithAuthor[];
+  displaySentences?: GallerySentence[];
   // The signed-in user's view of each sentence's likes, or null for none
   likes?: LikesById | null;
   onToggleLike?: (id: string) => void;

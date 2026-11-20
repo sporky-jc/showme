@@ -1,6 +1,7 @@
 import axios from "axios";
 import type {
   EditSentenceBody,
+  GallerySentence,
   LoginBody,
   NewSentenceBody,
   OwnSentence,
@@ -12,6 +13,8 @@ import type {
   SentenceLikes,
   SentenceWithAuthor,
   TellSentence,
+  UndoAnswer,
+  UndoBody,
   User,
 } from "./types";
 
@@ -63,6 +66,19 @@ export const updatePendingApprovalSentences = (
 // The tips a teacher can send back with "Try again"
 export const fetchReviewTips = () => API.get<ReviewTip[]>("/Admin/tips");
 
+// The sentences approved or sent back most recently, and taking one of those
+// decisions back so it waits for review again. `status` is the decision
+// being taken back. The server answers with the queue and the recent
+// decisions as they are after it.
+export const fetchRecentDecisions = () => API.get<SentenceWithAuthor[]>("/Admin/decisions");
+export const undoDecision = (status: ReviewDecision, sentence: SentenceWithAuthor) =>
+  API.patch<UndoAnswer>("/Admin/undo", {
+    status,
+    // Only its id and date: the server checks it still has the decision and
+    // the words the page showed (see UndoBody)
+    sentence: { _id: sentence._id, createdAt: sentence.createdAt },
+  } satisfies UndoBody);
+
 // Likes on the gallery page, for signed-in users only: every approved
 // sentence's likes, and liking or unliking one (each answers with that
 // sentence's likes after the change)
@@ -84,7 +100,7 @@ const takeEarlyRequest = (path: string) => {
 // retrieve approved sentences: index.html may have asked already. If that
 // didn't work, ask again the usual way, which reports failures as usual.
 export const fetchApprovedSentences = async (): Promise<{
-  data: SentenceWithAuthor[];
+  data: GallerySentence[];
 }> => {
   const early = takeEarlyRequest("/Collections");
   if (early) {
@@ -95,5 +111,5 @@ export const fetchApprovedSentences = async (): Promise<{
       // no answer (e.g. offline): ask again below
     }
   }
-  return API.get<SentenceWithAuthor[]>("/Collections");
+  return API.get<GallerySentence[]>("/Collections");
 };

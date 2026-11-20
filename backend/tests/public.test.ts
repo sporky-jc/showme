@@ -38,10 +38,12 @@ describe("GET /Collections (approved sentences)", () => {
     expect(res.body[0].author.firstName).toBe("Ada");
   });
 
-  // Anyone can load this page, so it must show a student's name and nothing
-  // else from their profile: not their email, Google account id (`id`),
-  // admin flag or login token version.
-  it("shows only each author's name, never the rest of their profile", async () => {
+  // Anyone can load this page, so it must show a student's first name and
+  // last initial and nothing else from their profile: not their surname,
+  // email, Google account id (`id`), admin flag or login token version. The
+  // initial is still sent as lastName, which the website shows the first
+  // letter of (so the website live during a deploy shows the same "Alan T.").
+  it("shows only each author's first name and last initial, never the rest of their profile", async () => {
     const ada = await createUser();
     const alan = await createUser({
       id: "google-user-2",
@@ -57,13 +59,26 @@ describe("GET /Collections (approved sentences)", () => {
     expect(res.status).toBe(200);
     // Exactly these fields: any other field on an author fails the test
     expect(authorsIn(res)).toStrictEqual([
-      { firstName: "Alan", lastName: "Turing" },
-      { firstName: "Ada", lastName: "Lovelace" },
+      { firstName: "Alan", lastName: "T" },
+      { firstName: "Ada", lastName: "L" },
     ]);
+    // Nowhere in the answer, not just not in the author
+    expect(JSON.stringify(res.body)).not.toMatch(/Turing|Lovelace|example\.com|google-user/);
     // Each sentence also stores its author's Google account id, as GID
     for (const sentence of res.body) {
       expect(sentence).not.toHaveProperty("GID");
     }
+  });
+
+  // A surname starting with a letter outside the basic set (two UTF-16 code
+  // units) is cut after that letter, not halfway through it
+  it("cuts a surname to its first letter, whole", async () => {
+    const ada = await createUser({ lastName: "\u{1D4DB}ovelace" });
+    await createSentence(ada, { approved: true });
+
+    const res = await request(app).get("/Collections");
+
+    expect(authorsIn(res)).toStrictEqual([{ firstName: "Ada", lastName: "\u{1D4DB}" }]);
   });
 
   // Exactly the contract's fields: not the GID, hideedit, likedBy or
@@ -84,12 +99,13 @@ describe("GET /Collections (approved sentences)", () => {
   it.each([
     ["no last name", undefined],
     ["a null last name", null],
+    ["a blank last name", "  "],
   ])("sends an author with %s as just a first name", async (_, lastName) => {
     const ada = await createUser();
     await Profile.collection.updateOne({ _id: ada._id }, [
       lastName === undefined
         ? { $unset: "lastName" }
-        : { $set: { lastName: null } },
+        : { $set: { lastName } },
     ]);
     await createSentence(ada, { approved: true });
 

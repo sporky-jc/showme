@@ -43,6 +43,8 @@ const renderAdmin = ({
   list,
   update,
   tips = TIPS,
+  decisions,
+  undo,
 }: {
   user?: UserState;
   sessionChecked?: boolean;
@@ -52,6 +54,8 @@ const renderAdmin = ({
   list?: () => Outcome | Promise<Outcome>;
   update?: () => Outcome | Promise<Outcome>;
   tips?: ReviewTip[];
+  decisions?: () => Outcome | Promise<Outcome>;
+  undo?: () => Outcome | Promise<Outcome>;
 } = {}) => {
   const requests: InternalAxiosRequestConfig[] = [];
   const view = renderWithApp(
@@ -65,6 +69,8 @@ const renderAdmin = ({
         requests.push(config);
         if (config.url === "/Login") return login;
         if (config.url === "/Admin/tips") return { status: 200, data: tips };
+        if (config.url === "/Admin/decisions") return decisions ? decisions() : { status: 200, data: [] };
+        if (config.url === "/Admin/undo") return undo ? undo() : 500;
         if (config.method === "get" && config.url === "/Admin") {
           return list ? list() : { status: 200, data: queue };
         }
@@ -502,5 +508,155 @@ describe("Scribbles' notes", () => {
     expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
     await waitFor(() => expect(approve("Sam K")).toHaveFocus());
     expect(requests.filter((r) => r.method === "patch")).toHaveLength(0);
+  });
+});
+
+// Under the queue: the sentences approved or sent back most recently, each
+// with the way to take that decision back, so it waits in the queue again
+describe("Admin: recent decisions", () => {
+  const decided: QueueSentence[] = [
+    { ...waiting[0], approved: true },
+    { ...waiting[1], toRedo: true },
+  ];
+  const openDecisions = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "Recent decisions" }));
+    return screen.findByRole("list", { name: "Recent decisions" });
+  };
+
+  it("stays closed, asking the server nothing, until the teacher opens it", async () => {
+    const { requests } = renderAdmin();
+    const toggle = await screen.findByRole("button", { name: "Recent decisions" });
+
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: /Take out of gallery/ })).not.toBeInTheDocument();
+    expect(requests.some((r) => r.url === "/Admin/decisions")).toBe(false);
+  });
+
+  it("offers to take an approved sentence out of the gallery, and to undo a send-back", async () => {
+    renderAdmin({ decisions: () => ({ status: 200, data: decided }) });
+
+    await openDecisions();
+
+    expect(screen.getByRole("button", { name: "Recent decisions" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Take out of gallery: Mia Torres's sentence" })).toHaveTextContent(
+      "Take out of gallery"
+    );
+    expect(screen.getByRole("button", { name: "Undo send back: Leo Chen's sentence" })).toHaveTextContent(
+      "Undo send back"
+    );
+    expect(screen.getByText("In the gallery")).toBeInTheDocument();
+    expect(screen.getByText("Sent back")).toBeInTheDocument();
+  });
+
+  it("takes a sentence out of the gallery and puts it back in the queue", async () => {
+    const { requests, store } = renderAdmin({
+      queue: [],
+      decisions: () => ({ status: 200, data: decided }),
+      undo: () => ({ status: 201, data: { queue: [waiting[0]], decisions: [decided[1]] } }),
+    });
+    expect(await screen.findByText("All caught up!")).toBeInTheDocument();
+    await openDecisions();
+
+    fireEvent.click(screen.getByRole("button", { name: "Take out of gallery: Mia Torres's sentence" }));
+
+    // Back in the queue, to be decided again
+    expect(await screen.findByRole("button", { name: "Approve: Mia Torres's sentence" })).toBeInTheDocument();
+    expect(store.getState().approvalsentences).toEqual([waiting[0]]);
+    expect(screen.queryByRole("button", { name: /Take out of gallery/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Took Mia Torres's sentence out of the gallery. It's waiting for you again."
+    );
+    // What was sent: the decision taken back, and only the sentence's id and date
+    const sent = requests.find((r) => r.url === "/Admin/undo");
+    expect(sent?.method).toBe("patch");
+    expect(JSON.parse(sent?.data)).toEqual({
+      status: "approve",
+      sentence: { _id: "a", createdAt: pending.createdAt },
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Recent decisions" })).toHaveFocus());
+  });
+
+  it("takes back a send-back", async () => {
+    const { requests } = renderAdmin({
+      queue: [],
+      decisions: () => ({ status: 200, data: decided }),
+      undo: () => ({ status: 201, data: { queue: [waiting[1]], decisions: [decided[0]] } }),
+    });
+    await openDecisions();
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo send back: Leo Chen's sentence" }));
+
+    expect(await screen.findByRole("button", { name: "Approve: Leo Chen's sentence" })).toBeInTheDocument();
+    expect(JSON.parse(requests.find((r) => r.url === "/Admin/undo")?.data).status).toBe("redo");
+  });
+
+  it("turns every button off while an undo is being saved", async () => {
+    let release!: (outcome: Outcome) => void;
+    const held = new Promise<Outcome>((resolve) => (release = resolve));
+    // Mia's sentence is approved, so only Leo's is waiting
+    const { requests } = renderAdmin({
+      queue: [waiting[1]],
+      decisions: () => ({ status: 200, data: [decided[0]] }),
+      undo: () => held,
+    });
+    await openDecisions();
+
+    fireEvent.click(screen.getByRole("button", { name: "Take out of gallery: Mia Torres's sentence" }));
+
+    expect(await screen.findByRole("button", { name: "Saving: Mia Torres's sentence" })).toHaveTextContent("Saving…");
+    screen.getAllByRole("button").forEach((button) => expect(button).toBeDisabled());
+    fireEvent.click(approve("Leo Chen"));
+    expect(requests.filter((r) => r.method === "patch")).toHaveLength(1);
+
+    release({ status: 201, data: { queue: waiting, decisions: [] } });
+    await waitFor(() => expect(approve("Leo Chen")).toBeEnabled());
+    expect(approve("Mia Torres")).toBeEnabled();
+  });
+
+  it("says so, and shows the latest, when the decision was already taken back", async () => {
+    let calls = 0;
+    renderAdmin({
+      decisions: () => ({ status: 200, data: calls++ === 0 ? decided : [decided[1]] }),
+      undo: () => 409,
+    });
+    await openDecisions();
+
+    fireEvent.click(screen.getByRole("button", { name: "Take out of gallery: Mia Torres's sentence" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/already taken back/);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Take out of gallery/ })).not.toBeInTheDocument()
+    );
+    expect(screen.getByRole("button", { name: "Undo send back: Leo Chen's sentence" })).toBeEnabled();
+  });
+
+  it("says so when an undo didn't save, and keeps the sentence where it was", async () => {
+    const { store } = renderAdmin({ decisions: () => ({ status: 200, data: decided }), undo: () => 500 });
+    await openDecisions();
+
+    fireEvent.click(screen.getByRole("button", { name: "Take out of gallery: Mia Torres's sentence" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/didn't save/i);
+    expect(screen.getByRole("button", { name: "Take out of gallery: Mia Torres's sentence" })).toBeEnabled();
+    expect(store.getState().approvalsentences).toEqual(waiting);
+  });
+
+  it("asks again after a decision in the queue, so the one just made can be taken back", async () => {
+    const { requests } = renderAdmin({ decisions: () => ({ status: 200, data: [] }) });
+    await screen.findByText("Mia Torres");
+    fireEvent.click(screen.getByRole("button", { name: "Recent decisions" }));
+    expect(await screen.findByText("No decisions yet.")).toBeInTheDocument();
+
+    fireEvent.click(approve("Mia Torres"));
+
+    await waitFor(() => expect(requests.filter((r) => r.url === "/Admin/decisions")).toHaveLength(2));
+  });
+
+  it("says so when the recent decisions couldn't be loaded", async () => {
+    renderAdmin({ decisions: () => "offline" });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Recent decisions" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't load the recent decisions/);
   });
 });

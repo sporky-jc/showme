@@ -23,6 +23,9 @@ export interface TeacherDecision {
   // When, if it was recorded (models/reviewDecisions.ts). Decisions made
   // before that are read from the sentence's own state, which has no date.
   decidedAt: Date | null;
+  // When the teacher took it back (PATCH /Admin/undo), if they did: then it
+  // isn't what they decided, and it's left out (and counted)
+  undoneAt?: Date | null;
 }
 
 // A suggestion Scribbles saved (models/reviewSuggestions.ts)
@@ -78,6 +81,8 @@ export interface ShadowReport {
   // words than the teacher decided on
   noSuggestion: number;
   otherWords: number;
+  // Left out: decisions the teacher took back
+  undone: number;
   // Of those compared: how many have no recorded decision (read from the
   // sentence's state instead), and how many were decided before Scribbles'
   // suggestion was saved (so the teacher can't have seen it)
@@ -151,6 +156,7 @@ export const compareDecisions = (rows: ComparisonRow[]): ShadowReport => {
     decisions: rows.length,
     noSuggestion: 0,
     otherWords: 0,
+    undone: 0,
     undated: 0,
     beforeSuggestion: 0,
     total: emptyTally(),
@@ -164,6 +170,12 @@ export const compareDecisions = (rows: ComparisonRow[]): ShadowReport => {
   const weeks = new Map<string, Tally>();
 
   for (const { decision, suggestion } of rows) {
+    // Taken back: the teacher changed their mind, so Scribbles agreeing or
+    // not with it says nothing
+    if (decision.undoneAt) {
+      report.undone++;
+      continue;
+    }
     if (!suggestion) {
       report.noSuggestion++;
       continue;
@@ -251,6 +263,7 @@ export const formatReport = (
     `- Compared (a suggestion for the same words): **${t.compared}**`,
     `- Left out, no suggestion for the sentence: ${report.noSuggestion}`,
     `- Left out, the suggestion was for other words than the teacher decided on: ${report.otherWords}`,
+    `- Left out, the teacher took the decision back: ${report.undone}`,
     `- Of those compared, read from the sentence's state (decided before decisions were recorded, no date): ${report.undated}`,
     `- Of those compared, decided before Scribbles' suggestion was saved: ${report.beforeSuggestion}`,
     "",
