@@ -135,3 +135,76 @@ export const seedSampleData = async (now = Date.now()) => {
   await Promise.all([...profiles.values()].map((p) => p.save()));
   return { students: profiles.size, waiting };
 };
+
+// Sample sentences for one real staging account (yours), so signing in with
+// it shows every state on My sentences, next to the sample students' work
+// on the Teacher page and in the Gallery. [day of the Tell, show, state]
+type DemoSentence = [day: number, show: string, state: SampleState];
+export const DEMO_SENTENCES: DemoSentence[] = [
+  [13, "He sprinted up the stairs just as the train doors hissed shut in his face.", { approved: true }],
+  [18, "Puddles swallowed the sidewalk, and our soccer ball floated down the gutter.", { approved: true }],
+  [20, "The meal was very good.", { redo: "taste" }],
+  [21, "The mashed potatos were gray, and the milk smeled sour.", { redo: "spelling" }],
+  [22, "It was foggy.", { redo: null }],
+  [23, "Red tulips, orange lilies and purple violets crowded the garden like a box of crayons.", { waiting: "ready" }],
+  [25, "I could not see my own hand, and the only lihgt came from the moon.", { waiting: "spelling" }],
+];
+
+// Gives the account with this email the demo sentences and makes it a
+// teacher, replacing the demo sentences it got before (found by their exact
+// words, so its own sentences are never touched). A Tell it already wrote a
+// sentence for is skipped. The account must have signed in once. Run after
+// seedSampleData, so the sample students can like its approved sentences.
+export const seedDemoAccount = async (email: string, now = Date.now()) => {
+  const profile = await Profile.findOne({ email });
+  if (!profile) return null;
+
+  const demoShows = DEMO_SENTENCES.map(([, show]) => show);
+  const old = (
+    await Sentence.find({ GID: profile.id, show: { $in: demoShows } }, { _id: 1 }).lean<{ _id: Types.ObjectId }[]>()
+  ).map((s) => s._id);
+  await ReviewSuggestion.deleteMany({ sentence: { $in: old } });
+  await Sentence.deleteMany({ _id: { $in: old } });
+  const oldIds = new Set(old.map(String));
+  profile.set(
+    "ownSentences",
+    profile.ownSentences.filter((id) => !oldIds.has(String(id)))
+  );
+
+  const taken = new Set(
+    (await Sentence.find({ GID: profile.id }, { title: 1 }).lean<{ title: string }[]>()).map((s) => s.title)
+  );
+  const likers = await Profile.find({ email: { $regex: `${SEED_DOMAIN.replace(".", "\\.")}$` } }, { _id: 1 })
+    .limit(3)
+    .lean<{ _id: Types.ObjectId }[]>();
+
+  const waiting: Types.ObjectId[] = [];
+  let added = 0;
+  let skipped = 0;
+  for (const [index, [day, show, state]] of DEMO_SENTENCES.entries()) {
+    if (taken.has(`day${day}`)) {
+      skipped++;
+      continue;
+    }
+    const approved = "approved" in state;
+    const tip = approved ? PRAISE : "redo" in state ? state.redo : null;
+    const sentence = await Sentence.create({
+      title: `day${day}`,
+      tell: tellList[day - 1].tell,
+      show,
+      author: profile._id,
+      GID: profile.id,
+      approved,
+      toRedo: "redo" in state,
+      ...(tip ? { tip } : {}),
+      likedBy: approved ? likers.map((p) => p._id) : [],
+      createdAt: new Date(now - (DEMO_SENTENCES.length - index) * 6 * HOUR),
+    });
+    profile.ownSentences.push(sentence._id);
+    if ("waiting" in state) waiting.push(sentence._id);
+    added++;
+  }
+  profile.isAdmin = true;
+  await profile.save();
+  return { added, skipped, waiting };
+};

@@ -7,6 +7,9 @@
 //   npm run seed:dev -- --review          also have Scribbles review the
 //                                         waiting sample sentences now
 //   npm run seed:dev -- --admin <email>   also make that practice profile an admin
+//   npm run seed:dev -- --demo <email>    also give that account sample
+//                                         sentences in every state, and make
+//                                         it a teacher (it must have signed in)
 //
 // Run on staging by the "Fill staging with sample data" workflow.
 //
@@ -17,7 +20,7 @@
 // .env first, then .env.local, whose DATABASE_NAME wins.
 import mongoose from "mongoose";
 import Profile from "../models/profile.js";
-import { SAMPLE_SENTENCES, seedSampleData } from "../utils/sampleData.js";
+import { SAMPLE_SENTENCES, seedDemoAccount, seedSampleData } from "../utils/sampleData.js";
 import { reviewWaitingSentences } from "../reviewer/queue.js";
 import { reviewerSetup } from "../reviewer/settings.js";
 import { messageOf } from "../utils/errors.js";
@@ -38,6 +41,12 @@ if (!databaseAccess) {
   process.exit(1);
 }
 
+// The value after a flag, if given
+const flag = (name: string) => {
+  const at = process.argv.indexOf(name);
+  return at === -1 ? undefined : process.argv[at + 1]?.trim() || undefined;
+};
+
 const seed = async () => {
   const { students, waiting } = await seedSampleData();
   const count = (key: "approved" | "redo" | "waiting") => SAMPLE_SENTENCES.filter(([, , , state]) => key in state).length;
@@ -45,6 +54,22 @@ const seed = async () => {
     `Seeded ${students} students: ${count("approved")} approved, ` +
       `${count("redo")} sent back with a tip, ${count("waiting")} waiting for review.`
   );
+
+  // The email is never printed: the run's log may be read by others
+  const demo = flag("--demo");
+  if (demo) {
+    const result = await seedDemoAccount(demo);
+    if (!result) {
+      console.error("No account with that email here yet: sign in to staging with it once, then run this again.");
+      process.exitCode = 1;
+    } else {
+      console.log(
+        `The demo account got ${result.added} sample sentences and is a teacher` +
+          (result.skipped ? ` (${result.skipped} skipped: it already wrote for those Tells).` : ".")
+      );
+      waiting.push(...result.waiting);
+    }
+  }
 
   if (process.argv.includes("--review")) {
     // Scribbles reviews just the waiting sample sentences, as the scheduled

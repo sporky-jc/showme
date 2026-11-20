@@ -13,8 +13,21 @@ name: Fill staging with sample data
 # QA Wolf's test teacher only sees test accounts' sentences, so its flows
 # don't see the sample data. Uses about 400 of Cloudflare's 10,000 free daily
 # Neurons per run.
+#
+# "account": optionally, the email of your own staging account. It gets
+# sample sentences in every state on My sentences (approved with praise, sent
+# back with and without a tip, waiting) and becomes a teacher, so signing in
+# with it shows how everything looks. It must have signed in to staging once.
+# Its own sentences are never touched. The email isn't stored in the code or
+# printed in the log.
 on:
   workflow_dispatch:
+    inputs:
+      account:
+        description: Your staging account's email (optional), to give it sample sentences and make it a teacher
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -56,4 +69,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}
           CLOUDFLARE_REVIEW_MODEL: ${{ vars.CLOUDFLARE_REVIEW_MODEL }}
-        run: node lib/scripts/seed-dev.js --review
+          ACCOUNT: ${{ inputs.account }}
+        run: |
+          if [ -n "$ACCOUNT" ]; then
+            echo "::add-mask::$ACCOUNT"
+            node lib/scripts/seed-dev.js --review --demo "$ACCOUNT"
+          else
+            node lib/scripts/seed-dev.js --review
+          fi

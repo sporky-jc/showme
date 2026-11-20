@@ -6,7 +6,7 @@ import { reviewSentence, type ReviewProvider, type SafetyCheck } from "../review
 import { reviewWaitingSentences } from "../reviewer/queue.js";
 import { PRAISE } from "../reviewer/tips.js";
 import { backfillPraise, countWithoutPraise } from "../utils/backfillPraise.js";
-import { SAMPLE_SENTENCES, SAMPLE_STUDENTS, seedSampleData } from "../utils/sampleData.js";
+import { DEMO_SENTENCES, SAMPLE_SENTENCES, SAMPLE_STUDENTS, seedDemoAccount, seedSampleData } from "../utils/sampleData.js";
 import { createSentence, createUser } from "./helpers.js";
 
 // The practice database's made-up sample data (utils/sampleData.ts), and the
@@ -92,6 +92,53 @@ describe("the sample data", () => {
     const suggested = await ReviewSuggestion.find().lean();
     expect(suggested.map((s) => String(s.sentence)).sort()).toEqual(waiting.map(String).sort());
     expect(reviewed).toBe(waiting.length);
+  });
+});
+
+describe("sample sentences for a real staging account", () => {
+  it("show every state on its My sentences, and make it a teacher", async () => {
+    await seedSampleData();
+    const me = await createUser({ id: "g-me", email: "me@example.com" });
+
+    const result = await seedDemoAccount("me@example.com");
+
+    expect(result).toMatchObject({ added: DEMO_SENTENCES.length, skipped: 0 });
+    const mine = await Sentence.find({ GID: "g-me" }).lean();
+    expect(mine.filter((s) => s.approved).every((s) => s.tip === PRAISE && s.likedBy.length > 0)).toBe(true);
+    expect(mine.filter((s) => s.toRedo).map((s) => s.tip ?? null)).toEqual(
+      expect.arrayContaining(["taste", "spelling", null])
+    );
+    expect(mine.filter((s) => !s.approved && !s.toRedo)).toHaveLength(result!.waiting.length);
+    const profile = await Profile.findById(me._id).lean();
+    expect(profile?.isAdmin).toBe(true);
+    expect(profile?.ownSentences).toHaveLength(DEMO_SENTENCES.length);
+  });
+
+  it("never touch the account's own sentences, and skip Tells it already wrote for", async () => {
+    const me = await createUser({ id: "g-me", email: "me@example.com" });
+    const own = await createSentence(me, { title: `day${DEMO_SENTENCES[0][0]}`, show: "My own words." });
+
+    await seedDemoAccount("me@example.com");
+    const again = await seedDemoAccount("me@example.com");
+
+    expect(again).toMatchObject({ added: DEMO_SENTENCES.length - 1, skipped: 1 });
+    expect(await Sentence.findById(own._id).lean()).toMatchObject({ show: "My own words." });
+    expect(await Sentence.countDocuments({ GID: "g-me" })).toBe(DEMO_SENTENCES.length);
+  });
+
+  it("need the account to have signed in once", async () => {
+    expect(await seedDemoAccount("nobody@example.com")).toBeNull();
+    expect(await Sentence.countDocuments()).toBe(0);
+  });
+
+  it("make the notes they're written for", async () => {
+    const review = async (show: string) =>
+      (await reviewSentence({ tell: "It is cold outside.", show }, [approving], { safety: safe })).suggestion;
+    for (const [, show, state] of DEMO_SENTENCES) {
+      if (!("waiting" in state)) continue;
+      expect(await review(show)).toMatchObject({ verdict: state.waiting === "ready" ? "approve" : "redo" });
+    }
+    expect((await review(DEMO_SENTENCES[3][1])).misspelled).toEqual(["potatos", "smeled"]);
   });
 });
 
