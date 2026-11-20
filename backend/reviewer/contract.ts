@@ -26,6 +26,9 @@ export const REASONS = [
   "sensitive-words", // words like "die" or "hurt": a person reads it first
   "unsafe-words", // bad language or adult words
   "personal-details", // an email, phone number, link, handle, address, school or full name
+  "unkind", // an insult, or bullying ("is so fat", "loser", "nobody likes you")
+  "names-someone", // names a classmate next to something unkind, about their body, or blaming them
+  "not-english", // mostly not in English: a person reads it instead of the spelling check
   "too-long", // longer than any Show sentence
   // Sent back by the rule checks
   "copies-tell",

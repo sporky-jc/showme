@@ -9,6 +9,9 @@ export const HELD = {
   "personal-details": "It may share something personal, like a name or an address,",
   "unsafe-words": "It has words that don't belong in the gallery,",
   "sensitive-words": "It has words a grown-up should read first,",
+  unkind: "It may be unkind about someone,",
+  "names-someone": "It may name someone in an unkind or hurtful way,",
+  "not-english": "It's mostly not in English,",
   "safety-check": "It may not be safe for the gallery,",
   "too-long": "It's much longer than a Show sentence,",
 } as const;

@@ -79,7 +79,7 @@ describe("the rule checks: held for a person, never sent to an AI", () => {
       outcome: "hold",
       reasons: ["worrying", "unsafe-words", "personal-details"],
     });
-    expect(checkRules(COLD, "My frozen toes were killing me, damn it was cold.")).toEqual({
+    expect(checkRules(COLD, "I felt so lonely, damn it was cold.")).toEqual({
       outcome: "hold",
       reasons: ["sensitive-words", "unsafe-words"],
     });
@@ -170,7 +170,17 @@ describe("the rule checks: what the review found", () => {
   });
 
   it("checks the longest allowed sentence quickly, whatever it holds", () => {
-    for (const text of ["a".repeat(600), "a@".repeat(300), "1 ".repeat(300), "a.".repeat(300)]) {
+    // (The dictionary loads once, on first use: not counted)
+    checkRules(COLD, "Warm up the dictionary first, please.");
+    for (const text of [
+      "a".repeat(600),
+      "a@".repeat(300),
+      "1 ".repeat(300),
+      "a.".repeat(300),
+      "Qwzx ".repeat(120),
+      "k ".repeat(300),
+      "Liam is so ".repeat(54),
+    ]) {
       const started = Date.now();
       checkRules(COLD, text);
       expect(Date.now() - started).toBeLessThan(100);
