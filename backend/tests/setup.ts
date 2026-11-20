@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { logger } from "firebase-functions/logger";
 import {
   likesRateLimitStore,
+  reviewTipsRateLimitStore,
   testLoginRateLimitStore,
 } from "../middlewares/rateLimit.js";
 
@@ -29,6 +30,7 @@ afterEach(async () => {
   await Promise.all(collections.map((c) => c.deleteMany({})));
   // Likewise the like routes' per-user request counts
   await likesRateLimitStore.resetAll();
+  await reviewTipsRateLimitStore.resetAll();
   await testLoginRateLimitStore.resetAll();
 });
 

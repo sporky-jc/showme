@@ -1,11 +1,11 @@
-import type { SentenceWithAuthor } from "../api/types";
+import type { QueueSentence } from "../api/types";
 import type { AppAction } from "./types";
 
 //  Approval sentences reducer, keep track of sentences awaiting approval
 const approvalsentences = (
-  approvalsentences: SentenceWithAuthor[] = [],
+  approvalsentences: QueueSentence[] = [],
   action: AppAction
-): SentenceWithAuthor[] => {
+): QueueSentence[] => {
   switch (action.type) {
     case "FETCH_APPROVAL":
       return action.payload;

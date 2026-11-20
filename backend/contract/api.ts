@@ -7,8 +7,12 @@
 //
 // The website only ever imports *types* from here (`import type`), and types
 // disappear when it's built: neither this code nor zod is sent to browsers.
-// So this file imports nothing but zod.
+// So this file imports nothing but zod and the reviewer's fixed lists (its
+// tips, verdicts and reasons), which have no imports of their own.
 import { z } from "zod";
+import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
+import { REASONS, VERDICTS } from "../reviewer/contract.js";
+import { MECHANICS } from "../reviewer/mechanics.js";
 
 // ---- Requests --------------------------------------------------------------
 
@@ -70,6 +74,14 @@ export const ReviewBody = z.object({
   status: z.enum(["approve", "redo"], {
     error: "The status must be approve or redo",
   }),
+  // With "redo": the tip the student sees with it, from Scribbles' list
+  // (reviewer/tips.ts), or none. Only ever an id: the words a student reads
+  // come from the list, never from a request. (An approval always gets the
+  // praise tip, whatever is sent.)
+  tip: z.enum(TIP_IDS, { error: "Unknown tip" }).nullable().optional(),
+}).refine(({ status, tip }) => !(status === "redo" && tip === PRAISE), {
+  error: "The praise tip only goes with an approval",
+  path: ["tip"],
 });
 
 // PUT and DELETE /Collections/:id/like: the sentence to like or unlike, from
@@ -134,6 +146,20 @@ export const Sentence = z.object({
   createdAt: z.string(), // when it was written or last edited (an ISO date)
 });
 
+// A tip from Scribbles' list (reviewer/tips.ts), stored by its id and sent
+// with its words
+const tipWithWords = (id: (typeof TIP_IDS)[number]) => ({ id, text: TIPS[id] });
+
+// A student's own sentence, with the tip their teacher chose for it (or the
+// praise tip, once approved): GET /MyPage, and POST and PATCH /MyPage
+export const OwnSentence = Sentence.extend({
+  tip: z
+    .enum(TIP_IDS)
+    .nullish()
+    .transform((id) => (id ? tipWithWords(id) : undefined))
+    .optional(),
+});
+
 // Who wrote a sentence, as Collections (which anyone can see) and the review
 // queue show it: only the name
 export const Author = User.pick({ firstName: true, lastName: true });
@@ -141,11 +167,39 @@ export const Author = User.pick({ firstName: true, lastName: true });
 // GET /Collections (approved sentences) and GET/PATCH /Admin (the queue)
 export const SentenceWithAuthor = Sentence.extend({ author: Author });
 
+// What Scribbles suggests for a sentence waiting for review (reviewer/,
+// saved by the scheduled reviewer), for the Teacher page only: never sent to
+// students or the gallery
+export const ScribblesSuggestion = z.object({
+  verdict: z.enum(VERDICTS),
+  tip: z
+    .enum(TIP_IDS)
+    .nullish()
+    .transform((id) => (id ? tipWithWords(id) : null)),
+  // Why: "worrying" means the student may need help
+  reasons: z.array(z.enum(REASONS)),
+  // Words not in the dictionary, and capitals and punctuation to fix
+  misspelled: z.array(z.string()).optional(),
+  mechanics: z.array(z.object({ kind: z.enum(MECHANICS), text: z.string() })).optional(),
+});
+
+// A sentence in the review queue, with Scribbles' suggestion for its
+// current words when there is one: GET and PATCH /Admin
+export const QueueSentence = SentenceWithAuthor.extend({
+  suggestion: ScribblesSuggestion.optional(),
+});
+
+// The tips a teacher can send back with "Try again": GET /Admin/tips
+export const ReviewTip = z.object({ id: z.enum(TIP_IDS), text: z.string() });
+
 // The lists: GET / (tell sentences), GET /MyPage (a student's own
-// sentences), GET /Collections and GET/PATCH /Admin
+// sentences), GET /Collections, GET/PATCH /Admin and GET /Admin/tips
 export const TellSentences = z.array(TellSentence);
 export const Sentences = z.array(Sentence);
+export const OwnSentences = z.array(OwnSentence);
 export const SentencesWithAuthors = z.array(SentenceWithAuthor);
+export const ReviewQueue = z.array(QueueSentence);
+export const ReviewTips = z.array(ReviewTip);
 
 // An approved sentence's likes, as a signed-in student sees them: GET
 // /Collections/likes lists every approved sentence's, and PUT and DELETE
@@ -176,6 +230,10 @@ export type TellSentence = z.infer<typeof TellSentence>;
 export type User = z.infer<typeof User>;
 export type LoginAnswer = z.infer<typeof LoginAnswer>;
 export type Sentence = z.infer<typeof Sentence>;
+export type OwnSentence = z.infer<typeof OwnSentence>;
+export type ScribblesSuggestion = z.infer<typeof ScribblesSuggestion>;
+export type QueueSentence = z.infer<typeof QueueSentence>;
+export type ReviewTip = z.infer<typeof ReviewTip>;
 export type Author = z.infer<typeof Author>;
 export type SentenceWithAuthor = z.infer<typeof SentenceWithAuthor>;
 export type SentenceLikes = z.infer<typeof SentenceLikes>;

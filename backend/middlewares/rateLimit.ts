@@ -54,3 +54,24 @@ export const likesRateLimit = rateLimit({
   // and Netlify's forwarding headers would only make them log warnings.
   validate: { xForwardedForHeader: false, forwardedHeader: false },
 });
+
+// How many times one signed-in user may load the Teacher page's tips
+// (GET /Admin/tips) in a minute: once per page visit is all it needs. Counted
+// per user from the login cookie, before auth's database lookup, the same
+// way as the likes above.
+export const REVIEW_TIP_REQUESTS_PER_MINUTE = 30;
+export const reviewTipsRateLimitStore = new MemoryStore();
+
+export const reviewTipsRateLimit = rateLimit({
+  store: reviewTipsRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: REVIEW_TIP_REQUESTS_PER_MINUTE,
+  keyGenerator: (req: Request) => {
+    const session = readSession(req);
+    return session ? `user:${session.id}` : "signed-out";
+  },
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many requests. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});

@@ -1,6 +1,6 @@
 import type { AxiosError } from "axios";
 import * as api from "../api";
-import type { ReviewDecision, SentenceWithAuthor } from "../api/types";
+import type { ReviewDecision, ReviewTipId, SentenceWithAuthor } from "../api/types";
 import type { AppThunk } from "../reducers/types";
 
 // Fetch the sentences waiting for review. Answers whether they arrived, so
@@ -17,18 +17,20 @@ export const fetchApprovalSentences = (): AppThunk<Promise<boolean>> => async (d
   }
 };
 
-// Approve a sentence or send it back. Answers how it went: "saved", "stale"
+// Approve a sentence or send it back (with the tip the student sees, or
+// none). Answers how it went: "saved", "stale"
 // when the sentence changed or was already reviewed after the page loaded
 // (the server refuses those with 409, see ReviewBody), or "failed".
 export type ReviewOutcome = "saved" | "stale" | "failed";
 export const updatePendingApprovalSentences =
-  (status: ReviewDecision, sentence: SentenceWithAuthor): AppThunk<Promise<ReviewOutcome>> =>
+  (
+    status: ReviewDecision,
+    sentence: SentenceWithAuthor,
+    tip: ReviewTipId | null = null
+  ): AppThunk<Promise<ReviewOutcome>> =>
   async (dispatch) => {
     try {
-      const { data } = await api.updatePendingApprovalSentences(
-        status,
-        sentence
-      );
+      const { data } = await api.updatePendingApprovalSentences(status, sentence, tip);
       dispatch({ type: "UPDATE_APPROVAL_SENTENCES", payload: data });
       return "saved";
     } catch (error) {

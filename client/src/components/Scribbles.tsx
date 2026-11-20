@@ -1,9 +1,10 @@
 // Scribbles, the pencil who coaches students. Drawn in SVG and moved with CSS
 // (src/theme/paper.css): he sways, blinks and waves; "happy" adds a spin and
-// a hop, "thinking" scratches his head. He can hold something for the job on
-// each page. Everything stands still for anyone whose device asks for less
+// a hop, "thinking" scratches his head, "worried" (raised brows, a wobbly
+// mouth and a drop of sweat) is for a sentence that may mean a student needs
+// help. He can hold something for the job on each page. Everything stands still for anyone whose device asks for less
 // motion.
-export type ScribblesMood = "idle" | "happy" | "thinking";
+export type ScribblesMood = "idle" | "happy" | "thinking" | "worried";
 export type ScribblesProp = "none" | "note" | "check" | "brush" | "tape";
 
 // The left arm, waving or scratching his head
@@ -11,6 +12,7 @@ const ARM = {
   idle: "M66 104 Q 44 96 40 78",
   happy: "M66 104 Q 44 80 46 54",
   thinking: "M66 104 Q 48 80 66 58",
+  worried: "M66 104 Q 52 112 50 126",
 } as const;
 
 // Written out in full: the production build keeps only the CSS class names
@@ -20,12 +22,14 @@ const MOOD_CLASS = {
   idle: "scribbles scribbles--idle",
   happy: "scribbles scribbles--happy",
   thinking: "scribbles scribbles--thinking",
+  worried: "scribbles scribbles--worried",
 } as const;
 
 const MOUTH = {
   idle: "M88 118 Q 100 128 112 118",
   happy: "M88 118 Q 100 130 112 118",
   thinking: "M90 122 Q 100 118 110 122",
+  worried: "M90 122 Q 95 118 100 122 T 110 122",
 } as const;
 
 function Held({ prop }: { prop: ScribblesProp }) {
@@ -125,6 +129,14 @@ function Scribbles({
         <rect x="112" y="62" width="22" height="96" fill="#f4b400" />
         <path d="M66 158 L 134 158 L 100 196 Z" fill="#ffe2b8" />
         <path d="M90 185 L 110 185 L 100 196 Z" fill="#2d2a32" />
+        {mood === "worried" && (
+          <g data-worried>
+            {/* Brows raised in the middle, and a drop of sweat */}
+            <path d="M79 86 Q 86 85 94 80" fill="none" stroke="#2d2a32" strokeWidth={4} strokeLinecap="round" />
+            <path d="M121 86 Q 114 85 106 80" fill="none" stroke="#2d2a32" strokeWidth={4} strokeLinecap="round" />
+            <path d="M128 70 Q 133 79 128 83 Q 123 79 128 70 Z" fill="#8fd3ff" stroke="#4aa3d8" strokeWidth={1.5} />
+          </g>
+        )}
         <ellipse className="scribbles__eye" cx="88" cy="98" rx="7" ry="8" fill="#2d2a32" />
         <ellipse className="scribbles__eye" cx="112" cy="98" rx="7" ry="8" fill="#2d2a32" />
         <circle cx="90" cy="95" r="2.2" fill="#fff" />

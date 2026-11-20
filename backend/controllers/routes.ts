@@ -2,14 +2,18 @@ import type { Request, Response } from "express";
 import {
   EditSentenceBody,
   NewSentenceBody,
+  OwnSentence,
+  OwnSentences,
   REVIEW_STALE,
   ReviewBody,
-  Sentence as SentenceAnswer,
-  Sentences,
+  ReviewQueue,
+  ReviewTips,
   SentencesWithAuthors,
   TellSentences,
   User,
 } from "../contract/api.js";
+import { ReviewSuggestion } from "../models/reviewSuggestions.js";
+import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
 import { Types } from "mongoose";
 import { Sentence } from "../models/sentences.js";
 import Profile from "../models/profile.js";
@@ -31,7 +35,7 @@ export const getUserSentences = async (req: Request, res: Response) => {
   try {
     const userSentences = await Sentence.find({ GID: req.userId });
 
-    answer(res, 200, Sentences, userSentences);
+    answer(res, 200, OwnSentences, userSentences);
   } catch (error) {
     // Saved for this request's log line (see middlewares/requestLog.ts)
     res.locals.error = error;
@@ -95,7 +99,7 @@ export const createNewUserSentence = async (req: Request, res: Response) => {
     await newSentence.save();
     user.ownSentences.push(newSentence._id);
     await user.save();
-    answer(res, 201, SentenceAnswer, newSentence);
+    answer(res, 201, OwnSentence, newSentence);
   } catch (error) {
     res.locals.error = error;
     res.status(409).json({ message: messageOf(error) });
@@ -118,7 +122,8 @@ export const editUserSentence = async (req: Request, res: Response) => {
     // back to waiting, with a new date (so a reviewer's page showing the old
     // words is now out of date, see ReviewBody), and its likes start again
     // from the 1 like for passing review once approved (see
-    // controllers/likes.ts): they were for the old text.
+    // controllers/likes.ts): they were for the old text. So does its tip:
+    // it was about the old words.
     const updateSentence = await Sentence.findOneAndUpdate(
       { GID: req.userId, title: title },
       {
@@ -129,6 +134,7 @@ export const editUserSentence = async (req: Request, res: Response) => {
           approved: false,
           likedBy: [],
         },
+        $unset: { tip: "" },
       },
       { new: true }
     );
@@ -137,7 +143,7 @@ export const editUserSentence = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Sentence not found" });
     }
 
-    answer(res, 201, SentenceAnswer, updateSentence);
+    answer(res, 201, OwnSentence, updateSentence);
   } catch (error) {
     res.locals.error = error;
     res.status(409).json({ message: messageOf(error) });
@@ -190,6 +196,34 @@ const reviewQueue = (adminId: string | undefined) => ({
   ...(isTestAccount(adminId) ? { GID: TEST_SENTENCES } : {}),
 });
 
+// The review queue for this admin, each sentence with Scribbles' suggestion
+// for its current words (saved by the scheduled reviewer, reviewer/queue.ts),
+// when there is one. A suggestion for words the student has since changed
+// isn't shown: it's about the old words.
+const reviewQueueFor = async (adminId: string | undefined) => {
+  const queue = await sentencesWithAuthorNames(reviewQueue(adminId));
+  const suggestions = await ReviewSuggestion.find(
+    { sentence: { $in: queue.map((sentence) => sentence._id) } },
+    "-_id -decidedBy -createdAt"
+  ).lean<{ sentence: Types.ObjectId; show: string }[]>();
+  const forWords = new Map(suggestions.map((s) => [`${String(s.sentence)} ${s.show}`, s]));
+  return queue.map((sentence) => ({
+    ...sentence.toObject(),
+    suggestion: forWords.get(`${String(sentence._id)} ${sentence.show}`),
+  }));
+};
+
+// Route for the tips a teacher can send back with "Try again": every tip
+// but the praise, which only goes with an approval
+export const getReviewTips = (req: Request, res: Response) => {
+  answer(
+    res,
+    200,
+    ReviewTips,
+    TIP_IDS.filter((id) => id !== PRAISE).map((id) => ({ id, text: TIPS[id] }))
+  );
+};
+
 // Route for fetching all sentences awaiting approval
 export const getPendingApprovalSentences = async (
   req: Request,
@@ -197,10 +231,7 @@ export const getPendingApprovalSentences = async (
 ) => {
   try {
     // fetch all sentences that are not approved, newest (last edited) first
-    const awaitingApproval = await sentencesWithAuthorNames(
-      reviewQueue(req.userId)
-    );
-    answer(res, 200, SentencesWithAuthors, awaitingApproval);
+    answer(res, 200, ReviewQueue, await reviewQueueFor(req.userId));
   } catch (error) {
     res.locals.error = error;
     res.status(409).json({ message: messageOf(error) });
@@ -221,7 +252,7 @@ export const updatePendingApprovalSentences = async (
     if (!body.success) {
       return res.status(400).json({ message: firstProblem(body.error) });
     }
-    const { status, sentence } = body.data;
+    const { status, sentence, tip } = body.data;
 
     // The test admin may only review test accounts' sentences (see reviewQueue)
     const which = {
@@ -264,13 +295,13 @@ export const updatePendingApprovalSentences = async (
         toRedo: false,
         createdAt: stored.createdAt ?? { $exists: false },
       },
-      {
-        // approve, or "redo", the only other decision the contract allows
-        $set:
-          status === "approve"
-            ? { approved: true, toRedo: false }
-            : { approved: false, toRedo: true },
-      }
+      // approve (with the praise tip), or "redo" (with the tip the reviewer
+      // chose, or none), the only other decision the contract allows
+      status === "approve"
+        ? { $set: { approved: true, toRedo: false, tip: PRAISE } }
+        : tip
+          ? { $set: { approved: false, toRedo: true, tip } }
+          : { $set: { approved: false, toRedo: true }, $unset: { tip: "" } }
     );
     if (matchedCount === 0) {
       // It changed between the check and the update
@@ -278,11 +309,7 @@ export const updatePendingApprovalSentences = async (
     }
 
     // send back the updated queue, newest first
-    const awaitingApproval = await sentencesWithAuthorNames(
-      reviewQueue(req.userId)
-    );
-
-    answer(res, 201, SentencesWithAuthors, awaitingApproval);
+    answer(res, 201, ReviewQueue, await reviewQueueFor(req.userId));
   } catch (error) {
     res.locals.error = error;
     // 500, not 409: the page reads 409 as "changed or already reviewed"

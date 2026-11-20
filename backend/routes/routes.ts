@@ -7,6 +7,7 @@ import {
   getUserInfo,
   getPendingApprovalSentences,
   updatePendingApprovalSentences,
+  getReviewTips,
   fetchApprovedSentences,
   logoutUser,
 } from "../controllers/routes.js";
@@ -21,6 +22,7 @@ import auth from "../middlewares/auth.js";
 import admin from "../middlewares/admin.js";
 import {
   likesRateLimit,
+  reviewTipsRateLimit,
   testLoginRateLimit,
 } from "../middlewares/rateLimit.js";
 
@@ -56,6 +58,9 @@ router.post("/Logout", logoutUser);
 router.get("/Admin", auth, admin, getPendingApprovalSentences);
 // Route for updating status on sentences awaiting approval
 router.patch("/Admin", auth, admin, updatePendingApprovalSentences);
+// The tips a teacher can send back with "Try again", limited per user (see
+// middlewares/rateLimit.ts)
+router.get("/Admin/tips", reviewTipsRateLimit, auth, admin, getReviewTips);
 
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);

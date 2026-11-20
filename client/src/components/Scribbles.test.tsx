@@ -21,9 +21,16 @@ describe("Scribbles", () => {
     expect(svg).toHaveAttribute("height", "216");
   });
 
-  it.each(["idle", "happy", "thinking"] as const)("shows the %s mood", (mood) => {
+  it.each(["idle", "happy", "thinking", "worried"] as const)("shows the %s mood", (mood) => {
     const { container } = render(<Scribbles mood={mood} />);
     expect(container.querySelector("svg")).toHaveClass(`scribbles--${mood}`);
+  });
+
+  it("looks worried (raised brows and a drop of sweat) only when worried", () => {
+    const { container, rerender } = render(<Scribbles mood="worried" />);
+    expect(container.querySelector("[data-worried]")).not.toBeNull();
+    rerender(<Scribbles mood="thinking" />);
+    expect(container.querySelector("[data-worried]")).toBeNull();
   });
 
   it("holds the prop for the page's job, and nothing by default", () => {
