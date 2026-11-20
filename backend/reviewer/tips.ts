@@ -24,6 +24,10 @@ export const TIPS = {
   ownWords: "Use your own words, not the Tell sentence.",
   readAloud: "Read it out loud. Does every part make sense?",
   spelling: "Check your spelling. Read each word slowly, letter by letter.",
+  capitals: "Start with a capital letter, and write \"I\" as a capital.",
+  endMark: "End your sentence with a period, question mark or exclamation mark.",
+  punctuation: "Check your commas and periods: put a space after them, not before.",
+  onTopic: "Make sure your sentence shows the Tell. What would it look, sound or feel like?",
 
   // For a sentence that's ready
   great: "Great picture! Keep painting with words.",

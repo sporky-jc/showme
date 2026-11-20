@@ -33,7 +33,7 @@ describe("the spelling check", () => {
 
   it("has a tip, and the AI is told about spelling", () => {
     expect(TIPS.spelling).toMatch(/spelling/i);
-    expect(REVIEW_INSTRUCTIONS).toContain("every word is spelled correctly");
+    expect(REVIEW_INSTRUCTIONS).toContain("Every word is spelled correctly");
   });
 });
 

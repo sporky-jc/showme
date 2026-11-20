@@ -5,6 +5,7 @@
 // tip): nothing a model writes is ever shown, stored as text or run.
 import { z } from "zod";
 import { PRAISE, TIP_IDS } from "./tips.js";
+import type { MechanicsIssue } from "./mechanics.js";
 
 // approve: ready for the gallery. redo: send back with a tip. unsure: leave
 // it for a person.
@@ -22,8 +23,12 @@ export const REASONS = [
   "too-long", // longer than any Show sentence
   // Sent back by the rule checks
   "copies-tell",
-  // Not approved: a word isn't in the dictionary (spelling.ts)
+  // Not approved because of the writing checks: a word isn't in the
+  // dictionary (spelling.ts), capitals, end marks or spacing around
+  // punctuation, or a repeated word or "a"/"an" (mechanics.ts)
   "spelling",
+  "punctuation",
+  "grammar",
   // Held by the AI safety check (a model that only judges whether text is
   // safe), before any AI reviewer reads it
   "safety-check",
@@ -61,4 +66,7 @@ export interface Suggestion {
   // Words not in the dictionary, for the teacher (only when the rules
   // didn't hold the sentence: a held sentence is read in full anyway)
   misspelled?: string[];
+  // Capitals, end marks, punctuation, repeated words, "a"/"an": for the
+  // teacher, the same way
+  mechanics?: MechanicsIssue[];
 }
