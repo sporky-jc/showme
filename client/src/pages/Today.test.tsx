@@ -87,6 +87,23 @@ describe("Today", () => {
     expect(document.querySelector(".paper-today__photo")).toHaveAttribute("src", "/day4.jpg");
   });
 
+  // The day comes from the titles, not how many there are: a list with a
+  // gap would otherwise offer a day already written
+  it("moves on to the day after the latest one written, past a gap", async () => {
+    const [day1, , day3] = shows(3);
+    renderToday({ mine: [day1, day3] });
+
+    expect(await screen.findByText("“Tell 4”")).toBeInTheDocument();
+  });
+
+  it("shows each latest sentence's own stored Tell", async () => {
+    const [day1] = shows(1);
+    renderToday({ mine: [{ ...day1, title: "day5", tell: "Stored Tell" }] });
+
+    await screen.findByText("“Tell 6”");
+    expect(screen.getByText("for “Stored Tell”")).toBeInTheDocument();
+  });
+
   it("'Start showing' leads to the Write page", async () => {
     renderToday();
 

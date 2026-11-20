@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { render } from "@testing-library/react";
-import type { AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
 import { configureStore } from "@reduxjs/toolkit";
@@ -51,9 +51,10 @@ export const fakeNetwork =
   async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
     const outcome = await respond(config);
 
+    // Failures are AxiosErrors, as axios itself throws them
     if (outcome === "offline") {
       // no `response`: the server never answered
-      throw Object.assign(new Error("Network Error"), { config });
+      throw new AxiosError("Network Error", AxiosError.ERR_NETWORK, config);
     }
 
     const { status, data = {} } =
@@ -61,9 +62,12 @@ export const fakeNetwork =
     const response = { status, data, headers: {}, config, statusText: "" };
 
     if (status >= 400) {
-      throw Object.assign(
-        new Error(`Request failed with status code ${status}`),
-        { config, response }
+      throw new AxiosError(
+        `Request failed with status code ${status}`,
+        AxiosError.ERR_BAD_RESPONSE,
+        config,
+        null,
+        response
       );
     }
     return response;

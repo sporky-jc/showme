@@ -5,9 +5,10 @@ import Scribbles from "../components/Scribbles";
 import PageLoading from "../components/PageLoading";
 import SignInPrompt from "../components/SignInPrompt";
 import { useStudentData } from "../components/useStudentData";
-import { createSentence, editSentences } from "../actions/usersentences";
+import { createSentence, editSentences, type SaveResult } from "../actions/usersentences";
 import { fetchUser } from "../actions/user";
 import type { AppDispatch, RootState } from "../reducers/types";
+import { dayOf, nextDay } from "../days";
 import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 
 // The five senses, each with questions Scribbles asks to get a writer going.
@@ -69,6 +70,22 @@ const LENGTH_WARNING = 50;
 
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
+// What the page says when a sentence wasn't saved (see SaveResult)
+function problemFor(result: SaveResult, text: string): string {
+  switch (result.kind) {
+    case "already-sent":
+      return "You already sent a sentence for this day! Open My sentences to see it.";
+    case "too-many":
+      return result.message ?? "That's a lot of sending! Wait a minute, then try again.";
+    case "refused":
+      return text.trim().length > MAX_LENGTH
+        ? "Your sentence is too long. Make it shorter."
+        : "Scribbles couldn't take that sentence. Change it a little, then press Ask Scribbles again.";
+    default:
+      return "We couldn't send your sentence. Check your internet connection, then press Ask Scribbles again.";
+  }
+}
+
 // The Write page: the next Tell sentence and a big box to show it in, with
 // Scribbles beside it. Also where a sentence is edited (/Write/<its id>).
 // Once the server has the sentence, the page says Scribbles is checking it.
@@ -85,12 +102,15 @@ function WriteSentence({ id }: { id: string | undefined }) {
 
   // What the student is typing (null until they type: an edit starts from
   // the sentence as it is), the sense Scribbles is asking about, whether the
-  // server is being asked, whether it failed, and the sentence it accepted.
+  // server is being asked, what went wrong if it didn't save, and the
+  // sentence it has (again: it already had one for this day).
   const [typed, setTyped] = useState<string | null>(null);
   const [sense, setSense] = useState<{ index: number; turn: number } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [sent, setSent] = useState<{ tell: string; show: string } | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ tell: string; show: string; again?: boolean } | null>(
+    null
+  );
 
   // Once sent, the page changes under the reader: move them to its heading
   const sentHeading = useRef<HTMLHeadingElement>(null);
@@ -114,7 +134,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
           <Scribbles mood="thinking" prop="note" size={150} decorative />
           <div>
             <h1 ref={sentHeading} tabIndex={-1}>
-              Scribbles is checking!
+              {sent.again
+                ? "You already sent this one! Scribbles is checking it."
+                : "Scribbles is checking!"}
             </h1>
             <p className="paper-write__later">
               Come back later! Once Scribbles approves it, it will appear in
@@ -159,12 +181,15 @@ function WriteSentence({ id }: { id: string | undefined }) {
     );
   }
 
-  // Which sentence this is: the one being edited, or the next new one. A
-  // sentence's day is its place in the student's list.
+  // Which sentence this is: the one being edited, with the Tell stored with
+  // it, or the next new day's (see days.ts), with that day's Tell. A
+  // sentence whose title isn't a day is numbered by its place in the list.
   const editIndex = id ? userSentences.findIndex((sentence) => sentence._id === id) : -1;
   const editing = editIndex >= 0 ? userSentences[editIndex] : null;
-  const day = editing ? editIndex + 1 : userSentences.length + 1;
-  const tell = tellSentences[day - 1]?.tell;
+  const day = editing
+    ? dayOf(editing.title) ?? editIndex + 1
+    : nextDay(userSentences, tellSentences.length);
+  const tell = editing ? editing.tell : day === undefined ? undefined : tellSentences[day - 1]?.tell;
 
   if (id && !editing) {
     return (
@@ -220,19 +245,26 @@ function WriteSentence({ id }: { id: string | undefined }) {
     event.preventDefault();
     if (saving || !tell || text.trim() === "") return;
     setSaving(true);
-    setFailed(false);
+    setProblem(null);
     // The server sets the rest itself: the day's Tell (from the same list),
     // and an edit goes back to waiting to be checked, with a new date
-    const saved = editing
+    const result = editing
       ? await dispatch(editSentences({ title: editing.title, show: text }))
       : await dispatch(createSentence({ title: "day" + day, show: text }));
     setSaving(false);
-    if (!saved) {
-      setFailed(true);
+    if (result.kind === "saved") {
+      dispatch(fetchUser());
+      // As the server saved it (trimmed), with the Tell it stored
+      setSent({ tell: result.sentence.tell ?? tell, show: result.sentence.show });
       return;
     }
-    dispatch(fetchUser());
-    setSent({ tell, show: text });
+    if (result.kind === "already-sent" && result.sentence) {
+      // Most likely this same sentence, saved by an earlier press whose
+      // answer was lost on the way back: show the one the server has
+      setSent({ tell: result.sentence.tell, show: result.sentence.show, again: true });
+      return;
+    }
+    setProblem(problemFor(result, text));
   }
 
   return (
@@ -312,10 +344,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
               </button>
             </div>
 
-            {failed && (
+            {problem && (
               <p className="paper-write__failed" role="alert">
-                We couldn&apos;t send your sentence. Check your internet
-                connection, then press Ask Scribbles again.
+                {problem}
               </p>
             )}
           </form>

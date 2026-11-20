@@ -83,7 +83,11 @@ export const reviewTipsRateLimit = rateLimit({
 // up. A student writes one sentence a day and edits it a few times; a class
 // lesson, or an automated browser test (the most a QA Wolf test saves is
 // about a page of My sentences, 9), stays far below both. Counted per user
-// from the login cookie, before auth's database lookup, like the likes above.
+// from the login cookie, before auth's database lookup, like the likes above;
+// and, like theirs, the counts are kept in each server instance's memory, so
+// they damp abuse rather than enforce an exact limit. Requests without a
+// valid login aren't counted: auth answers them 401, and a shared count
+// would have one signed-out visitor's requests block another's with 429.
 export const SENTENCE_WRITES_PER_MINUTE = 20;
 export const SENTENCE_WRITES_PER_DAY = 200;
 export const sentenceWritesPerMinuteStore = new MemoryStore();
@@ -99,6 +103,7 @@ const sentenceWritesPerMinute = rateLimit({
   windowMs: 60 * 1000,
   limit: SENTENCE_WRITES_PER_MINUTE,
   keyGenerator: perUser,
+  skip: (req: Request) => !readSession(req),
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many saves. Wait a minute, then try again." },
@@ -115,7 +120,10 @@ const sentenceWritesPerDay = rateLimit({
   // add up to the daily limit where no student would. They only exist on
   // staging, which has its own reviewer allowance, and they still have the
   // per-minute limit.
-  skip: (req: Request) => isTestAccount(readSession(req)?.id),
+  skip: (req: Request) => {
+    const session = readSession(req);
+    return !session || isTestAccount(session.id);
+  },
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "That's a lot of saving for one day! Try again tomorrow." },

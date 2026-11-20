@@ -258,6 +258,150 @@ describe("Write", () => {
     expect(saves()).toHaveLength(2);
   });
 
+  // Flaky wifi: an earlier press was saved, but its answer never arrived.
+  // The server refuses a second sentence for the day (409); the page loads
+  // the list again and shows the one it has, instead of "check your internet"
+  // over and over.
+  it("when the day was already sent, loads the list again and shows the saved sentence", async () => {
+    const user = userEvent.setup();
+    const saved = { ...shows(3)[2], show: "Brr, my fingers froze." };
+    let posted = false;
+    const { requests } = renderWrite({
+      list: () => ({ status: 200, data: posted ? [...shows(2), saved] : shows(2) }),
+      save: () => {
+        posted = true;
+        return { status: 409, data: { message: "You already wrote a sentence for this day." } };
+      },
+    });
+
+    await user.type(await box(), "Brr, my fingers froze.  ");
+    await user.click(sendButton());
+
+    expect(
+      await screen.findByRole("heading", { name: "You already sent this one! Scribbles is checking it." })
+    ).toHaveFocus();
+    expect(screen.getByText("Brr, my fingers froze.")).toBeInTheDocument();
+    expect(screen.getByText("Tell 3")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(requests.filter((r) => r.url === "/MyPage" && r.method === "get")).toHaveLength(2);
+  });
+
+  it("when the day was already sent but the list can't be loaded, says to look in My sentences", async () => {
+    const user = userEvent.setup();
+    let posted = false;
+    renderWrite({
+      list: () => (posted ? "offline" : { status: 200, data: shows(2) }),
+      save: () => {
+        posted = true;
+        return 409;
+      },
+    });
+
+    await user.type(await box(), "Brr");
+    await user.click(sendButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You already sent a sentence for this day! Open My sentences to see it."
+    );
+  });
+
+  it("when too many were sent, says what the server said", async () => {
+    const user = userEvent.setup();
+    renderWrite({
+      save: () => ({ status: 429, data: { message: "Too many saves. Wait a minute, then try again." } }),
+    });
+
+    await user.type(await box(), "Brr");
+    await user.click(sendButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Too many saves. Wait a minute, then try again.");
+    expect(await box()).toHaveValue("Brr");
+  });
+
+  // The box stops at 600 characters, but an old sentence may be longer
+  it("when the sentence is too long for the server, says to make it shorter", async () => {
+    const user = userEvent.setup();
+    const mine = shows(2);
+    mine[0].show = "a".repeat(650);
+    renderWrite({
+      route: "/Write/s1",
+      mine,
+      save: () => ({ status: 400, data: { message: "The show sentence can't be longer than 600 characters" } }),
+    });
+
+    await box();
+    expect(document.getElementById("show-count")).toHaveTextContent("50 too many characters");
+    await user.click(sendButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Your sentence is too long. Make it shorter.");
+  });
+
+  it("when the server refuses it for another reason, doesn't blame the internet", async () => {
+    const user = userEvent.setup();
+    renderWrite({ save: () => ({ status: 400, data: { message: "Unknown day" } }) });
+
+    await user.type(await box(), "Brr");
+    await user.click(sendButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Scribbles couldn't take that sentence.");
+    expect(alert).not.toHaveTextContent(/internet/);
+  });
+
+  it("when the server breaks (5xx), says to check the internet and try again", async () => {
+    const user = userEvent.setup();
+    renderWrite({ save: () => 500 });
+
+    await user.type(await box(), "Brr");
+    await user.click(sendButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't send your sentence.*internet/i);
+  });
+
+  it("shows the sentence as the server saved it (trimmed)", async () => {
+    const user = userEvent.setup();
+    renderWrite({
+      save: () => ({ status: 201, data: { ...shows(3)[2], show: "Brr, my fingers froze." } }),
+    });
+
+    await user.type(await box(), "  Brr, my fingers froze.  ");
+    await user.click(sendButton());
+
+    await screen.findByRole("heading", { name: "Scribbles is checking!" });
+    expect(document.querySelector(".paper-write__sent-show")!.textContent).toBe("Brr, my fingers froze.");
+  });
+
+  // The day comes from the titles, not how many there are: with a gap, the
+  // count would offer (and send) a day already written
+  it("offers and saves the day after the latest written, past a gap", async () => {
+    const user = userEvent.setup();
+    const [day1, , day3] = shows(3);
+    const { saves } = renderWrite({ mine: [day1, day3] });
+
+    await user.type(await box(), "Brr");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next TellTell 4");
+    await user.click(sendButton());
+
+    await screen.findByRole("heading", { name: "Scribbles is checking!" });
+    expect(JSON.parse(saves()[0].data).title).toBe("day4");
+  });
+
+  it("doesn't skip a day for two sentences on one day", async () => {
+    const [day1, day2] = shows(2);
+    renderWrite({ mine: [day1, day2, { ...day2, _id: "s2b" }] });
+
+    await box();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next TellTell 3");
+  });
+
+  it("when the last day is written, even after gaps, says every sentence is done", async () => {
+    const [day1] = shows(1);
+    renderWrite({ tellCount: 35, mine: [day1, { ...day1, _id: "s35", title: "day35" }] });
+
+    expect(await screen.findByText(/You showed every sentence!/)).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
   it("when every day is done, says so instead of offering a box", async () => {
     renderWrite({ tellCount: 2, mine: shows(2) });
 
@@ -319,6 +463,15 @@ describe("Write", () => {
 
       expect(await box()).toHaveValue("Show 1");
       expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Sentence 1 · TellTell 1");
+    });
+
+    // Not the Tell at its place in the list: with gaps they differ
+    it("shows the sentence's own day and its stored Tell", async () => {
+      const [first] = shows(1);
+      renderWrite({ route: "/Write/s1", mine: [{ ...first, title: "day5", tell: "Stored Tell" }] });
+
+      await box();
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Sentence 5 · TellStored Tell");
     });
 
     it("saving sends the change, then says Scribbles is checking", async () => {

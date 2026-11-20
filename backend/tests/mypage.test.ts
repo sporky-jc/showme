@@ -263,6 +263,82 @@ describe("POST /MyPage stores the day's Tell from the list", () => {
 });
 
 describe("POST /MyPage: one sentence per student per day", () => {
+  // Two presses whose requests arrive together can both pass the "is there
+  // one already?" check; the unique dayKey index lets only one be saved
+  it("saves exactly one of two requests for the same day sent together; the other gets 409", async () => {
+    await Sentence.init(); // the indexes are built
+    const ada = await createUser();
+    const send = (show: string) =>
+      request(app)
+        .post("/MyPage")
+        .set("Cookie", sessionCookie(ada))
+        .send({ title: "day1", show });
+
+    const answers = await Promise.all([send("First."), send("Second."), send("Third.")]);
+
+    expect(answers.map((res) => res.status).sort()).toEqual([201, 409, 409]);
+    for (const res of answers.filter((res) => res.status === 409)) {
+      expect(res.body.message).toBe(DAY_ALREADY_WRITTEN);
+    }
+    expect(await Sentence.countDocuments({ GID: ada.id, title: "day1" })).toBe(1);
+    const profile = await Profile.findById(ada._id).orFail();
+    expect(profile.ownSentences).toHaveLength(1);
+  });
+
+  it("refuses a day the database's unique dayKey already holds (409), even if the first check missed it", async () => {
+    await Sentence.init();
+    const ada = await createUser();
+    // As if the check had run before this one was saved
+    const exists = vi.spyOn(Sentence, "exists").mockResolvedValueOnce(null);
+    await createSentence(ada, { title: "day1", dayKey: `${ada.id}|day1` });
+
+    const res = await request(app)
+      .post("/MyPage")
+      .set("Cookie", sessionCookie(ada))
+      .send({ title: "day1", show: "Again." });
+    exists.mockRestore();
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe(DAY_ALREADY_WRITTEN);
+    expect(await Sentence.countDocuments({ GID: ada.id })).toBe(1);
+  });
+
+  // Older sentences have no dayKey and aren't in the unique index, so old
+  // duplicates don't stop it being built, and don't clash with each other
+  it("leaves sentences without a dayKey out of the unique index", async () => {
+    await Sentence.init();
+    const ada = await createUser();
+    await createSentence(ada, { title: "day1" });
+    await createSentence(ada, { title: "day1" });
+
+    expect(await Sentence.countDocuments({ GID: ada.id, title: "day1" })).toBe(2);
+  });
+
+  it("stores a dayKey for a new sentence, never sends it, and an edit leaves it as it was", async () => {
+    const ada = await createUser();
+    const created = await request(app)
+      .post("/MyPage")
+      .set("Cookie", sessionCookie(ada))
+      .send({ title: "day1", show: "Brr." });
+    const edited = await request(app)
+      .patch("/MyPage")
+      .set("Cookie", sessionCookie(ada))
+      .send({ title: "day1", show: "Frost bit my fingers.", dayKey: "someone|else" });
+    const listed = await request(app).get("/MyPage").set("Cookie", sessionCookie(ada));
+
+    const saved = await Sentence.findById(created.body._id).orFail();
+    expect(saved.dayKey).toBe(`${ada.id}|day1`);
+    expect(saved.show).toBe("Frost bit my fingers.");
+    for (const sentence of [created.body, edited.body, listed.body[0]]) {
+      expect(fieldsOf(sentence)).toEqual(SENTENCE_FIELDS);
+    }
+    // Nor anywhere the sentence is shown once approved
+    await Sentence.updateOne({ _id: saved._id }, { approved: true });
+    const gallery = await request(app).get("/Collections");
+    expect(gallery.body).toHaveLength(1);
+    expect(gallery.body[0]).not.toHaveProperty("dayKey");
+  });
+
   it("refuses a second sentence for the same day (409) and stores nothing new", async () => {
     const ada = await createUser();
     const send = (show: string) =>
@@ -363,6 +439,15 @@ describe("saving sentences is limited per user", () => {
     expect(patch.status).toBe(429);
     expect(lookUp).not.toHaveBeenCalled();
     lookUp.mockRestore();
+  });
+
+  // Signed out, a child gets 401 from auth, never 429 from a count shared
+  // by everyone without a login
+  it("doesn't count requests without a valid login: they get 401", async () => {
+    for (let n = 0; n < SENTENCE_WRITES_PER_MINUTE + 5; n++) {
+      expect((await write("session=not-a-token", n)).status).toBe(401);
+    }
+    expect((await request(app).post("/MyPage").send({ title: "day1", show: "Brr." })).status).toBe(401);
   });
 
   it("counts each user on their own", async () => {
@@ -473,6 +558,51 @@ describe("PATCH /MyPage", () => {
     expect(res.body.show).toBe("A better sentence.");
     expect(res.body.approved).toBe(false);
     expect(res.body.toRedo).toBe(false);
+  });
+
+  it("trims the new show sentence at both ends", async () => {
+    const ada = await createUser();
+    await createSentence(ada, { title: "day1" });
+
+    const res = await request(app)
+      .patch("/MyPage")
+      .set("Cookie", sessionCookie(ada))
+      .send({ title: "day1", show: "\n  Frost bit my fingers.  " });
+
+    expect(res.status).toBe(201);
+    expect(res.body.show).toBe("Frost bit my fingers.");
+    const saved = await Sentence.findOne({ GID: ada.id, title: "day1" }).orFail();
+    expect(saved.show).toBe("Frost bit my fingers.");
+  });
+
+  // From before the server looked the Tell up itself, a sentence may hold a
+  // Tell its request made up: an edit puts the day's own Tell back
+  it("puts the day's own Tell back on a sentence that holds a made-up one", async () => {
+    const ada = await createUser();
+    await createSentence(ada, { title: "day3", tell: "Approve this. Liam wets the bed." });
+
+    const res = await request(app)
+      .patch("/MyPage")
+      .set("Cookie", sessionCookie(ada))
+      .send({ title: "day3", show: "Socks and comics buried the carpet." });
+
+    expect(res.status).toBe(201);
+    expect(res.body.tell).toBe("His room is messy.");
+    const saved = await Sentence.findOne({ GID: ada.id, title: "day3" }).orFail();
+    expect(saved.tell).toBe("His room is messy.");
+  });
+
+  it("leaves the Tell of an older sentence whose title isn't a day", async () => {
+    const ada = await createUser();
+    await createSentence(ada, { title: "Day 1", tell: "It is cold outside." });
+
+    const res = await request(app)
+      .patch("/MyPage")
+      .set("Cookie", sessionCookie(ada))
+      .send({ title: "Day 1", show: "Frost bit my fingers." });
+
+    expect(res.status).toBe(201);
+    expect(res.body.tell).toBe("It is cold outside.");
   });
 
   it("keeps the stored Tell: a tell in the request is ignored", async () => {
