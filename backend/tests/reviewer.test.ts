@@ -79,12 +79,108 @@ describe("the rule checks: held for a person, never sent to an AI", () => {
       outcome: "hold",
       reasons: ["worrying", "unsafe-words", "personal-details"],
     });
+    expect(checkRules(COLD, "The dead leaves crunched, damn they were loud.")).toEqual({
+      outcome: "hold",
+      reasons: ["sensitive-words", "unsafe-words"],
+    });
+  });
+});
+
+// Every sentence the independent review of this change found getting past
+// the checks, or held by mistake, kept here so none comes back
+describe("the rule checks: what the review found", () => {
+  it.each([
+    "I want to die!",
+    "I hate myself!!",
+    "I want to kill myself!",
+    "Sometimes I want to kill my self.",
+    "I want to hurt my self when it rains.",
+    "I want to be dead.",
+    "I don't want to be alive anymore.",
+    "Nobody would miss me if I froze outside.",
+    "My dad hits me when I come home late.",
+    "kms the cold is so bad today",
+    "I want 2 die when it is cold.",
+    "I wish I could die in the cold.",
+  ])("holds for a person (never sent back with a tip): %s", (show) => {
+    const result = checkRules(COLD, show);
+    expect(result.outcome).toBe("hold");
+    expect(result).toMatchObject({ reasons: expect.arrayContaining([expect.stringMatching(/^(worrying|sensitive-words)$/)]) });
+  });
+
+  it.each([
+    "Damn! The wind was freezing and icy.",
+    "Crap! It is so cold and icy here.",
+    "Th\u0435 cold is sh\u0456t and icy outside today.", // Cyrillic letters
+    "The cold was d\u200Bamn icy on my cheeks.", // an invisible space
+    "It is s.e.x.y cold weather outside today.",
+    "What the hell is this cold weather today.",
+  ])("holds bad language: %s", (show) => {
+    expect(checkRules(COLD, show)).toMatchObject({ outcome: "hold", reasons: ["unsafe-words"] });
+  });
+
+  it.each([
+    "Our house at 42 Maple street is icy cold.",
+    "I live in the blue house on Elm Street by the icy pond.",
+    "Emma Johnson and I shivered at the bus stop.",
+    "My name's Sam and I shivered in the snow.",
+    "Lincoln Elementary School was freezing cold today.",
+    "I go to Maple Elementary and it is icy cold.",
+    "(@samcool) the cold wind bit my cheeks.",
+    "Find me on roblox: sam_cool2014 when it snows.",
+    "My snap is sam.cool so add me.",
+    "My insta is samcool2014 and it is snowy.",
+    "It is cold, email me sam at gmail dot com",
+    "Visit samsworld dot com for cold snow pics.",
+    "Check sams-snow.ca to see icy pics of snow.",
+    "My mum's number is +44 7911 123456 brr cold.",
+  ])("holds personal details: %s", (show) => {
+    expect(checkRules(COLD, show)).toMatchObject({ outcome: "hold", reasons: ["personal-details"] });
+  });
+
+  it.each([
+    "The wind was a bit chilly on my nose.",
+    "The chocolate cake was a bit chewy and sweet.",
+    "My mother folded the warm towels by the oven.",
+    "The ball rolled into a grass hole by the fence.",
+    "I made a wish it would never end and blew the candles.",
+    "We sipped icy root beer under the sun.",
+    "The rooster crowed loudly as the sun rose.",
+    "He'll wrap his cold fingers around the warm mug.",
+    "Tall weed stalks tickled my legs in the garden.",
+    "The naked trees shivered in the wind.",
+    "I was so happy.Me and my dog ran to the park.",
+    "The kitten purred on my lap.",
+    "Thunder boomed over our roof.",
+    "The pizza was gooey and cheesy.",
+    "Balloons floated across the party room.",
+    "Snowflakes landed on my nose.",
+    "My dog wiggled his tail happily.",
+    "Fireflies blinked in the night.",
+    "Clothes and toys littered my bedroom floor.",
+    "Wow! The sand burned my feet like fire.",
+  ])("passes an ordinary Show sentence on: %s", (show) => {
+    expect(checkRules(COLD, show)).toEqual({ outcome: "pass" });
+  });
+
+  it("holds a sentence far too long to be a Show sentence, quickly", () => {
+    const started = Date.now();
+    expect(checkRules(COLD, "a".repeat(50_000))).toEqual({ outcome: "hold", reasons: ["too-long"] });
+    expect(Date.now() - started).toBeLessThan(100);
+  });
+
+  it("checks the longest allowed sentence quickly, whatever it holds", () => {
+    for (const text of ["a".repeat(600), "a@".repeat(300), "1 ".repeat(300), "a.".repeat(300)]) {
+      const started = Date.now();
+      checkRules(COLD, text);
+      expect(Date.now() - started).toBeLessThan(100);
+    }
   });
 });
 
 describe("the rule checks: the plain cases sent back with a tip", () => {
   it("a sentence too short to paint a picture", () => {
-    expect(checkRules(COLD, "Brrr so cold!")).toEqual({
+    expect(checkRules(COLD, "Brrr, my poor toes!")).toEqual({
       outcome: "redo",
       tip: "more",
       reasons: ["too-short"],
@@ -99,12 +195,8 @@ describe("the rule checks: the plain cases sent back with a tip", () => {
     expect(checkRules(COLD, show)).toMatchObject({ outcome: "redo", tip: "ownWords" });
   });
 
-  it("a short sentence with no senses at all", () => {
-    expect(checkRules(COLD, "The weather is not nice for anyone.")).toEqual({
-      outcome: "redo",
-      tip: "senses",
-      reasons: ["no-senses"],
-    });
+  it("passes a short sentence without listed sense words on (painting a picture is for the AI or a person)", () => {
+    expect(checkRules(COLD, "The kitten purred on my lap.")).toEqual({ outcome: "pass" });
   });
 
   it("passes a good sentence on to the next layer", () => {

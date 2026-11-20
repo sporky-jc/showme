@@ -15,13 +15,14 @@ export type Verdict = (typeof VERDICTS)[number];
 // student). The rule checks' own reasons, and the ones the chain adds.
 export const REASONS = [
   // Held for a person, and never sent to an AI provider
-  "unsafe-words", // bad language or adult words
   "worrying", // the student may be hurting or in danger: a person should look
-  "personal-details", // an email, phone number, link, address or name
+  "sensitive-words", // words like "die" or "hurt": a person reads it first
+  "unsafe-words", // bad language or adult words
+  "personal-details", // an email, phone number, link, handle, address, school or full name
+  "too-long", // longer than any Show sentence
   // Sent back by the rule checks
   "too-short",
   "copies-tell",
-  "no-senses",
   // Decided by an AI provider
   "ai",
   // No layer could decide
