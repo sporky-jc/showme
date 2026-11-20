@@ -19,7 +19,11 @@ export const postJson = async (
   url: string,
   apiKey: string,
   body: unknown,
-  signal: AbortSignal
+  signal: AbortSignal,
+  // A provider whose error answers say more than their status can read
+  // them here, and give the status to count it as (cloudflare.ts reads an
+  // "out of free requests" answer as 429 whatever its status)
+  { statusOf }: { statusOf?: (errorBody: unknown, status: number) => number } = {}
 ): Promise<unknown> => {
   const response = await fetch(url, {
     method: "POST",
@@ -29,8 +33,11 @@ export const postJson = async (
   });
   if (!response.ok) {
     // 429: out of free requests for now; 401/403: the key is wrong or lacks
-    // permission. The status is all that's logged.
-    throw new ProviderError(`HTTP ${response.status}`, response.status);
+    // permission. The status is all that's logged: the error answer itself
+    // is only read here, never kept or logged.
+    let status = response.status;
+    if (statusOf) status = statusOf(await response.json().catch(() => null), status);
+    throw new ProviderError(`HTTP ${status}`, status);
   }
   return response.json();
 };

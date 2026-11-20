@@ -55,6 +55,7 @@ export const ATTEMPT_OUTCOMES = [
   "invalid", // an answer, but not in the form asked for
   "rate-limited", // HTTP 429: out of free requests for now (the run stops)
   "credentials", // HTTP 401 or 403: the key is wrong or lacks permission (the run stops)
+  "refused", // any other HTTP 4xx: it won't take this request, now or later (a hold is saved)
   "failed", // any other failure
   "timeout", // took too long
 ] as const;

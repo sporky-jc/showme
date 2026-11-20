@@ -42,11 +42,27 @@ const DAY = 24 * 60 * 60 * 1000;
 // the run's time is up
 export type StoppedBecause = "rate-limited" | "credentials" | "deadline";
 
-type Waiting = { _id: Types.ObjectId; tell: string; show: string; safetyInvalidShow?: string };
+type Waiting = {
+  _id: Types.ObjectId;
+  tell: string;
+  show: string;
+  safetyInvalidShow?: string;
+  failedShow?: string;
+  failedCount?: number;
+};
 
 // The outcomes that mean nobody could decide only because a request didn't
-// get through: tried again on a later run rather than saved for good
+// get through: tried again on a later run rather than saved for good. (Not
+// "refused", any other HTTP 4xx: the API took the request and will refuse
+// it again, so the hold is saved at once.)
 const NOT_THROUGH = new Set<ProviderAttempt["outcome"]>(["failed", "timeout", "rate-limited", "credentials", "safe"]);
+const BLOCKED = new Set<ProviderAttempt["outcome"]>(["rate-limited", "credentials"]);
+
+// A review of the same words that fails or times out this many runs in a
+// row is saved as a hold ("no-safety-check" or "no-provider"), so a person
+// sees it: a sentence that fails the same way every time (an input the
+// API can't take, say) never waits for ever, nor blocks newer ones
+export const MAX_FAILED_RUNS = 3;
 
 export const reviewWaitingSentences = async (
   setup: ReviewerSetup,
@@ -93,9 +109,11 @@ export const reviewWaitingSentences = async (
         // No suggestion yet for these exact words
         $expr: { $ne: ["$reviewedShow", "$show"] },
       },
-      { tell: 1, show: 1, safetyInvalidShow: 1 }
+      { tell: 1, show: 1, safetyInvalidShow: 1, failedShow: 1, failedCount: 1 }
     )
-      .sort({ createdAt: 1 })
+      // Never tried first (oldest first), then the ones whose last try failed,
+      // longest ago first: those wait behind everything new
+      .sort({ lastTriedAt: 1, createdAt: 1 })
       .limit(limit - asked)
       .lean<Waiting[]>();
     if (batch.length === 0) break;
@@ -130,7 +148,7 @@ export const reviewWaitingSentences = async (
           attempts,
         });
 
-        if (await worthSaving(sentence, suggestion.decidedBy, attempts)) {
+        if (await worthSaving(sentence, suggestion.decidedBy, attempts, now)) {
           await ReviewSuggestion.updateOne(
             { sentence: sentence._id, show: sentence.show },
             {
@@ -149,8 +167,17 @@ export const reviewWaitingSentences = async (
         }
 
         // Out of free requests, or the key is refused: every other request
-        // this run would fail the same way, so stop here
-        const blocked = attempts.find((a) => a.outcome === "rate-limited" || a.outcome === "credentials");
+        // this run would fail the same way, so stop here. Only when the
+        // safety check was (nothing gets past it), or every provider asked
+        // was: one blocked provider with a later one answering is fine.
+        const safetyAttempt = attempts.find((a) => a.provider === setup.safety?.name);
+        const providerAttempts = attempts.filter((a) => a !== safetyAttempt);
+        const blocked =
+          safetyAttempt && BLOCKED.has(safetyAttempt.outcome)
+            ? safetyAttempt
+            : providerAttempts.length > 0 && providerAttempts.every((a) => BLOCKED.has(a.outcome))
+              ? providerAttempts[providerAttempts.length - 1]
+              : undefined;
         if (blocked) {
           stopped = blocked.outcome as StoppedBecause;
           // A refused key needs a person to fix it: ERROR, to alert on. (write()
@@ -180,13 +207,32 @@ export const reviewWaitingSentences = async (
 // (down, too slow, out of free requests until tomorrow, a refused key): try
 // again. The safety check answered, but not in its form: try again once,
 // and save the hold ("no-safety-check") if it does the same for the same
-// words a second time, so a sentence can't be retried forever.
-const worthSaving = async (sentence: Waiting, decidedBy: string, attempts: ProviderAttempt[]) => {
+// words a second time, so a sentence can't be retried forever. A review
+// that failed or timed out MAX_FAILED_RUNS runs in a row for the same words
+// is saved too. (Out of free requests or a refused key isn't the sentence's
+// fault: those are tried again however often, and stop the run anyway.)
+const worthSaving = async (
+  sentence: Waiting,
+  decidedBy: string,
+  attempts: ProviderAttempt[],
+  now: () => number
+) => {
   if (decidedBy !== "none") return true;
-  if (attempts.length > 0 && attempts.every((a) => NOT_THROUGH.has(a.outcome))) return false;
+  const where = { _id: sentence._id, show: sentence.show };
+  const lastTriedAt = new Date(now());
+  if (attempts.length > 0 && attempts.every((a) => NOT_THROUGH.has(a.outcome))) {
+    if (attempts.some((a) => BLOCKED.has(a.outcome))) {
+      await Sentence.updateOne(where, { $set: { lastTriedAt } });
+      return false;
+    }
+    const failedCount = (sentence.failedShow === sentence.show ? (sentence.failedCount ?? 0) : 0) + 1;
+    if (failedCount >= MAX_FAILED_RUNS) return true;
+    await Sentence.updateOne(where, { $set: { failedShow: sentence.show, failedCount, lastTriedAt } });
+    return false;
+  }
   const safetyInvalid = attempts.length === 1 && attempts[0].outcome === "invalid";
   if (safetyInvalid && sentence.safetyInvalidShow !== sentence.show) {
-    await Sentence.updateOne({ _id: sentence._id, show: sentence.show }, { $set: { safetyInvalidShow: sentence.show } });
+    await Sentence.updateOne(where, { $set: { safetyInvalidShow: sentence.show, lastTriedAt } });
     return false;
   }
   return true;
