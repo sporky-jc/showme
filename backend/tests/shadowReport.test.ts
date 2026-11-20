@@ -124,6 +124,26 @@ describe("compareDecisions", () => {
     expect(report.approveButRedo).toEqual([]);
   });
 
+  // A decision the teacher took back (PATCH /Admin/undo) isn't what they
+  // decided: Scribbles agreeing with it or not says nothing
+  it("leaves out decisions the teacher took back, and counts them", () => {
+    const report = compareDecisions([
+      row({ status: "redo", tip: "hear", undoneAt: NEXT_WEEK }),
+      row({ undoneAt: NEXT_WEEK }, null),
+      row({ undoneAt: null }),
+      row({}),
+    ]);
+    expect(report.decisions).toBe(4);
+    expect(report.undone).toBe(2);
+    expect(report.noSuggestion).toBe(0);
+    expect(report.total.compared).toBe(2);
+    expect(report.total.approveAgree).toBe(2);
+    expect(report.approveButRedo).toEqual([]);
+    expect(formatReport(report, { database: "test", leftOut: 0 })).toContain(
+      "Left out, the teacher took the decision back: 2"
+    );
+  });
+
   it("counts decisions with no date, and ones made before the suggestion was saved", () => {
     const report = compareDecisions([
       row({ decidedAt: null }),
@@ -215,6 +235,54 @@ describe("The Teacher page records each decision", () => {
       { sentence: approved._id, show: "Snow piled up to the windows.", status: "approve", tip: "great", decidedBy: "teacher", dated: true },
       { sentence: sentBack._id, show: "It was cold.", status: "redo", tip: "feel", decidedBy: "teacher", dated: true },
     ]);
+  });
+
+  it("marks the latest decision on those words undone when the teacher takes it back", async () => {
+    const admin = await createAdmin();
+    const sentence = await createSentence(await createUser(), { show: "Snow piled up to the windows." });
+    // An older decision on the same words, already taken back
+    const older = await ReviewDecision.create({
+      sentence: sentence._id,
+      show: sentence.show,
+      status: "approve",
+      decidedAt: new Date("2026-01-01"),
+      undoneAt: new Date("2026-01-02"),
+    });
+    await request(app)
+      .patch("/Admin")
+      .set("Cookie", sessionCookie(admin))
+      .send({ sentence: asReviewed(sentence), status: "approve" });
+
+    const res = await request(app)
+      .patch("/Admin/undo")
+      .set("Cookie", sessionCookie(admin))
+      .send({ sentence: asReviewed(sentence), status: "approve" });
+
+    expect(res.status).toBe(201);
+    const records = await ReviewDecision.find({ sentence: sentence._id }).sort({ decidedAt: 1 }).lean();
+    expect(records).toHaveLength(2);
+    // The older one keeps the date it was taken back on
+    expect(records[0].undoneAt).toEqual(older.undoneAt);
+    expect(records[1].undoneAt).toBeInstanceOf(Date);
+    expect(records[1].undoneAt!.getTime()).toBeGreaterThan(records[1].decidedAt.getTime() - 1);
+  });
+
+  it("leaves the records alone when an undo is refused", async () => {
+    const admin = await createAdmin();
+    const sentence = await createSentence(await createUser());
+    await request(app)
+      .patch("/Admin")
+      .set("Cookie", sessionCookie(admin))
+      .send({ sentence: asReviewed(sentence), status: "approve" });
+
+    // The page thought it was sent back
+    const res = await request(app)
+      .patch("/Admin/undo")
+      .set("Cookie", sessionCookie(admin))
+      .send({ sentence: asReviewed(sentence), status: "redo" });
+
+    expect(res.status).toBe(409);
+    expect(await ReviewDecision.countDocuments({ undoneAt: { $exists: true } })).toBe(0);
   });
 
   it("not when the decision is refused as out of date", async () => {

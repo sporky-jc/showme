@@ -464,8 +464,8 @@ export const undoDecision = async (req: Request, res: Response) => {
     // updatePendingApprovalSentences: some early dates are text)
     const stored = await Sentence.findOne(
       { _id: { $eq: id }, ...testOnly },
-      { approved: 1, toRedo: 1, createdAt: 1 }
-    ).lean<{ approved?: boolean; toRedo?: boolean; createdAt?: Date | string }>();
+      { approved: 1, toRedo: 1, createdAt: 1, show: 1 }
+    ).lean<{ approved?: boolean; toRedo?: boolean; createdAt?: Date | string; show: string }>();
     if (!stored) {
       return res.status(404).json({ message: "Sentence not found" });
     }
@@ -490,11 +490,33 @@ export const undoDecision = async (req: Request, res: Response) => {
         ...testOnly,
         ...(status === "approve" ? { approved: true } : { approved: false, toRedo: true }),
         createdAt: stored.createdAt ?? { $exists: false },
+        // The words read above are the words whose decision is taken back
+        // (marked below)
+        show: { $eq: stored.show },
       },
       { $set: { approved: false, toRedo: false }, $unset: { tip: "", decidedAt: "" } }
     );
     if (matchedCount === 0) {
       return res.status(409).json({ message: UNDO_STALE });
+    }
+
+    // The shadow report (models/reviewDecisions.ts) mustn't count a decision
+    // the teacher took back: the latest one recorded for these words, if it
+    // was recorded, is marked undone. The undo has already happened, so a
+    // failure here is only logged, as when a decision is recorded.
+    try {
+      await ReviewDecision.findOneAndUpdate(
+        {
+          sentence: { $eq: id },
+          show: { $eq: stored.show },
+          status: { $eq: status },
+          undoneAt: { $exists: false },
+        },
+        { $set: { undoneAt: new Date() } },
+        { sort: { decidedAt: -1 } }
+      );
+    } catch (error) {
+      logger.warn(`Could not mark a teacher's decision undone: ${messageOf(error)}`, { sentence: sentence._id });
     }
 
     // Both lists as they are now: the sentence is back in the queue, and no

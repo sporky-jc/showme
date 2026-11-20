@@ -47,7 +47,7 @@ if (!databaseAccess) {
   process.exit(1);
 }
 
-type StoredDecision = { sentence: Types.ObjectId; show: string; status: "approve" | "redo"; tip?: TipId | null; decidedAt: Date };
+type StoredDecision = { sentence: Types.ObjectId; show: string; status: "approve" | "redo"; tip?: TipId | null; decidedAt: Date; undoneAt?: Date };
 type StoredSentence = { _id: Types.ObjectId; GID: string; show: string; approved?: boolean; toRedo?: boolean; tip?: TipId };
 type StoredSuggestion = SavedSuggestion & { sentence: Types.ObjectId };
 
@@ -77,7 +77,9 @@ try {
 
   // The recorded decisions, and the sentences they're about (for who wrote
   // them: a deleted sentence can't be checked, so it's left out too)
-  const recorded = await ReviewDecision.find({}, { sentence: 1, show: 1, status: 1, tip: 1, decidedAt: 1 }).lean<
+  // (with when each was taken back, if it was: compareDecisions leaves those
+  // out, and counts them)
+  const recorded = await ReviewDecision.find({}, { sentence: 1, show: 1, status: 1, tip: 1, decidedAt: 1, undoneAt: 1 }).lean<
     StoredDecision[]
   >();
   // Older decisions are only worth reading for sentences Scribbles has a
@@ -102,7 +104,10 @@ try {
       leftOut++;
       continue;
     }
-    decisions.push({ sentence: id, decision: { status: d.status, tip: d.tip ?? null, show: d.show, decidedAt: d.decidedAt } });
+    decisions.push({
+      sentence: id,
+      decision: { status: d.status, tip: d.tip ?? null, show: d.show, decidedAt: d.decidedAt, undoneAt: d.undoneAt ?? null },
+    });
   }
   for (const id of suggested.map(String)) {
     const s = sentences.get(id);
