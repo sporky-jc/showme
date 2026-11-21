@@ -7,6 +7,7 @@ import { noteKind } from "../components/noteKind";
 import type { NoteKind } from "../components/noteKind";
 import PageLoading from "../components/PageLoading";
 import RecentDecisions from "../components/RecentDecisions";
+import ReviewerSwitch from "../components/ReviewerSwitch";
 import * as api from "../api";
 import {
   updatePendingApprovalSentences,
@@ -244,6 +245,9 @@ function Admin() {
           </ul>
         </div>
       )}
+      {/* Whether Scribbles is reading new sentences, and the button that
+          pauses him (hidden if the server can't say) */}
+      <ReviewerSwitch onSaid={setSaid} />
       <p className="visually-hidden" role="status">
         {said}
       </p>

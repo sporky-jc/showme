@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { Sentence } from "../models/sentences.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
+import { ReviewerSwitch, setReviewerPaused } from "../models/reviewerSwitch.js";
 import { MAX_AGE_DAYS, MAX_FAILED_RUNS, RUN_DEADLINE_MS, reviewWaitingSentences } from "../reviewer/queue.js";
 import { ProviderError } from "../reviewer/providers/http.js";
 import { cloudflareSafety } from "../reviewer/providers/cloudflare.js";
@@ -577,5 +578,75 @@ describe("the scheduled reviewer and the welfare check", () => {
       stopped: "rate-limited",
     });
     expect(welfare.check).not.toHaveBeenCalled();
+  });
+});
+
+// The Teacher page's off switch (models/reviewerSwitch.ts, PATCH
+// /Admin/reviewer): a paused Scribbles sends nothing to the AI, from the
+// next sentence on, with no deploy
+describe("the scheduled reviewer, paused from the Teacher page", () => {
+  it("does nothing while paused, and says so in one line", async () => {
+    await addSentence();
+    await setReviewerPaused(true);
+    const ai = approving();
+    const safety = { name: "guard", check: vi.fn(async () => "safe" as const) };
+    const { logger } = await import("firebase-functions/logger");
+    const info = vi.spyOn(logger, "info").mockImplementation(() => {});
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+    expect(await reviewWaitingSentences(setupWith([ai], { safety }))).toEqual({ reviewed: 0, stopped: "paused" });
+
+    expect(ai.review).not.toHaveBeenCalled();
+    expect(safety.check).not.toHaveBeenCalled();
+    expect(await ReviewSuggestion.countDocuments()).toBe(0);
+    expect(info.mock.calls).toEqual([["Scribbles is paused from the Teacher page"]]);
+    expect(warn).not.toHaveBeenCalled();
+    info.mockRestore();
+    warn.mockRestore();
+  });
+
+  it("reviews again once turned back on", async () => {
+    await addSentence();
+    await setReviewerPaused(true);
+    await reviewWaitingSentences(setupWith([approving()]));
+    await setReviewerPaused(false);
+
+    expect(await reviewWaitingSentences(setupWith([approving()]))).toEqual({ reviewed: 1 });
+  });
+
+  it("stops before the next sentence when paused during a run, and keeps what was already saved", async () => {
+    await addSentence({ show: `${GOOD} 1` });
+    await addSentence({ show: `${GOOD} 2` });
+    const ai = approving();
+    // A teacher pauses while the first sentence is with the AI
+    ai.review.mockImplementationOnce(async () => {
+      await setReviewerPaused(true);
+      return { verdict: "approve", tip: "great" };
+    });
+
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 1, stopped: "paused" });
+    expect(ai.review).toHaveBeenCalledTimes(1);
+    expect(await ReviewSuggestion.countDocuments()).toBe(1);
+  });
+
+  it("does nothing when the switch can't be read", async () => {
+    await addSentence();
+    const ai = approving();
+    vi.spyOn(ReviewerSwitch, "findById").mockImplementationOnce(() => {
+      throw new Error("database down");
+    });
+
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 0, stopped: "paused" });
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  // REVIEWER_MODE, from the deploy, is the ceiling: the switch only pauses
+  it("can't turn on a reviewer the deploy has off", async () => {
+    await addSentence();
+    await setReviewerPaused(false);
+    const ai = approving();
+
+    expect(await reviewWaitingSentences(setupWith([ai], { mode: "off" }))).toEqual({ reviewed: 0 });
+    expect(ai.review).not.toHaveBeenCalled();
   });
 });

@@ -13,6 +13,13 @@ import type { MechanicsIssue } from "./mechanics.js";
 // share it.
 export const MAX_CHARACTERS = 600;
 
+// Which reviewer runs, set by the deploy (REVIEWER_MODE, settings.ts). off:
+// nothing runs. suggest: suggestions are saved for the teacher, and nothing
+// changes for students (step 3 shows them on the Teacher page). Kept here,
+// like MAX_CHARACTERS, so the API contract can share it.
+export const REVIEWER_MODES = ["off", "suggest"] as const;
+export type ReviewerMode = (typeof REVIEWER_MODES)[number];
+
 // approve: ready for the gallery. redo: send back with a tip. unsure: leave
 // it for a person.
 export const VERDICTS = ["approve", "redo", "unsure"] as const;

@@ -4,11 +4,11 @@
 import type { ReviewProvider, SafetyCheck, WelfareCheck } from "./reviewer.js";
 import { cloudflareReviewer, cloudflareSafety, cloudflareWelfare } from "./providers/cloudflare.js";
 import { groqReviewer } from "./providers/groq.js";
+import { REVIEWER_MODES, type ReviewerMode } from "./contract.js";
 
-// off: nothing runs. suggest: suggestions are saved for the teacher, and
-// nothing changes for students (step 3 shows them on the Teacher page).
-export const REVIEWER_MODES = ["off", "suggest"] as const;
-export type ReviewerMode = (typeof REVIEWER_MODES)[number];
+// The modes (off, suggest) are listed in contract.ts, so the API contract
+// can send the mode to the Teacher page (GET /Admin/reviewer)
+export { REVIEWER_MODES, type ReviewerMode };
 
 export const reviewerMode = (env = process.env): ReviewerMode =>
   (REVIEWER_MODES as readonly string[]).includes(env.REVIEWER_MODE ?? "") ? (env.REVIEWER_MODE as ReviewerMode) : "off";

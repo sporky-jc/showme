@@ -174,3 +174,22 @@ export const reviewCountRateLimit = rateLimit({
   message: { message: "Too many requests. Wait a minute, then try again." },
   validate: { xForwardedForHeader: false, forwardedHeader: false },
 });
+
+// How many times one signed-in user may read or flip Scribbles' off switch
+// (GET and PATCH /Admin/reviewer) in a minute. The Teacher page reads it
+// once when it opens, and a teacher pauses or turns him back on now and
+// then, never dozens of times a minute. Counted per user from the login
+// cookie, before auth's database lookup, like the tips above.
+export const REVIEWER_SWITCH_REQUESTS_PER_MINUTE = 30;
+export const reviewerSwitchRateLimitStore = new MemoryStore();
+
+export const reviewerSwitchRateLimit = rateLimit({
+  store: reviewerSwitchRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: REVIEWER_SWITCH_REQUESTS_PER_MINUTE,
+  keyGenerator: perUser,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many requests. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});

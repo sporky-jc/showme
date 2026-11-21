@@ -45,6 +45,7 @@ const renderAdmin = ({
   tips = TIPS,
   decisions,
   undo,
+  reviewer = 404,
 }: {
   user?: UserState;
   sessionChecked?: boolean;
@@ -56,6 +57,8 @@ const renderAdmin = ({
   tips?: ReviewTip[];
   decisions?: () => Outcome | Promise<Outcome>;
   undo?: () => Outcome | Promise<Outcome>;
+  // GET /Admin/reviewer, Scribbles' off switch (components/ReviewerSwitch.tsx)
+  reviewer?: Outcome;
 } = {}) => {
   const requests: InternalAxiosRequestConfig[] = [];
   const view = renderWithApp(
@@ -71,6 +74,7 @@ const renderAdmin = ({
         if (config.url === "/Admin/tips") return { status: 200, data: tips };
         if (config.url === "/Admin/decisions") return decisions ? decisions() : { status: 200, data: [] };
         if (config.url === "/Admin/undo") return undo ? undo() : 500;
+        if (config.url === "/Admin/reviewer") return reviewer;
         if (config.method === "get" && config.url === "/Admin") {
           return list ? list() : { status: 200, data: queue };
         }
@@ -679,5 +683,28 @@ describe("Admin: recent decisions", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Recent decisions" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't load the recent decisions/);
+  });
+});
+
+// Scribbles' off switch on the page (more in components/ReviewerSwitch.test.tsx)
+describe("Admin: Scribbles' switch", () => {
+  it("shows near the top, under the heading and above the queue", async () => {
+    renderAdmin({ reviewer: { status: 200, data: { mode: "suggest", paused: false } } });
+
+    const pause = await screen.findByRole("button", { name: "Pause Scribbles" });
+    const heading = screen.getByRole("heading", { level: 1, name: "Needs your eyes" });
+    expect(heading.compareDocumentPosition(pause) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pause.compareDocumentPosition(approve("Mia Torres")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The cards' own headings are still the only level-2 ones
+    expect(names()).toEqual(["Mia Torres", "Leo Chen"]);
+  });
+
+  it("leaves the page as it was when the server has no switch (a preview on the staging backend)", async () => {
+    const { requests } = renderAdmin();
+
+    expect(await screen.findByText("Mia Torres")).toBeInTheDocument();
+    await waitFor(() => expect(requests.some((r) => r.url === "/Admin/reviewer")).toBe(true));
+    expect(screen.queryByRole("region", { name: "Scribbles" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Scribbles: /)).not.toBeInTheDocument();
   });
 });

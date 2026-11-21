@@ -2080,6 +2080,42 @@ h3,
   font-weight: 800;
 }
 
+/* Scribbles' off switch, near the top (ReviewerSwitch.tsx): what he's
+   doing, and the button that pauses him or turns him back on */
+.paper-review__switch {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 18px;
+  background: var(--paper-white);
+  box-shadow: 0 4px 0 var(--paper-edge);
+}
+
+.paper-review__switch--paused {
+  background: var(--paper-turn-bg);
+  box-shadow: 0 4px 0 var(--paper-turn-edge);
+}
+
+.paper-review__switch p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.paper-review__switch-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The big red button: the one that stops Scribbles */
+.paper-review__switch .paper-review__switch-pause {
+  background: var(--paper-retry-ink);
+  color: var(--paper-white);
+  box-shadow: 0 4px 0 #7a170f;
+}
+
 /* Nothing is waiting: Scribbles celebrates */
 .paper-review__done {
   align-self: center;
