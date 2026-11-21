@@ -25,9 +25,11 @@ const when = (pausedAt: string) =>
 // pauses him at once, with no deploy (backend/models/reviewerSwitch.ts).
 // Pausing asks first; turning him back on doesn't. His notes already on the
 // cards stay as they are: they're only suggestions, and the teacher decides.
-// With "off" (set by the deploy) there's nothing to switch, so it only says
-// so. If the server doesn't answer how he is (a pull request's preview uses
-// the staging backend, which may not have the switch yet), nothing shows.
+// With "off" (set by the deploy, as on the real site until Scribbles has
+// passed his fair test) there's nothing to switch, so nothing shows: teachers
+// first see the panel once he's actually running. Nothing shows either if
+// the server doesn't answer how he is (a pull request's preview uses the
+// staging backend, which may not have the switch yet).
 function ReviewerSwitch({ onSaid }: { onSaid: (said: string) => void }) {
   const [status, setStatus] = useState<ReviewerStatus | null>(null);
   // "Pause Scribbles?" is open, a change is being saved, and why the last
@@ -59,15 +61,7 @@ function ReviewerSwitch({ onSaid }: { onSaid: (said: string) => void }) {
     };
   }, []);
 
-  if (!status) return null;
-
-  if (status.mode === "off") {
-    return (
-      <section className="paper-review__switch" aria-label="Scribbles">
-        <p className="paper-review__switch-state">Scribbles is off (set by the deploy).</p>
-      </section>
-    );
-  }
+  if (!status || status.mode === "off") return null;
 
   const change = async (paused: boolean) => {
     setSaving(true);

@@ -79,10 +79,12 @@ describe("ReviewerSwitch", () => {
     expect(onSaid).toHaveBeenCalledWith("Scribbles is back on.");
   });
 
-  it("only says he's off when the deploy has him off: there's nothing to switch", async () => {
-    renderSwitch({ status: { status: 200, data: { mode: "off", paused: false } } });
+  it("shows nothing when the deploy has him off (the real site, until he's on): there's nothing to switch", async () => {
+    const { container, requests } = renderSwitch({ status: { status: 200, data: { mode: "off", paused: false } } });
 
-    expect(await screen.findByText("Scribbles is off (set by the deploy).")).toBeInTheDocument();
+    await waitFor(() => expect(requests).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(container).toBeEmptyDOMElement();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
