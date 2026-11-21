@@ -22,6 +22,7 @@ import { ReviewSuggestion } from "../models/reviewSuggestions.js";
 import { reviewSentence, type ProviderAttempt } from "./reviewer.js";
 import type { ReviewerSetup } from "./settings.js";
 import { messageOf } from "../utils/errors.js";
+import { TEST_SENTENCES } from "../config/testAccounts.js";
 
 // At most this many sentences per run, so one run stays well inside the free
 // requests and the time a scheduled function may take
@@ -133,6 +134,12 @@ export const reviewWaitingSentences = async (
         approved: false,
         toRedo: false,
         createdAt: { $gte: since },
+        // Not written by a staging test account (config/testAccounts.ts).
+        // QA Wolf's runs write dozens of sentences a day, and reviewing them
+        // used up the whole free daily AI allowance within minutes of its
+        // reset, leaving none for real or sample sentences. Their tests
+        // don't need Scribbles' notes; the reviewer's own tests cover it.
+        GID: { $not: TEST_SENTENCES },
         // No suggestion yet for these exact words
         $expr: { $ne: ["$reviewedShow", "$show"] },
       },
