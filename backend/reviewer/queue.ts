@@ -14,7 +14,9 @@
 // `reviewedShow` still matches, so the sentence isn't reviewed again and the
 // queue never loops on it. That's right for "suggest" mode, where the
 // teacher reads the suggestion; an automatic mode will go by the sentence's
-// state (approved, sent back), not by this.
+// state (approved, sent back), not by this. A saved "Try again" for words
+// sent back twice since is shown to the teacher as "unsure" all the same
+// (withinSendBacks, applied again by the Teacher page's route).
 import { logger } from "firebase-functions/logger";
 import type { Types } from "mongoose";
 import { Sentence } from "../models/sentences.js";
@@ -188,7 +190,7 @@ export const reviewWaitingSentences = async (
           welfare: setup.welfare,
           timeoutMs,
           // So a sentence already sent back twice isn't suggested for a
-          // third time (MAX_SEND_BACKS, reviewer.ts)
+          // third time (MAX_SEND_BACKS, sendBacks.ts)
           sentBack: sentence.redoCount ?? 0,
         });
         const { suggestion, attempts } = result;

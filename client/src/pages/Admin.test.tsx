@@ -477,7 +477,7 @@ describe("Scribbles' notes", () => {
   });
 
   // Scribbles never suggests a third "Try again" (MAX_SEND_BACKS,
-  // backend/reviewer/reviewer.ts): the note says why it's the teacher's call
+  // backend/reviewer/sendBacks.ts): the note says why it's the teacher's call
   it("says when a sentence was sent back twice already, and leaves it to the teacher", async () => {
     const twice = sentence("t", "Kai", "The cafateria was lound.", {
       verdict: "unsure",

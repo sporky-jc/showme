@@ -60,7 +60,7 @@ export const REASONS = [
   "no-welfare-check", // the welfare check isn't set up, failed, ran out or gave an invalid answer: held as "worrying" all the same
   "no-provider", // none set up, or every one failed or ran out
   // Would have been sent back, but this sentence has already been sent back
-  // twice (MAX_SEND_BACKS, reviewer.ts): a third "Try again" is more likely
+  // twice (MAX_SEND_BACKS, sendBacks.ts): a third "Try again" is more likely
   // to make a child give up than to help, so a person decides instead
   "redo-limit",
 ] as const;
