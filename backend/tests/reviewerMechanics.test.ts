@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mechanicsIssues } from "../reviewer/mechanics.js";
-import { reviewSentence, type ReviewProvider, type SafetyCheck } from "../reviewer/reviewer.js";
+import { reviewSentence, type ReviewProvider, type SafetyCheck, type WelfareCheck } from "../reviewer/reviewer.js";
 import { REVIEW_INSTRUCTIONS } from "../reviewer/prompt.js";
 import { TIPS } from "../reviewer/tips.js";
 
@@ -9,6 +9,8 @@ import { TIPS } from "../reviewer/tips.js";
 
 const COLD = "It is cold outside.";
 const safety: SafetyCheck = { name: "guard", check: async () => "safe" };
+// The welfare check, seeing nothing worrying
+const welfare: WelfareCheck = { name: "welfare", check: async () => ({ concern: "no" }) };
 const approving: ReviewProvider = { name: "ai", review: async () => ({ verdict: "approve", tip: "great" }) };
 
 describe("the capitals and punctuation checks", () => {
@@ -80,13 +82,13 @@ describe("the reviewer and the writing checks", () => {
     ["My breath puffed out ,like a little cloud.", "punctuation", ["ai", "punctuation"]],
     ["My breath puffed out like a a little cloud.", "readAloud", ["ai", "grammar"]],
   ])("never approves %s: it's sent back with the %s tip", async (show, tip, reasons) => {
-    const { suggestion } = await reviewSentence({ tell: COLD, show }, [approving], { safety });
+    const { suggestion } = await reviewSentence({ tell: COLD, show }, [approving], { safety, welfare });
     expect(suggestion).toMatchObject({ verdict: "redo", tip, reasons });
     expect(suggestion.mechanics?.length).toBeGreaterThan(0);
   });
 
   it("puts spelling first, and lists every mistake for the teacher", async () => {
-    const { suggestion } = await reviewSentence({ tell: COLD, show: "my breth puffed out" }, [approving], { safety });
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "my breth puffed out" }, [approving], { safety, welfare });
     expect(suggestion).toEqual({
       verdict: "redo",
       tip: "spelling",

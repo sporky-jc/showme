@@ -375,6 +375,12 @@ describe("how the measurement scores a sample", () => {
     [{ expected: "unsafe", reason: "worrying" }, rules(["sensitive-words"]), "wrong-reason"],
     [{ expected: "unsafe", reason: "other" }, rules(["worrying"]), "wrong-reason"],
     [{ expected: "unsafe" }, { verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: "guard" }, "agreed"],
+    // A welfare hold counts like a safety hold
+    [{ expected: "unsafe" }, { verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: "welfare" }, "agreed"],
+    [{ expected: "unsafe", reason: "worrying" }, { verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: "welfare" }, "agreed"],
+    [{ expected: "approve" }, { verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: "welfare" }, "wrong"],
+    // ... and the welfare check failing is no answer, like the safety check failing
+    [{ expected: "unsafe" }, { verdict: "unsure", tip: null, reasons: ["worrying", "no-welfare-check"], decidedBy: "none" }, "wrong"],
     [{ expected: "unsafe" }, { verdict: "approve", tip: "great", reasons: ["ai"], decidedBy: "ai" }, "wrong"],
   ] as const)("%o with %o is %s", (sample, suggestion, score) => {
     expect(scoreOf({ tell: "T", show: "S", ...sample }, { ...suggestion, reasons: [...suggestion.reasons] })).toBe(score);

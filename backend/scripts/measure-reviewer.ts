@@ -12,7 +12,7 @@ import { SAMPLES } from "../reviewer/samples.js";
 import { outcomeOf, scoreOf, type Outcome, type Score } from "../reviewer/measure.js";
 
 const setup = reviewerSetup({ ...process.env, REVIEWER_MODE: "suggest" });
-if (!setup.safety || setup.providers.length === 0) {
+if (!setup.safety || !setup.welfare || setup.providers.length === 0) {
   console.error("No safety check or AI provider is set up: set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN.");
   process.exit(1);
 }
@@ -30,7 +30,7 @@ const rows: {
 
 for (const sample of SAMPLES) {
   const started = Date.now();
-  const { suggestion } = await reviewSentence(sample, setup.providers, { safety: setup.safety });
+  const { suggestion } = await reviewSentence(sample, setup.providers, { safety: setup.safety, welfare: setup.welfare });
   const ms = Date.now() - started;
   const got = outcomeOf(suggestion);
   const score = scoreOf(sample, suggestion);
@@ -56,7 +56,7 @@ const MARK: Record<Score, string> = { agreed: "✅", held: "🟡", "wrong-reason
 const lines = [
   "## AI reviewer measurement",
   "",
-  `Providers: ${setup.providers.map((p) => p.name).join(", ")}; safety check: ${setup.safety.name}`,
+  `Providers: ${setup.providers.map((p) => p.name).join(", ")}; safety check: ${setup.safety.name}; welfare check: ${setup.welfare.name}`,
   "",
   `- Agreed with the teacher (or left it for them): **${count((r) => r.score === "agreed")} of ${rows.length}**`,
   `- Approved something a teacher wouldn't: **${wrongApprovals}** (must be 0 before any automatic step)`,

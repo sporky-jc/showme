@@ -55,20 +55,28 @@ type Waiting = {
 type Reviewed = Awaited<ReturnType<typeof reviewSentence>>;
 
 // The outcomes that mean nobody could decide only because a request didn't
-// get through: tried again on a later run rather than saved for good
-const NOT_THROUGH = new Set<ProviderAttempt["outcome"]>(["failed", "timeout", "rate-limited", "credentials", "safe"]);
+// get through: tried again on a later run rather than saved for good. (A
+// check that passed the sentence, "safe" or "no-concern", decided nothing.)
+const NOT_THROUGH = new Set<ProviderAttempt["outcome"]>([
+  "failed",
+  "timeout",
+  "rate-limited",
+  "credentials",
+  "safe",
+  "no-concern",
+]);
 const BLOCKED = new Set<ProviderAttempt["outcome"]>(["rate-limited", "credentials"]);
 const FAILED = new Set<ProviderAttempt["outcome"]>(["failed", "timeout"]);
 // A provider answered: it was up
-const ANSWERED = new Set<ProviderAttempt["outcome"]>(["answered", "safe", "unsafe", "invalid"]);
+const ANSWERED = new Set<ProviderAttempt["outcome"]>(["answered", "safe", "unsafe", "concern", "no-concern", "invalid"]);
 
 // A review of the same words that fails or times out this many runs in a
-// row is saved as a hold ("no-safety-check" or "no-provider"), so a person
-// sees it: a sentence that fails the same way every time (an input the
-// API can't take, say) never waits for ever, nor blocks newer ones. A run
-// only counts when the provider that failed it answered for another
-// sentence in that run: an outage fails every sentence, and none of them
-// is to blame.
+// row is saved as a hold ("no-safety-check", "no-welfare-check", which is
+// also "worrying", or "no-provider"), so a person sees it: a sentence that
+// fails the same way every time (an input the API can't take, say) never
+// waits for ever, nor blocks newer ones. A run only counts when the
+// provider that failed it answered for another sentence in that run: an
+// outage fails every sentence, and none of them is to blame.
 export const MAX_FAILED_RUNS = 3;
 
 // A provider that refuses (HTTP 400, 422...) this many sentences in one run
@@ -98,8 +106,9 @@ export const reviewWaitingSentences = async (
 ): Promise<{ reviewed: number; stopped?: StoppedBecause }> => {
   if (setup.mode === "off") return { reviewed: 0 };
   // Not set up yet: review nothing, so every sentence is reviewed once it is
-  if (setup.providers.length === 0 || !setup.safety) {
-    logger.warn("Reviewer is on but has no safety check or no AI provider set up");
+  // (without the welfare check, every one would be held as worrying)
+  if (setup.providers.length === 0 || !setup.safety || !setup.welfare) {
+    logger.warn("Reviewer is on but has no safety check, welfare check or AI provider set up");
     return { reviewed: 0 };
   }
 
@@ -171,6 +180,7 @@ export const reviewWaitingSentences = async (
         asked++;
         const result = await reviewSentence({ tell: sentence.tell, show: sentence.show }, setup.providers, {
           safety: setup.safety,
+          welfare: setup.welfare,
           timeoutMs,
         });
         const { suggestion, attempts } = result;
@@ -191,6 +201,8 @@ export const reviewWaitingSentences = async (
         const lastTriedAt = new Date(now());
         const where = { _id: sentence._id, show: sentence.show };
         const refused = attempts.find((a) => a.outcome === "refused");
+        // The checks asked before any reviewer: nothing gets past either
+        const isCheck = (a: ProviderAttempt) => a.provider === setup.safety?.name || a.provider === setup.welfare?.name;
         if (suggestion.decidedBy !== "none") {
           await save(sentence, result);
         } else if (refused) {
@@ -215,12 +227,14 @@ export const reviewWaitingSentences = async (
           await Sentence.updateOne(where, { $set: { lastTriedAt } });
           failedReviews.push({ sentence, result });
         } else if (
-          attempts.length === 1 &&
-          attempts[0].outcome === "invalid" &&
+          attempts.length > 0 &&
+          attempts.every(isCheck) &&
+          attempts[attempts.length - 1].outcome === "invalid" &&
           sentence.safetyInvalidShow !== sentence.show
         ) {
-          // The safety check answered, but not in its form: tried again once,
-          // and saved as a hold if it does the same for the same words again
+          // The safety check or the welfare check answered, but not in its
+          // form: tried again once, and saved as a hold if it does the same
+          // for the same words again
           await Sentence.updateOne(where, { $set: { safetyInvalidShow: sentence.show, lastTriedAt } });
         } else {
           await save(sentence, result);
@@ -228,14 +242,14 @@ export const reviewWaitingSentences = async (
 
         // Out of free requests, or the key is refused: every other request
         // this run would fail the same way, so stop here. Only when the
-        // safety check was (nothing gets past it), or every provider asked
-        // was: one blocked provider with a later one answering is fine.
-        const safetyAttempt = attempts.find((a) => a.provider === setup.safety?.name);
-        const providerAttempts = attempts.filter((a) => a !== safetyAttempt);
-        const blocked =
-          safetyAttempt && BLOCKED.has(safetyAttempt.outcome)
-            ? safetyAttempt
-            : providerAttempts.length > 0 && providerAttempts.every((a) => BLOCKED.has(a.outcome))
+        // safety check or the welfare check was (nothing gets past either),
+        // or every provider asked was: one blocked provider with a later one
+        // answering is fine.
+        const checkBlocked = attempts.find((a) => isCheck(a) && BLOCKED.has(a.outcome));
+        const providerAttempts = attempts.filter((a) => !isCheck(a));
+        const blocked = checkBlocked
+          ? checkBlocked
+          : providerAttempts.length > 0 && providerAttempts.every((a) => BLOCKED.has(a.outcome))
               ? providerAttempts[providerAttempts.length - 1]
               : undefined;
         if (blocked) {

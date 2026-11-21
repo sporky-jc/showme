@@ -2,7 +2,7 @@ import React from "react";
 import Scribbles from "./Scribbles";
 import type { ScribblesMood, ScribblesProp } from "./Scribbles";
 import type { ScribblesSuggestion } from "../api/types";
-import { HELD, noteKind } from "./noteKind";
+import { CHECK_IN, HELD, noteKind } from "./noteKind";
 import type { NoteKind } from "./noteKind";
 
 // Scribbles' note on a card of the Teacher page: what he suggests for the
@@ -36,6 +36,7 @@ function ScribblesNote({ suggestion, firstName }: { suggestion: ScribblesSuggest
   const kind = noteKind(suggestion);
   const look = NOTE[kind];
   const heldFor = suggestion.reasons.find((reason): reason is keyof typeof HELD => reason in HELD);
+  const checkInFor = suggestion.reasons.find((reason): reason is keyof typeof CHECK_IN => reason in CHECK_IN);
   const toFix = [
     ...new Set((suggestion.mechanics ?? []).map((issue) => MECHANIC[issue.kind])),
   ];
@@ -45,7 +46,10 @@ function ScribblesNote({ suggestion, firstName }: { suggestion: ScribblesSuggest
   switch (kind) {
     case "check-in":
       title = `${firstName} may need help.`;
-      said = `This sounds worrying, so I held it just for you. Please read it and check in with ${firstName}. No AI saw it.`;
+      // Held by the welfare check, an AI read it; held by the rules, none did
+      said = checkInFor
+        ? `${CHECK_IN[checkInFor]} so I held it just for you. Please read it and check in with ${firstName}.`
+        : `This sounds worrying, so I held it just for you. Please read it and check in with ${firstName}. No AI saw it.`;
       break;
     case "held":
       title = "Please read this one.";
