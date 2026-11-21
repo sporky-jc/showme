@@ -53,7 +53,7 @@ const sentenceSchema = new mongoose.Schema({
   // back (PATCH /Admin/undo), since the teacher changed their mind. Never
   // reset by the student's edit: it counts the tries for this day's
   // sentence, however its words change, so Scribbles never suggests a third
-  // (MAX_SEND_BACKS, reviewer/reviewer.ts). Sentences sent back before this
+  // (MAX_SEND_BACKS, reviewer/sendBacks.ts). Sentences sent back before this
   // was added have none, and count from 0. Only the reviewer reads it
   // (select: false), and it's in no answer the contract sends, so a student
   // never sees how many tries they've used.

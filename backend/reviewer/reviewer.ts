@@ -44,6 +44,11 @@ import { ProviderError } from "./providers/http.js";
 import { checkRules } from "./rules.js";
 import { misspelledWords } from "./spelling.js";
 import { PRAISE, type TipId } from "./tips.js";
+import { withinSendBacks } from "./sendBacks.js";
+
+// The limit (step 7 above) is in sendBacks.ts, so the Teacher page can apply
+// it too
+export { MAX_SEND_BACKS } from "./sendBacks.js";
 
 // What a provider is shown: the Tell and the student's sentence, and nothing
 // else (no names, emails or ids)
@@ -82,13 +87,6 @@ interface Checks {
   // (the sentence's redoCount, models/sentences.ts)
   sentBack?: number;
 }
-
-// How many times one sentence may be sent back with "Try again". A child
-// fixes one thing per try; after two, another "Try again" is more likely to
-// make them give up than to help, so Scribbles leaves the sentence to a
-// person. Kept here, where the suggestion is made, so it holds the same once
-// Scribbles sends sentences back on its own.
-export const MAX_SEND_BACKS = 2;
 
 // The tips that ask for a new sentence, not a fix to this one: the writing
 // checks' tip doesn't go before these, since the words it's about are about
@@ -169,16 +167,6 @@ export const reviewSentence = async (
   const { suggestion, attempts } = await suggest(input, providers, checks);
   return { suggestion: withinSendBacks(suggestion, checks.sentBack ?? 0), attempts };
 };
-
-// Step 7 above: a "redo" for a sentence already sent back MAX_SEND_BACKS
-// times becomes "unsure", for a person, whoever suggested it (the rules,
-// the AI or the writing checks). Its tip goes (a person picks one, if any),
-// and the mistakes found stay as evidence for the teacher. An approval is
-// still an approval, and a hold is already "unsure", with its own reasons.
-const withinSendBacks = (suggestion: Suggestion, sentBack: number): Suggestion =>
-  suggestion.verdict === "redo" && sentBack >= MAX_SEND_BACKS
-    ? { ...suggestion, verdict: "unsure", tip: null, reasons: [...suggestion.reasons, "redo-limit"] }
-    : suggestion;
 
 // The one tip for the writing checks' mistakes. A child fixes one thing per
 // "Try again", and there are only MAX_SEND_BACKS of them, so the first tip

@@ -21,7 +21,9 @@ import {
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
 import { ReviewDecision } from "../models/reviewDecisions.js";
 import { logger } from "firebase-functions/logger";
-import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
+import { PRAISE, TIP_IDS, TIPS, type TipId } from "../reviewer/tips.js";
+import type { Reason, Verdict } from "../reviewer/contract.js";
+import { withinSendBacks } from "../reviewer/sendBacks.js";
 import { Types } from "mongoose";
 import { dayKeyOf, Sentence } from "../models/sentences.js";
 import Profile from "../models/profile.js";
@@ -261,13 +263,35 @@ const reviewQueueFor = async (adminId: string | undefined) => {
     // Not who decided, when, or what each provider answered (`attempts`, the
     // audit trail): those are for the logs, never a browser
     "-_id -decidedBy -createdAt -attempts"
-  ).lean<{ sentence: Types.ObjectId; show: string }[]>();
+  ).lean<SavedSuggestion[]>();
   const forWords = new Map(suggestions.map((s) => [`${String(s.sentence)} ${s.show}`, s]));
-  return queue.map((sentence) => ({
-    ...sentence.toObject(),
-    suggestion: forWords.get(`${String(sentence._id)} ${sentence.show}`),
-  }));
+  // A "Try again" suggested before the sentence's latest send-back (the
+  // student sent the same words again, so it wasn't reviewed again) is
+  // shown as it would be suggested now: after two send-backs, for the
+  // teacher to decide (withinSendBacks, reviewer/sendBacks.ts). Each
+  // sentence's count is read only if a "Try again" is waiting, and only
+  // used here: it's never sent (redoCount, models/sentences.ts).
+  const redos = suggestions.filter((s) => s.verdict === "redo").map((s) => s.sentence);
+  const sentBack = new Map(
+    redos.length === 0
+      ? []
+      : (
+          await Sentence.find({ _id: { $in: redos } }, { redoCount: 1 }).lean<
+            { _id: Types.ObjectId; redoCount?: number }[]
+          >()
+        ).map((s) => [String(s._id), s.redoCount ?? 0])
+  );
+  return queue.map((sentence) => {
+    const suggestion = forWords.get(`${String(sentence._id)} ${sentence.show}`);
+    return {
+      ...sentence.toObject(),
+      suggestion: suggestion && withinSendBacks(suggestion, sentBack.get(String(sentence._id)) ?? 0),
+    };
+  });
 };
+
+// A suggestion as the Teacher page reads it (the fields it's sent)
+type SavedSuggestion = { sentence: Types.ObjectId; show: string; verdict: Verdict; tip: TipId | null; reasons: Reason[] };
 
 // How many sentences wait in this admin's queue, and how many of them
 // Scribbles held as worrying ("Check in" on the Teacher page, the first

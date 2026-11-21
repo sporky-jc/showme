@@ -15,7 +15,7 @@ import { asReviewed, createAdmin, createSentence, createUser, fieldsOf, SENTENCE
 
 // At most two "Try again"s for one sentence: the count of send-backs kept on
 // the sentence (redoCount, models/sentences.ts), and Scribbles leaving a
-// third to the teacher (MAX_SEND_BACKS, reviewer/reviewer.ts).
+// third to the teacher (MAX_SEND_BACKS, reviewer/sendBacks.ts).
 
 const COLD = "It is cold outside.";
 const GOOD = "My breath puffed out like a little cloud, and the grass crunched.";
@@ -182,5 +182,56 @@ describe("Scribbles and the limit of two send-backs", () => {
       reasons: ["ai", "redo-limit"],
     });
     expect(await ReviewSuggestion.findOne({ sentence: once._id }).lean()).toMatchObject({ verdict: "redo", tip: "hear" });
+  });
+});
+
+// The gap this closes: the scheduled reviewer doesn't review the same words
+// twice (reviewer/queue.ts), so a student who sends the same words again
+// after "Try again" keeps the suggestion saved before the send-back
+describe("a saved \"Try again\" on the Teacher page", () => {
+  const queueFor = async (admin: { id: string }) => {
+    const res = await request(app).get("/Admin").set("Cookie", sessionCookie(admin));
+    expect(res.status).toBe(200);
+    return res.body as { _id: string; suggestion?: { verdict: string; tip: { id: string } | null; reasons: string[] } }[];
+  };
+
+  it("is left to the teacher once the same words have been sent back twice", async () => {
+    const admin = await createAdmin();
+    const user = await createUser();
+    const sentence = await createSentence(user, { tell: COLD, show: GOOD });
+    const ai = { name: "ai", review: vi.fn(async () => ({ verdict: "redo", tip: "hear" })) };
+    await reviewWaitingSentences({ mode: "suggest", safety, welfare, providers: [ai] });
+    expect((await queueFor(admin))[0].suggestion).toMatchObject({ verdict: "redo", tip: { id: "hear" }, reasons: ["ai"] });
+
+    // Sent back, the same words sent again, twice over
+    for (let i = 0; i < 2; i++) {
+      const waiting = await Sentence.findById(sentence._id).orFail();
+      expect((await decide(admin, "redo", waiting, "hear")).status).toBe(201);
+      expect((await edit(user, sentence.title, GOOD)).status).toBe(201);
+    }
+    await reviewWaitingSentences({ mode: "suggest", safety, welfare, providers: [ai] });
+
+    // Not reviewed again (no new request), but no third "Try again" either
+    expect(ai.review).toHaveBeenCalledTimes(1);
+    const [card] = await queueFor(admin);
+    expect(card.suggestion).toEqual(
+      expect.objectContaining({ verdict: "unsure", tip: null, reasons: ["ai", "redo-limit"] })
+    );
+    expect(JSON.stringify(card)).not.toContain("redoCount");
+  });
+
+  it("is still a \"Try again\" after one send-back, and other suggestions are as saved", async () => {
+    const admin = await createAdmin();
+    const user = await createUser();
+    const once = await createSentence(user, { tell: COLD, show: GOOD, redoCount: 1 });
+    const ready = await createSentence(user, { title: "Day 2", tell: COLD, show: GOOD, redoCount: 2 });
+    await ReviewSuggestion.create([
+      { sentence: once._id, show: GOOD, verdict: "redo", tip: "hear", reasons: ["ai"], decidedBy: "ai" },
+      { sentence: ready._id, show: GOOD, verdict: "approve", tip: "great", reasons: ["ai"], decidedBy: "ai" },
+    ]);
+
+    const cards = new Map((await queueFor(admin)).map((card) => [card._id, card.suggestion]));
+    expect(cards.get(String(once._id))).toMatchObject({ verdict: "redo", tip: { id: "hear" }, reasons: ["ai"] });
+    expect(cards.get(String(ready._id))).toMatchObject({ verdict: "approve", tip: { id: "great" }, reasons: ["ai"] });
   });
 });

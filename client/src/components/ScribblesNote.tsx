@@ -69,7 +69,7 @@ function ScribblesNote({ suggestion, firstName }: { suggestion: ScribblesSuggest
       break;
     default:
       // Already sent back twice: Scribbles never suggests a third "Try
-      // again" (MAX_SEND_BACKS, backend/reviewer/reviewer.ts), so the
+      // again" (MAX_SEND_BACKS, backend/reviewer/sendBacks.ts), so the
       // teacher knows why it's theirs to decide
       if (suggestion.reasons.includes("redo-limit")) {
         title = "Sent back twice already.";
