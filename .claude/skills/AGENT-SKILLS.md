@@ -13,3 +13,11 @@ skills here, not a plugin.
 To update: clone the repo again, copy `skills/*`, `.claude/commands/*`,
 `agents/*` and `references/*` over these, and drop the `agent-skills:`
 prefix again (`sed -i 's/agent-skills:\([a-z-]\)/\1/g'`).
+
+## Also here: web-design-guidelines
+
+`.claude/skills/web-design-guidelines` comes from
+[vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) at commit
+5a37a63 (MIT, per its README). Its rules file `references/command.md` is the
+pinned snapshot the skill names (SHA-256 d246b026…e0234, checked on download).
+The one change: a "Show ME house rules" section at the end of its SKILL.md.
