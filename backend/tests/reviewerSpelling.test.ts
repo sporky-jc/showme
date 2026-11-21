@@ -100,13 +100,26 @@ describe("the reviewer and spelling", () => {
     });
   });
 
-  it("keeps the AI's own tip for a redo, and lists the words for the teacher", async () => {
+  // The spelling is certain and quick to fix; the AI's tip can come on the
+  // next try
+  it("puts the spelling tip before the AI's own tip for a redo, and lists the words for the teacher", async () => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "The wind felt realy sharp on my face." },
       [answering({ verdict: "redo", tip: "senses" })],
       { safety, welfare }
     );
-    expect(suggestion).toMatchObject({ verdict: "redo", tip: "senses", misspelled: ["realy"] });
+    expect(suggestion).toMatchObject({ verdict: "redo", tip: "spelling", misspelled: ["realy"] });
+  });
+
+  // ... unless the AI asks for a new sentence: the misspelled words are
+  // about to go
+  it.each(["onTopic", "ownWords"] as const)("keeps the AI's %s tip, which asks for a new sentence", async (tip) => {
+    const { suggestion } = await reviewSentence(
+      { tell: COLD, show: "The wind felt realy sharp on my face." },
+      [answering({ verdict: "redo", tip })],
+      { safety, welfare }
+    );
+    expect(suggestion).toMatchObject({ verdict: "redo", tip, reasons: ["ai", "spelling"], misspelled: ["realy"] });
   });
 
   it("lists the words when nobody could decide, and never sends it back", async () => {

@@ -48,6 +48,16 @@ const sentenceSchema = new mongoose.Schema({
   // student edits the sentence: it is waiting again. Sentences decided
   // before this was added have none. Not in any answer the contract sends.
   decidedAt: { type: Date },
+  // How many times a teacher has sent this sentence back with "Try again"
+  // (PATCH /Admin), one more each time; one less when a send-back is taken
+  // back (PATCH /Admin/undo), since the teacher changed their mind. Never
+  // reset by the student's edit: it counts the tries for this day's
+  // sentence, however its words change, so Scribbles never suggests a third
+  // (MAX_SEND_BACKS, reviewer/reviewer.ts). Sentences sent back before this
+  // was added have none, and count from 0. Only the reviewer reads it
+  // (select: false), and it's in no answer the contract sends, so a student
+  // never sees how many tries they've used.
+  redoCount: { type: Number, select: false },
   // For Scribbles' scheduled reviewer only (reviewer/queue.ts): the exact
   // words it last saved a suggestion for, and when, so it can find the
   // sentences still to review in one query. Never read by default (select:

@@ -393,12 +393,17 @@ export const updatePendingApprovalSentences = async (
       },
       // approve (with the praise tip), or "redo" (with the tip the reviewer
       // chose, or none), the only other decision the contract allows
-      // (and when, for the Teacher page's recent decisions)
+      // (and when, for the Teacher page's recent decisions). A "redo" counts
+      // one more send-back for this sentence (redoCount, models/sentences.ts).
       status === "approve"
         ? { $set: { approved: true, toRedo: false, tip: PRAISE, decidedAt: new Date() } }
         : tip
-          ? { $set: { approved: false, toRedo: true, tip, decidedAt: new Date() } }
-          : { $set: { approved: false, toRedo: true, decidedAt: new Date() }, $unset: { tip: "" } }
+          ? { $set: { approved: false, toRedo: true, tip, decidedAt: new Date() }, $inc: { redoCount: 1 } }
+          : {
+              $set: { approved: false, toRedo: true, decidedAt: new Date() },
+              $unset: { tip: "" },
+              $inc: { redoCount: 1 },
+            }
     );
     if (matchedCount === 0) {
       // It changed between the check and the update
@@ -536,6 +541,13 @@ export const undoDecision = async (req: Request, res: Response) => {
     );
     if (matchedCount === 0) {
       return res.status(409).json({ message: UNDO_STALE });
+    }
+
+    // A send-back taken back doesn't count towards the sentence's limit
+    // (redoCount, models/sentences.ts): the teacher changed their mind. Never
+    // below 0, for a sentence sent back before the count was kept.
+    if (status === "redo") {
+      await Sentence.collection.updateOne({ _id: { $eq: id }, redoCount: { $gt: 0 } }, { $inc: { redoCount: -1 } });
     }
 
     // The shadow report (models/reviewDecisions.ts) mustn't count a decision

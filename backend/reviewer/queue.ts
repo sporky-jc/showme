@@ -53,6 +53,7 @@ type Waiting = {
   safetyInvalidShow?: string;
   failedShow?: string;
   failedCount?: number;
+  redoCount?: number;
 };
 type Reviewed = Awaited<ReturnType<typeof reviewSentence>>;
 
@@ -156,7 +157,7 @@ export const reviewWaitingSentences = async (
         // No suggestion yet for these exact words
         $expr: { $ne: ["$reviewedShow", "$show"] },
       },
-      { tell: 1, show: 1, safetyInvalidShow: 1, failedShow: 1, failedCount: 1 }
+      { tell: 1, show: 1, safetyInvalidShow: 1, failedShow: 1, failedCount: 1, redoCount: 1 }
     )
       // Never tried first (oldest first), then the ones whose last try failed,
       // longest ago first: those wait behind everything new. (An edit clears
@@ -193,6 +194,9 @@ export const reviewWaitingSentences = async (
           safety: setup.safety,
           welfare: setup.welfare,
           timeoutMs,
+          // So a sentence already sent back twice isn't suggested for a
+          // third time (MAX_SEND_BACKS, reviewer.ts)
+          sentBack: sentence.redoCount ?? 0,
         });
         const { suggestion, attempts } = result;
         // Only ids and outcomes are logged, never a student's words
