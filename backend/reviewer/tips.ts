@@ -27,6 +27,10 @@ export const TIPS = {
   capitals: "Start with a capital letter, and write \"I\" as a capital.",
   endMark: "End your sentence with a period, question mark or exclamation mark.",
   punctuation: "Check your commas and periods: put a space after them, not before.",
+  // More than one kind of the mistakes above at once (reviewer.ts): one tip
+  // for all of them, so they're fixed in one go rather than one per "Try
+  // again"
+  checkWriting: "Check your spelling, capitals and punctuation. Read it slowly, word by word.",
   onTopic: "Make sure your sentence shows the Tell. What would it look, sound or feel like?",
 
   // For a sentence that's ready

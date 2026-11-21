@@ -541,15 +541,16 @@ describe("the reviewer", () => {
     }
   });
 
-  it("keeps the writing checks' reasons when the AI itself sends a sentence back", async () => {
+  it("keeps the writing checks' reasons, and puts their tip first, when the AI itself sends a sentence back", async () => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "the wind bit my noze" },
       [provider("ai", { verdict: "redo", tip: "smell" })],
       SAFE
     );
+    // Spelling, a capital and an end mark: one tip for all three
     expect(suggestion).toMatchObject({
       verdict: "redo",
-      tip: "smell",
+      tip: "checkWriting",
       reasons: ["ai", "spelling", "punctuation"],
       misspelled: ["noze"],
     });
