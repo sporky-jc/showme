@@ -11,60 +11,13 @@ import { fetchUser } from "../actions/user";
 import type { AppDispatch, RootState } from "../reducers/types";
 import { dayOf, nextDay } from "../days";
 import { standing } from "../components/standing";
-import { repeatedTellWord, senseWords, type SenseKey } from "../senses";
+import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, repeatedTellWord, senseWords } from "../senses";
 import type { OwnSentence } from "../api/types";
 import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 
-// The five senses, each with questions Scribbles asks to get a writer going.
-// They are general on purpose: they work for any Tell sentence. Pressing a
-// sense again asks its next question.
-const SENSES: readonly { key: SenseKey; name: string; tips: readonly string[] }[] = [
-  {
-    key: "see",
-    name: "See",
-    tips: [
-      "What would a camera catch? Colors, shapes, tiny details!",
-      "Zoom in close. What is the smallest thing you can see?",
-      "What is moving, and how does it move?",
-    ],
-  },
-  {
-    key: "hear",
-    name: "Hear",
-    tips: [
-      "Close your eyes. What sounds are there?",
-      "Is it loud or quiet? What makes the noise?",
-      "Could someone say something? What would they say?",
-    ],
-  },
-  {
-    key: "feel",
-    name: "Feel",
-    tips: [
-      "What does it feel like on your skin?",
-      "Is it rough, smooth, sticky, cold or warm?",
-      "What does your body do? Shiver, sweat, yawn?",
-    ],
-  },
-  {
-    key: "smell",
-    name: "Smell",
-    tips: [
-      "Take a big sniff. What is in the air?",
-      "Does it smell fresh, sweet, smoky or stinky?",
-      "What does the smell remind you of?",
-    ],
-  },
-  {
-    key: "taste",
-    name: "Taste",
-    tips: [
-      "Is there anything to taste? Sweet, salty, sour?",
-      "What would it taste like if you took a bite?",
-      "Does the air leave a taste on your tongue?",
-    ],
-  },
-];
+// The five senses in order, each with the questions Scribbles asks (see
+// SENSE_TIPS in senses.ts). Pressing a sense again asks its next question.
+const SENSES = SENSE_KEYS.map((key) => ({ key, name: SENSE_NAMES[key], tips: SENSE_TIPS[key] }));
 
 // Where each sense's sticker lands on the picture frame, and its tilt, in the
 // order the student's senses come (see .paper-write__stickers)

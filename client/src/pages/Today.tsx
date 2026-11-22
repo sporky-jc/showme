@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type CSSProperties } from "react";
 import { Link } from "react-router";
 import { useSelector } from "react-redux";
 import Scribbles from "../components/Scribbles";
@@ -8,7 +8,7 @@ import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
 import { nextDay } from "../days";
-import { SENSE_KEYS, SENSE_NAMES, senseCounts } from "../senses";
+import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, leastUsedSense, senseCounts } from "../senses";
 
 // How many of the student's latest sentences to show under their next Tell
 const LATEST = 3;
@@ -56,6 +56,12 @@ function Today() {
   // The sticker book: a sticker for each sense used in a sentence that made
   // it into the gallery (see senses.ts)
   const used = senseCounts(approved.map((sentence) => sentence.show));
+  // Scribbles' tip for today: the sense the student uses least, with one of
+  // its questions (a different one each day)
+  const tipSense = leastUsedSense(used);
+  const tipName = SENSE_NAMES[tipSense];
+  const tips = SENSE_TIPS[tipSense];
+  const tip = tips[(next ?? 0) % tips.length];
   // Something is waiting for review: Scribbles is "checking" it
   const checking = userSentences.some((sentence) => !sentence.approved && !sentence.toRedo);
   // Newest first, each with the Tell stored with it
@@ -83,6 +89,17 @@ function Today() {
               <p className="paper-today__sentence">“{today.tell}”</p>
               <p className="paper-today__hint">
                 Show it with what you see, hear and feel.
+              </p>
+              <p
+                className="paper-today__tip"
+                style={{ "--tip-color": `var(--paper-sense-${tipSense})` } as CSSProperties}
+              >
+                <strong className="paper-today__tip-try">
+                  {used[tipSense] === 0
+                    ? `Try ${tipName} today!`
+                    : `You use ${tipName} the least. Try it today!`}
+                </strong>{" "}
+                {tip}
               </p>
               <Link to="/Write" className="paper-btn paper-btn--action paper-today__start">
                 Start showing
