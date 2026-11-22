@@ -1209,6 +1209,26 @@ h3,
   line-height: 1.5;
 }
 
+/* Scribbles' tip: a speech bubble edged in the color of the sense to try */
+.paper-today__tip {
+  position: relative;
+  margin: 4px 0 0;
+  max-width: 34ch;
+  padding: 12px 16px;
+  border: 3px solid var(--paper-ink);
+  border-left: 12px solid var(--tip-color, var(--paper-brand));
+  border-radius: 18px;
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.paper-today__tip-try {
+  font-family: var(--paper-font-display);
+  font-weight: 700;
+}
+
 .paper-today__start {
   align-self: stretch;
   font-size: 1.4rem;

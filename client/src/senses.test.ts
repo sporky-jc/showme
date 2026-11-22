@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { repeatedTellWord, senseCounts, senseWords, wordsOf } from "./senses";
+import { SENSE_KEYS, SENSE_TIPS, leastUsedSense, repeatedTellWord, senseCounts, senseWords, wordsOf } from "./senses";
 
 describe("senseWords", () => {
   it("finds the word that uses each sense", () => {
@@ -80,5 +80,22 @@ describe("senseCounts", () => {
 
   it("is all zeros with no sentences", () => {
     expect(senseCounts([])).toEqual({ see: 0, hear: 0, feel: 0, smell: 0, taste: 0 });
+  });
+});
+
+describe("leastUsedSense", () => {
+  it("picks the sense used least", () => {
+    expect(leastUsedSense({ see: 3, hear: 2, feel: 4, smell: 1, taste: 2 })).toBe("smell");
+  });
+
+  it("breaks a tie with the earlier sense", () => {
+    expect(leastUsedSense({ see: 2, hear: 0, feel: 1, smell: 0, taste: 0 })).toBe("hear");
+    expect(leastUsedSense({ see: 0, hear: 0, feel: 0, smell: 0, taste: 0 })).toBe("see");
+  });
+});
+
+describe("SENSE_TIPS", () => {
+  it("has questions for every sense", () => {
+    for (const sense of SENSE_KEYS) expect(SENSE_TIPS[sense].length).toBeGreaterThan(0);
   });
 });

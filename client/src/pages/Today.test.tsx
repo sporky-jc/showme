@@ -291,6 +291,45 @@ describe("Today", () => {
     expect(book.querySelectorAll(".paper-sticker")).toHaveLength(0);
   });
 
+  it("tips the student to try the sense they haven't used yet", async () => {
+    const mine = shows(4, { approved: true });
+    mine[0] = { ...mine[0], show: "His tail thumped like a drum and he licked my salty cheek." };
+    mine[1] = { ...mine[1], show: "Rain drummed on the roof and the bright window fogged up." };
+    renderToday({ mine });
+
+    // Day 5 is next, so it's Smell's third question
+    expect(await screen.findByText("Try Smell today!")).toBeInTheDocument();
+    const tip = screen.getByText("Try Smell today!").closest("p");
+    expect(tip).toHaveTextContent("Try Smell today! What does the smell remind you of?");
+    expect(tip).toHaveClass("paper-today__tip");
+  });
+
+  it("tips the sense used least once every sense has been tried", async () => {
+    const mine = shows(2, { approved: true });
+    // Every sense once, then everything but Feel again
+    mine[0] = { ...mine[0], show: "Bright snow crunched, the smoky air tasted sour and stung my nose." };
+    mine[1] = { ...mine[1], show: "The bright fire crackled and smoky marshmallows tasted sweet." };
+    renderToday({ mine });
+
+    // Day 3 is next, so it's Feel's first question
+    const tip = (await screen.findByText("You use Feel the least. Try it today!")).closest("p");
+    expect(tip).toHaveTextContent("You use Feel the least. Try it today! What does it feel like on your skin?");
+  });
+
+  it("starts a brand new student with See", async () => {
+    renderToday();
+
+    const tip = (await screen.findByText("Try See today!")).closest("p");
+    expect(tip).toHaveTextContent("Try See today! Zoom in close. What is the smallest thing you can see?");
+  });
+
+  it("has no tip once every Tell sentence has been written for", async () => {
+    renderToday({ tellCount: 2, mine: shows(2) });
+
+    await screen.findByText("You showed every sentence!");
+    expect(document.querySelector(".paper-today__tip")).toBeNull();
+  });
+
   it("brings Scribbles along", async () => {
     renderToday();
 

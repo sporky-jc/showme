@@ -13,51 +13,51 @@ export const SENSE_KEYS: readonly SenseKey[] = ["see", "hear", "feel", "smell", 
 const SENSE_WORDS: Record<SenseKey, { words: readonly string[]; starts: readonly string[] }> = {
   see: {
     words: [
-      "see", "saw", "seen", "look", "looked", "looks", "watch", "watched", "stare", "stared",
-      "bright", "shiny", "shine", "shined", "shone", "glow", "glowed", "glowing", "glowy",
-      "flash", "flashed", "flashing", "dim", "dark", "shadow", "shadows", "blurry",
-      "red", "orange", "yellow", "green", "blue", "purple", "pink", "brown", "black", "white",
-      "gray", "gold", "golden", "silver", "rainbow", "colorful", "spotted", "striped", "pale",
+    "see", "saw", "seen", "look", "looked", "looks", "watch", "watched", "stare", "stared",
+    "bright", "shiny", "shine", "shined", "shone", "glow", "glowed", "glowing", "glowy",
+    "flash", "flashed", "flashing", "dim", "dark", "shadow", "shadows", "blurry",
+    "red", "orange", "yellow", "green", "blue", "purple", "pink", "brown", "black", "white",
+    "gray", "gold", "golden", "silver", "rainbow", "colorful", "spotted", "striped", "pale",
     ],
     starts: ["sparkl", "glitter", "shimmer", "twinkl", "gleam", "glisten"],
   },
   hear: {
     words: [
-      "hear", "heard", "listen", "listened", "sound", "sounds", "noise", "noisy",
-      "bark", "barked", "barking", "thump", "thumped", "thumping", "drum", "drummed", "drumming",
-      "buzz", "buzzed", "buzzing", "crash", "crashed", "bang", "banged", "boom", "boomed",
-      "pop", "popped", "snap", "snapped", "crack", "cracked", "click", "clicked", "ring", "rang",
-      "loud", "quiet", "silent", "yap", "yapped", "howl", "howled", "growl", "growled",
-      "whine", "whined", "pant", "panted", "panting", "splash", "splashed", "hum", "hummed",
-      "sang", "sing", "song", "shout", "shouted", "scream", "screamed", "yell", "yelled",
-      "cheer", "cheered", "roar", "roared", "thunder", "beep", "beeped", "tick", "ticked",
+    "hear", "heard", "listen", "listened", "sound", "sounds", "noise", "noisy",
+    "bark", "barked", "barking", "thump", "thumped", "thumping", "drum", "drummed", "drumming",
+    "buzz", "buzzed", "buzzing", "crash", "crashed", "bang", "banged", "boom", "boomed",
+    "pop", "popped", "snap", "snapped", "crack", "cracked", "click", "clicked", "ring", "rang",
+    "loud", "quiet", "silent", "yap", "yapped", "howl", "howled", "growl", "growled",
+    "whine", "whined", "pant", "panted", "panting", "splash", "splashed", "hum", "hummed",
+    "sang", "sing", "song", "shout", "shouted", "scream", "screamed", "yell", "yelled",
+    "cheer", "cheered", "roar", "roared", "thunder", "beep", "beeped", "tick", "ticked",
       // Crunching under boots is a sound; "crunchy" food is a taste
-      "crunch", "crunched", "crunching",
+    "crunch", "crunched", "crunching",
     ],
     starts: ["whisper", "squeak", "rumbl", "crackl", "sizzl", "giggl", "creak", "chirp", "rattl", "jingl"],
   },
   feel: {
     words: [
-      "feel", "felt", "touch", "touched", "warm", "cold", "hot", "cool", "icy", "freezing",
-      "soft", "rough", "smooth", "bumpy", "sharp", "wet", "damp", "dry", "sticky", "slimy",
-      "fur", "furry", "fuzzy", "fluffy", "prickly", "itchy", "lick", "licked", "licking",
-      "hug", "hugged", "squeeze", "squeezed", "burn", "burned", "burning", "sting", "stung",
-      "ache", "ached", "sweat", "sweaty", "heavy",
+    "feel", "felt", "touch", "touched", "warm", "cold", "hot", "cool", "icy", "freezing",
+    "soft", "rough", "smooth", "bumpy", "sharp", "wet", "damp", "dry", "sticky", "slimy",
+    "fur", "furry", "fuzzy", "fluffy", "prickly", "itchy", "lick", "licked", "licking",
+    "hug", "hugged", "squeeze", "squeezed", "burn", "burned", "burning", "sting", "stung",
+    "ache", "ached", "sweat", "sweaty", "heavy",
     ],
     starts: ["tickl", "shiver", "nuzzl", "squish", "tingl", "wiggl"],
   },
   smell: {
     words: [
-      "smell", "smelled", "smells", "smelly", "stink", "stinky", "stank", "scent", "whiff",
-      "smoky", "smoke", "fresh", "perfume", "rotten", "musty",
+    "smell", "smelled", "smells", "smelly", "stink", "stinky", "stank", "scent", "whiff",
+    "smoky", "smoke", "fresh", "perfume", "rotten", "musty",
     ],
     starts: ["sniff", "fragran", "aroma"],
   },
   taste: {
     words: [
-      "taste", "tasted", "tastes", "tasty", "salty", "sour", "sweet", "bitter", "spicy", "juicy",
-      "yum", "yummy", "chew", "chewed", "chewy", "bite", "bit", "sip", "sipped", "lick",
-      "sugary", "minty", "tangy", "crispy", "crunchy",
+    "taste", "tasted", "tastes", "tasty", "salty", "sour", "sweet", "bitter", "spicy", "juicy",
+    "yum", "yummy", "chew", "chewed", "chewy", "bite", "bit", "sip", "sipped", "lick",
+    "sugary", "minty", "tangy", "crispy", "crunchy",
     ],
     starts: ["munch", "slurp", "gulp"],
   },
@@ -116,4 +116,40 @@ export function senseCounts(sentences: readonly string[]): Record<SenseKey, numb
     for (const sense of SENSE_KEYS) if (found[sense]) counts[sense] += 1;
   }
   return counts;
+}
+
+// Questions Scribbles asks to get a writer going with each sense. They are
+// general on purpose: they work for any Tell sentence.
+export const SENSE_TIPS: Record<SenseKey, readonly string[]> = {
+  see: [
+    "What would a camera catch? Colors, shapes, tiny details!",
+    "Zoom in close. What is the smallest thing you can see?",
+    "What is moving, and how does it move?",
+  ],
+  hear: [
+    "Close your eyes. What sounds are there?",
+    "Is it loud or quiet? What makes the noise?",
+    "Could someone say something? What would they say?",
+  ],
+  feel: [
+    "What does it feel like on your skin?",
+    "Is it rough, smooth, sticky, cold or warm?",
+    "What does your body do? Shiver, sweat, yawn?",
+  ],
+  smell: [
+    "Take a big sniff. What is in the air?",
+    "Does it smell fresh, sweet, smoky or stinky?",
+    "What does the smell remind you of?",
+  ],
+  taste: [
+    "Is there anything to taste? Sweet, salty, sour?",
+    "What would it taste like if you took a bite?",
+    "Does the air leave a taste on your tongue?",
+  ],
+};
+
+// The sense to try next: the one these counts use least, so one never tried
+// comes first. Ties go to the earlier sense in SENSE_KEYS.
+export function leastUsedSense(counts: Record<SenseKey, number>): SenseKey {
+  return SENSE_KEYS.reduce((least, sense) => (counts[sense] < counts[least] ? sense : least));
 }
