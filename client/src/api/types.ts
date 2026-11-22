@@ -33,6 +33,7 @@ export type {
   Sentence,
   SentenceLikes,
   SentenceWithAuthor,
+  Technique,
   TellSentence,
   UndoAnswer,
   User,

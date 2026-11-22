@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { getTellSentences } from "../actions/tellsentences";
+import { hasIds } from "../tells";
 import { getUserSentences } from "../actions/usersentences";
 import type { AppDispatch, RootState } from "../reducers/types";
 
@@ -30,8 +31,9 @@ export function useStudentData() {
     let current = true;
     (async () => {
       const mine = await dispatch(getUserSentences());
+      // A list saved before Tells had ids is fetched again (see tells.ts)
       const tells =
-        store.getState().tellsentences.length > 0 || (await dispatch(getTellSentences()));
+        hasIds(store.getState().tellsentences) || (await dispatch(getTellSentences()));
       if (current) setAnswer({ asked, arrived: mine && tells });
     })();
     return () => {

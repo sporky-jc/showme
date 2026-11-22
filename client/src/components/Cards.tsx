@@ -6,6 +6,7 @@ import type { LikesById } from "./useLikes";
 import type { GallerySentence } from "../api/types";
 import type { RootState } from "../reducers/types";
 import { frameStyle } from "../frames";
+import { tellById, withoutAsk } from "../tells";
 
 // Nothing to do when there are no likes to press
 const noLikes = () => {};
@@ -36,7 +37,6 @@ function Cards(props: {
   return (
     <ul className="paper-gallery__cards">
       {sentences.map((sentence) => {
-        const day = Number(sentence.title.match(/\d+$/)?.[0]);
         return (
           <li key={sentence._id}>
             <article className="paper-gallery__card">
@@ -47,13 +47,13 @@ function Cards(props: {
                 <div className="paper-gallery__window">
                   <img
                     className="paper-gallery__photo"
-                    src={tellSentences[day - 1]?.image}
+                    src={tellById(tellSentences, sentence.title)?.image}
                     alt=""
                     loading="lazy"
                   />
                 </div>
               </div>
-              <p className="paper-gallery__tell">{sentence.tell}</p>
+              <p className="paper-gallery__tell">{withoutAsk(sentence.tell)}</p>
               <p className="paper-gallery__show">{sentence.show}</p>
               <div className="paper-gallery__foot">
                 <span className="paper-gallery__author">{authorName(sentence.author)}</span>

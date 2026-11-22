@@ -51,7 +51,7 @@ The tasks with acceptance criteria are in `tasks/todo.md`.
 
 ### Phase 1: Tell IDs and tags (nothing changes on screen)
 - [x] Task 1: Backend Tell catalog with IDs and tags
-- [ ] Task 2: Website finds Tells by ID, not by position
+- [x] Task 2: Website finds Tells by ID, not by position
 
 ### Checkpoint: Foundation
 - [ ] Backend and client tests pass, `tsc` clean

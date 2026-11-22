@@ -3688,3 +3688,9 @@ h3,
 .paper-frame__preview .paper-gallery__cards {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* What the Tell asks for beyond the senses: "This Tell asks for a simile" */
+.paper-write__ask {
+  width: fit-content;
+  margin: 10px 0 0;
+}
