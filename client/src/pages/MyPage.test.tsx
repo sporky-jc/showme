@@ -136,6 +136,18 @@ describe("My sentences", () => {
     expect(screen.getByRole("link", { name: "Try again: sentence 2" })).toHaveAttribute("href", "/Write/s2");
   });
 
+  it("shows the senses each sentence uses as stickers, said in words for screen readers", async () => {
+    const mine = shows(2);
+    mine[0] = { ...mine[0], show: "His tail thumped and he licked my salty cheek." };
+    renderMyPage({ mine });
+
+    const row = (await screen.findByText(mine[0].show)).closest("li")!;
+    expect(row.querySelectorAll(".paper-sticker")).toHaveLength(3);
+    expect(row).toHaveTextContent("Senses: Hear (thumped), Feel (licked), Taste (salty)");
+    // A sentence without a sense word gets no row of stickers
+    expect(note("Show 2").querySelector(".paper-mine__senses")).toBeNull();
+  });
+
   it("offers the next sentence while there is one left to write", async () => {
     renderMyPage({ tellCount: 3, mine: shows(2) });
 

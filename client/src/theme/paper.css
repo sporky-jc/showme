@@ -2292,6 +2292,19 @@ h3,
   color: var(--paper-turn-ink);
 }
 
+/* The senses the sentence uses, as small stickers */
+.paper-mine__senses {
+  margin: 0 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.paper-mine__senses .paper-sticker__word {
+  font-size: 0.8rem;
+  padding: 9px 18px;
+}
+
 .paper-mine__foot {
   display: flex;
   align-items: flex-end;
