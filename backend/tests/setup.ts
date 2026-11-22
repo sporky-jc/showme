@@ -6,6 +6,7 @@ import {
   decisionsRateLimitStore,
   likesRateLimitStore,
   lookRateLimitStore,
+  refresherRateLimitStore,
   reviewCountRateLimitStore,
   reviewerSwitchRateLimitStore,
   reviewTipsRateLimitStore,
@@ -37,6 +38,7 @@ afterEach(async () => {
   // Likewise the rate limits' request counts
   await likesRateLimitStore.resetAll();
   await lookRateLimitStore.resetAll();
+  await refresherRateLimitStore.resetAll();
   await sentenceWritesPerMinuteStore.resetAll();
   await sentenceWritesPerDayStore.resetAll();
   await reviewTipsRateLimitStore.resetAll();

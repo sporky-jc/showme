@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { TECHNIQUES } from "../contract/api.js";
 
 // User profile Schema
 const profileSchema = new mongoose.Schema({
@@ -37,6 +38,10 @@ const profileSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // The refreshers the student has seen, so each opens by itself only once
+  // (PUT /Login/refreshers/:technique). Kept here, not in the browser:
+  // students share school devices.
+  seenRefreshers: [{ type: String, enum: TECHNIQUES }],
   // Written into every login token. Logging out adds 1, so every token
   // issued before that (including stolen copies) stops matching.
   tokenVersion: {

@@ -179,6 +179,9 @@ export const TECHNIQUES = [
   "allusion",
 ] as const;
 
+// PUT /Login/refreshers/:technique: the refresher the student just saw
+export const TechniqueParam = z.enum(TECHNIQUES, { error: "Unknown technique" });
+
 // GET /: a day's tell sentence (backend/public/tellList.ts)
 export const TellSentence = z.object({
   key: z.number(),
@@ -205,6 +208,11 @@ export const User = z.object({
     .optional(),
   email: z.string(),
   isAdmin: z.boolean(),
+  // The refreshers the student has seen (PUT /Login/refreshers/:technique):
+  // each one opens by itself only the first time. This server always sends
+  // it (older profiles: none), but a login saved by the website before it
+  // existed has none, so it's optional to the website.
+  seenRefreshers: z.array(z.enum(TECHNIQUES)).optional(),
 });
 export const LoginAnswer = z.object({ user: User });
 

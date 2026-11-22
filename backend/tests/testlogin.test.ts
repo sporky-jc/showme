@@ -241,6 +241,7 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
           firstName: "Test",
           lastName: "Student",
           isAdmin: false,
+          seenRefreshers: [],
         });
       }
     });

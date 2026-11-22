@@ -83,6 +83,7 @@ describe("POST /auth (exchange a Google ID token for our JWT)", () => {
         lastName: "Torvalds",
         email: "linus@example.com",
         isAdmin: false,
+        seenRefreshers: [],
       },
     });
   });
@@ -275,6 +276,7 @@ describe("auth middleware (via GET /Login)", () => {
       lastName: "Lovelace",
       email: "ada@example.com",
       isAdmin: false,
+      seenRefreshers: [],
     });
   });
 

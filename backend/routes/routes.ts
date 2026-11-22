@@ -4,6 +4,7 @@ import {
   createNewUserSentence,
   editUserSentence,
   setSentenceLook,
+  markRefresherSeen,
   getTellSentences,
   getUserInfo,
   getPendingApprovalSentences,
@@ -29,6 +30,7 @@ import {
   decisionsRateLimit,
   likesRateLimit,
   lookRateLimit,
+  refresherRateLimit,
   reviewCountRateLimit,
   reviewerSwitchRateLimit,
   reviewTipsRateLimit,
@@ -64,6 +66,8 @@ router.put("/MyPage/:id/look", lookRateLimit, auth, setSentenceLook);
 // router.get("/Login", getTellSentences);
 // Route for getting user info
 router.get("/Login", auth, getUserInfo);
+// The student has seen a refresher, so it won't open by itself again
+router.put("/Login/refreshers/:technique", refresherRateLimit, auth, markRefresherSeen);
 
 // Route for logging out user
 router.post("/Logout", logoutUser);

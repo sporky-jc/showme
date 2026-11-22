@@ -150,6 +150,22 @@ export const lookRateLimit = rateLimit({
   validate: { xForwardedForHeader: false, forwardedHeader: false },
 });
 
+// How many refreshers one signed-in user may mark as seen in a minute
+// (PUT /Login/refreshers/:technique): one per refresher opened, never dozens.
+export const REFRESHER_WRITES_PER_MINUTE = 30;
+export const refresherRateLimitStore = new MemoryStore();
+
+export const refresherRateLimit = rateLimit({
+  store: refresherRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: REFRESHER_WRITES_PER_MINUTE,
+  keyGenerator: perUser,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many tries. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});
+
 // How many times one signed-in user may load or use the Teacher page's
 // "Recent decisions" (GET /Admin/decisions, PATCH /Admin/undo) in a minute:
 // a teacher opens the list and takes back a few decisions, never dozens a

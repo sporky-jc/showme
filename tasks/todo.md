@@ -121,13 +121,13 @@ pop-up from the canvas design. Nothing opens by itself yet.
 gets its own per-minute limit, like looks.
 
 **Acceptance criteria:**
-- [ ] Only the signed-in student's own profile changes; unknown techniques
+- [x] Only the signed-in student's own profile changes; unknown techniques
   are refused (400)
-- [ ] Adding the same technique twice keeps it once
-- [ ] Old profiles without the field read as none seen
+- [x] Adding the same technique twice keeps it once
+- [x] Old profiles without the field read as none seen
 
 **Verification:**
-- [ ] `cd backend && npx vitest run tests/refreshers.test.ts` and the full
+- [x] `cd backend && npx vitest run tests/refreshers.test.ts` and the full
   suite; `npx tsc`
 
 **Dependencies:** None
