@@ -34,7 +34,7 @@ function Cards(props: {
   return (
     <ul className="paper-gallery__cards">
       {sentences.map((sentence) => {
-        const pieces = sensePieces(sentence.show);
+        const pieces = sensePieces(sentence.show, sentence.senseTags);
         const senses = SENSE_KEYS.filter((sense) => pieces.some((piece) => piece.sense === sense));
         return (
           <li key={sentence._id}>

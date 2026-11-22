@@ -88,6 +88,30 @@ describe("Cards", () => {
     expect(screen.getByRole("img", { name: "Uses hear and feel" })).toBeInTheDocument();
   });
 
+  it("lights up the words two AI models agreed on, in the sense they agreed", () => {
+    const [one] = approved(1);
+    renderCards([
+      {
+        ...one,
+        show: "Wind wailed through the trees, and the roses had a sweet perfume.",
+        // From the sense tagger (backend/tagger): "wailed" isn't on the word
+        // list, and "sweet" is a smell here, not a taste
+        senseTags: [
+          { word: "wailed", sense: "hear" },
+          { word: "sweet", sense: "smell" },
+        ],
+      },
+    ]);
+
+    const lit = [...document.querySelectorAll("mark")];
+    expect(lit.map((mark) => [mark.textContent, mark.className.split("--")[1]])).toEqual([
+      ["wailed", "hear"],
+      ["sweet", "smell"],
+      ["perfume", "smell"],
+    ]);
+    expect(screen.getByRole("img", { name: "Uses hear and smell" })).toBeInTheDocument();
+  });
+
   it("names three or more senses in a list", () => {
     const [one] = approved(1);
     renderCards([{ ...one, show: "The bright soup smelled sweet and hot." }]);

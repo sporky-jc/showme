@@ -112,7 +112,7 @@ function Collection() {
   // With a sense pressed, the wall shows every sentence but the pick that
   // uses it (Cards shows the first DisplayCollectionSentences of them)
   const found = sense
-    ? displaySentences.filter((sentence) => sentence !== pick && senseWords(sentence.show)[sense] !== null)
+    ? displaySentences.filter((sentence) => sentence !== pick && senseWords(sentence.show, sentence.senseTags)[sense] !== null)
     : wall;
   // A different one from the ones Scribbles could pick
   const showAnother = () => {

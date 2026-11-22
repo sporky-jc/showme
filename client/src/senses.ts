@@ -171,20 +171,39 @@ const matches = (word: string, sense: SenseKey) => {
   return bases.doing.some((base) => words.has(base)) || bases.describing.some((base) => describing.has(base));
 };
 
-// For each sense, the first word in the sentence that uses it, or null
-export function senseWords(text: string): Record<SenseKey, string | null> {
+// The sense highlights the sense tagger saved for an approved sentence: the
+// words two AI models agree show a sense in that sentence
+// (backend/tagger/, sent with gallery sentences). The sense they agree on
+// wins over the word list's for that word ("sweet perfume" is a smell, not
+// a taste); every other word is read with the list.
+export type SenseTag = { word: string; sense: SenseKey };
+const taggedSenses = (tags: readonly SenseTag[] | undefined) =>
+  new Map((tags ?? []).map(({ word, sense }) => [word.toLowerCase().replace(/[’‘]/g, "'"), sense]));
+
+// Does this word use this sense: as tagged, or else by the list
+const uses = (word: string, sense: SenseKey, tagged: Map<string, SenseKey>) => {
+  const tag = tagged.get(word);
+  return tag ? tag === sense : matches(word, sense);
+};
+
+// For each sense, the first word in the sentence that uses it, or null.
+// With a sentence's saved tags (above), the tagged words count for the sense
+// they were tagged with.
+export function senseWords(text: string, tags?: readonly SenseTag[]): Record<SenseKey, string | null> {
   const words = wordsOf(text);
+  const tagged = taggedSenses(tags);
   const found = {} as Record<SenseKey, string | null>;
-  for (const sense of SENSE_KEYS) found[sense] = words.find((word) => matches(word, sense)) ?? null;
+  for (const sense of SENSE_KEYS) found[sense] = words.find((word) => uses(word, sense, tagged)) ?? null;
   return found;
 }
 
 // A sentence cut into pieces that read as the whole sentence again, each word
-// that uses a sense a piece of its own with that sense (the first one it
-// matches), for the gallery to light up
+// that uses a sense a piece of its own with that sense (as tagged, or else
+// the first one it matches), for the gallery to light up
 export type SensePiece = { text: string; sense: SenseKey | null };
 
-export function sensePieces(text: string): SensePiece[] {
+export function sensePieces(text: string, tags?: readonly SenseTag[]): SensePiece[] {
+  const tagged = taggedSenses(tags);
   const pieces: SensePiece[] = [];
   const add = (piece: string, sense: SenseKey | null) => {
     if (piece === "") return;
@@ -195,7 +214,7 @@ export function sensePieces(text: string): SensePiece[] {
   // Words as wordsOf reads them, and everything between them as it is
   for (const part of text.split(/([A-Za-z'’‘]+)/)) {
     const word = wordsOf(part)[0];
-    const sense = word === undefined ? null : (SENSE_KEYS.find((key) => matches(word, key)) ?? null);
+    const sense = word === undefined ? null : (tagged.get(word) ?? SENSE_KEYS.find((key) => matches(word, key)) ?? null);
     add(part, /[A-Za-z]/.test(part) ? sense : null);
   }
   return pieces;
