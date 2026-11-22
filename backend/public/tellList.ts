@@ -1,213 +1,294 @@
-// Tell Sentences: one per day, in order (GET / sends them all)
+// Tell Sentences: the Classic path, one per day, in order (GET / sends them
+// all).
+//
+// Classic is frozen: students have written for every one of these, and each
+// of their sentences names its Tell by `id` (its title, "day1".."day35"). So
+// never change an entry's id, order or words, and never remove one. New
+// Tells get new ids that don't name a place (like "t-snow-day"), so paths
+// can put them in any order (see tasks/plan.md).
+//
+// `technique` is what the Tell asks for: the five senses, or the figure of
+// speech its words name, like "(Use a Simile)". The website shows that ask as
+// a badge with its refresher, and the reviewer still reads it in the words.
 import type { TellSentence } from "../contract/api.js";
 
 const tellList: TellSentence[] = [
   {
     key: 1,
+    id: "day1",
+    technique: "senses",
     title: "Day 1",
     tell: "It is cold outside.",
     image: "/sentenceimages/day 1 - It is cold outside.jpg",
   },
   {
     key: 2,
+    id: "day2",
+    technique: "senses",
     title: "Day 2",
     tell: "It is hot outside.",
     image: "/sentenceimages/day 2 - It is hot outside.jpg",
   },
   {
     key: 3,
+    id: "day3",
+    technique: "senses",
     title: "Day 3",
     tell: "His room is messy.",
     image: "/sentenceimages/day 3 - His room is messy.jpg",
   },
   {
     key: 4,
+    id: "day4",
+    technique: "senses",
     title: "Day 4",
     tell: "Her room is clean.",
     image: "/sentenceimages/day 4 - Her room is clean.jpg",
   },
   {
     key: 5,
+    id: "day5",
+    technique: "senses",
     title: "Day 5",
     tell: "The house is super big.",
     image: "/sentenceimages/day 5 - The house is super big.jpg",
   },
   {
     key: 6,
+    id: "day6",
+    technique: "senses",
     title: "Day 6",
     tell: "The house is very small.",
     image: "/sentenceimages/day 6 - The house is very small.jpg",
   },
   {
     key: 7,
+    id: "day7",
+    technique: "senses",
     title: "Day 7",
     tell: "The party was fun.",
     image: "/sentenceimages/day 7 - The party was fun.jpg",
   },
   {
     key: 8,
+    id: "day8",
+    technique: "senses",
     title: "Day 8",
     tell: "That class was boring.",
     image: "/sentenceimages/day 8 - That class was boring.jpg",
   },
   {
     key: 9,
+    id: "day9",
+    technique: "senses",
     title: "Day 9",
     tell: "I am so tired.",
     image: "/sentenceimages/day 9 - I am so tired.jpg",
   },
   {
     key: 10,
+    id: "day10",
+    technique: "senses",
     title: "Day 10",
     tell: "I can't fall asleep.",
     image: "/sentenceimages/day 10 - I can't fall asleep.jpg",
   },
   {
     key: 11,
+    id: "day11",
+    technique: "senses",
     title: "Day 11",
     tell: "The king is rich.",
     image: "/sentenceimages/day 11 - The king is rich.jpg",
   },
   {
     key: 12,
+    id: "day12",
+    technique: "senses",
     title: "Day 12",
     tell: "The students were very loud, and the teacher couldn't do anything about it.",
     image: "/sentenceimages/day 12 - The students were very loud.jpg",
   },
   {
     key: 13,
+    id: "day13",
+    technique: "senses",
     title: "Day 13",
     tell: "He is late, and his train just left.",
     image: "/sentenceimages/day 13 - late for train.JPG",
   },
   {
     key: 14,
+    id: "day14",
+    technique: "senses",
     title: "Day 14",
     tell: "She almost drowned in the pool.",
     image: "/sentenceimages/day 14 - She almost drowned in the pool.jpg",
   },
   {
     key: 15,
+    id: "day15",
+    technique: "senses",
     title: "Day 15",
     tell: "Describe Godzilla.",
     image: "/sentenceimages/day 15 - Godzilla.jpg",
   },
   {
     key: 16,
+    id: "day16",
+    technique: "senses",
     title: "Day 16",
     tell: "Describe Pikachu.",
     image: "/sentenceimages/day 16 - Pikachu.jpg",
   },
   {
     key: 17,
+    id: "day17",
+    technique: "senses",
     title: "Day 17",
     tell: "The car is super fast.",
     image: "/sentenceimages/day 17 - The car is super fast.jpg",
   },
   {
     key: 18,
+    id: "day18",
+    technique: "senses",
     title: "Day 18",
     tell: "It rained a lot this weekend.",
     image: "/sentenceimages/day 18 - It rained a lot this weekend.jpg",
   },
   {
     key: 19,
+    id: "day19",
+    technique: "senses",
     title: "Day 19",
     tell: "The movie scared the little boy.",
     image: "/sentenceimages/day 19 - Scary movie.jpg",
   },
   {
     key: 20,
+    id: "day20",
+    technique: "senses",
     title: "Day 20",
     tell: "The meal was delicious.",
     image: "/sentenceimages/day 20 - This meal was delicious.jpg",
   },
   {
     key: 21,
+    id: "day21",
+    technique: "senses",
     title: "Day 21",
     tell: "Our lunch was gross.",
     image: "/sentenceimages/day 21 - Our lunch was gross.jpg",
   },
   {
     key: 22,
+    id: "day22",
+    technique: "senses",
     title: "Day 22",
     tell: "We can not see anything in this fog.",
     image: "/sentenceimages/day 22 - foggy.jpg",
   },
   {
     key: 23,
+    id: "day23",
+    technique: "senses",
     title: "Day 23",
     tell: "The plants were colorful.",
     image: "/sentenceimages/day 23 - The plants were colorful.jpg",
   },
   {
     key: 24,
+    id: "day24",
+    technique: "senses",
     title: "Day 24",
     tell: "My leg hurts.",
     image: "/sentenceimages/day 24 - My leg hurts.jpg",
   },
   {
     key: 25,
+    id: "day25",
+    technique: "senses",
     title: "Day 25",
     tell: "It was dark outside.",
     image: "/sentenceimages/day 25 - It was dark outside.jpg",
   },
   {
     key: 26,
+    id: "day26",
+    technique: "senses",
     title: "Day 26",
     tell: "This test is hard.",
     image: "/sentenceimages/day 26 - This test is hard.jpg",
   },
   {
     key: 27,
+    id: "day27",
+    technique: "senses",
     title: "Day 27",
     tell: "Describe your perfect pet.",
     image: "/sentenceimages/day 27 - Describe your perfect pet.jpg",
   },
   {
     key: 28,
+    id: "day28",
+    technique: "senses",
     title: "Day 28",
     tell: "The flood was devastating.",
     image: "/sentenceimages/day 28 - The flood was devastating.jpg",
   },
   {
     key: 29,
+    id: "day29",
+    technique: "senses",
     title: "Day 29",
     tell: "Fourth of July was great.",
     image: "/sentenceimages/day 29 - Fourth of July.jpg",
   },
   {
     key: 30,
+    id: "day30",
+    technique: "senses",
     title: "Day 30",
     tell: "Describe your favorite pastime.",
     image: "/sentenceimages/day 30 - Describe your favorite pastime.jpg",
   },
   {
     key: 31,
+    id: "day31",
+    technique: "simile",
     title: "Day 31",
     tell: "He dodged all the traps with ease. (Use a Simile)",
     image: "/sentenceimages/day 31 - mouse trap.jpg",
   },
   {
     key: 32,
+    id: "day32",
+    technique: "metaphor",
     title: "Day 32",
     tell: "The hot soup burned my mouth. (Use a Metaphor)",
     image: "/sentenceimages/day 32 - hot soup.jpg",
   },
   {
     key: 33,
+    id: "day33",
+    technique: "personification",
     title: "Day 33",
     tell: "The gale blew the flowers back and forth. (Use Personification)",
     image: "/sentenceimages/day 33 - flowers in the wind.jpg",
   },
   {
     key: 34,
+    id: "day34",
+    technique: "hyperbole",
     title: "Day 34",
     tell: "I lost my bike, and I got an F on my math test. (Use Hyperbole)",
     image: "/sentenceimages/day 34 - failed test.jpg",
   },
   {
     key: 35,
+    id: "day35",
+    technique: "allusion",
     title: "Day 35",
     tell: "My mom is weak in the knee whenever she sees a mouse. (Use an Allusion)",
     image: "/sentenceimages/day 35 - mom is afraid of mouse.jpg",
@@ -219,9 +300,7 @@ const tellList: TellSentence[] = [
 // a day's Tell the same way, by its place in this list). Anything else, or a
 // day past the end of the list, has none. The server stores this Tell with a
 // student's sentence, never one sent in a request.
-export const tellForTitle = (title: string): string | undefined => {
-  const day = /^day([1-9][0-9]*)$/.exec(title);
-  return day ? tellList[Number(day[1]) - 1]?.tell : undefined;
-};
+export const tellForTitle = (title: string): string | undefined =>
+  tellList.find((tell) => tell.id === title)?.tell;
 
 export default tellList;

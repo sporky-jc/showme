@@ -14,14 +14,14 @@ are its existing titles, `day1`…`day35`. `tellForTitle` looks a Tell up by ID.
 ignore them).
 
 **Acceptance criteria:**
-- [ ] A test pins all 35 Classic IDs to today's exact words and order
-- [ ] Days 1–30 are tagged `senses`; Days 31–35 are tagged simile, metaphor,
-  personification, hyperbole and allusion (pending open question 1)
-- [ ] Saving and editing a sentence store the same Tell as before
+- [x] A test pins all 35 Classic IDs to today's exact words and order
+- [x] Days 1–30 are tagged `senses`; Days 31–35 are tagged simile, metaphor,
+  personification, hyperbole and allusion
+- [x] Saving and editing a sentence store the same Tell as before
 
 **Verification:**
-- [ ] `cd backend && npx vitest run` and `npx tsc` pass
-- [ ] `cd client && npx tsc --noEmit -p tsconfig.app.json` still passes
+- [x] `cd backend && npx vitest run` and `npx tsc` pass
+- [x] `cd client && npx tsc --noEmit -p tsconfig.app.json` still passes
 
 **Dependencies:** None
 
@@ -34,12 +34,15 @@ ignore them).
 
 **Description:** Replace every `tellSentences[day - 1]` with a lookup by
 the sentence's title (its Tell ID): gallery photos, Write's Tell and photo,
-and Today's next Tell. The next Tell is still Classic's next day.
+and Today's next Tell. The next Tell is still Classic's next day. Show a
+Tell without its "(Use a …)" ask, wherever a Tell appears (Today, Write, My
+sentences, gallery), since the badge says it instead.
 
 **Acceptance criteria:**
 - [ ] The gallery, Write and Today show the same Tells and photos as before
 - [ ] A Tell list saved in the browser without IDs is fetched again
-- [ ] No screen names or wording change
+- [ ] No screen names change; the only wording change is the "(Use a …)"
+  ask leaving the Tell (check QA Wolf flows that read Days 31–35)
 
 **Verification:**
 - [ ] `cd client && npx vitest run`, `npx eslint src`, `tsc` pass
@@ -65,9 +68,9 @@ and Today's next Tell. The next Tell is still Classic's next day.
 ## Task 3: Refresher content as data
 
 **Description:** Put the approved refresher words in
-`client/src/refreshers.ts`: senses, simile, personification and
-onomatopoeia, plus metaphor and hyperbole if Days 32 and 34 get them (open
-question 1). Each refresher is keyed by technique.
+`client/src/refreshers.ts`, keyed by technique: senses, simile, metaphor,
+personification, hyperbole and allusion (what Classic asks for), plus
+onomatopoeia for the new paths.
 
 **Acceptance criteria:**
 - [ ] The words match the canvas content sheet exactly
@@ -200,7 +203,8 @@ they haven't written, replacing "highest day + 1".
 ## Task 9: Starter and Stretch paths (content)
 
 **Description:** Write the new Tells (with photos) and the Starter and
-Stretch orders, reusing Classic Tells where they fit.
+Stretch orders, reusing Classic Tells where they fit. Allusion comes late on
+both, as on Classic's Day 35.
 
 **Acceptance criteria:**
 - [ ] Every new Tell has an ID, tags and a photo

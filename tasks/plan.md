@@ -31,8 +31,13 @@ Tell's words. The app uses that place in five spots:
   path they haven't written, so a path can change without moving anything
   already written.
 - **Tags live on the Tell:** `technique` (senses, simile, metaphor,
-  personification, hyperbole, onomatopoeia, alliteration, allusion) and a
-  `level`. Refreshers are triggered by the tag, never by a day number.
+  personification, hyperbole, onomatopoeia, alliteration, allusion).
+  Refreshers are triggered by the tag, never by a day number. A `level` tag
+  comes with paths (Task 7), when something reads it.
+- **Classic's asks stay in its words.** "(Use a Simile)" is still in the
+  stored Tell, so the reviewer reads it as before, and old sentences keep
+  their words. On screen, the website hides it and shows the badge "This
+  Tell asks for a simile" instead (Tasks 2 and 4).
 - **Content stays in code for now** (Tells, paths, refresher words), so
   every change is a reviewed pull request that QA Wolf tests. Move it to the
   database only when teachers need to write their own.
@@ -45,7 +50,7 @@ Tell's words. The app uses that place in five spots:
 The tasks with acceptance criteria are in `tasks/todo.md`.
 
 ### Phase 1: Tell IDs and tags (nothing changes on screen)
-- [ ] Task 1: Backend Tell catalog with IDs and tags
+- [x] Task 1: Backend Tell catalog with IDs and tags
 - [ ] Task 2: Website finds Tells by ID, not by position
 
 ### Checkpoint: Foundation
@@ -85,21 +90,22 @@ The tasks with acceptance criteria are in `tasks/todo.md`.
 | QA Wolf flows depend on day numbers or Tell words | Med | Tasks 1–2 change no names or words on screen; run the full suite on each preview |
 | Older sentences with titles that aren't days | Low | They already have no day; keep them out of paths and next-Tell logic, as today |
 | Seen-refresher state lost on shared devices | Med | Stored on the profile (Task 5), not in the browser |
-| Day 35 asks for an allusion, which has no refresher | Low | Ask (below); until then Day 35 shows no refresher |
+| Allusion is hard for young or new writers | Med | Starter and Stretch paths put it late, as Classic does on Day 35 (Task 9) |
+
+## Decisions (from review)
+
+1. **Classic gets no new nudges.** Days 1–30 are tagged senses; Days 31–35
+   are tagged the figure of speech their words already ask for. Onomatopoeia
+   and alliteration wait for the new paths.
+2. **"(Use a Simile)" moves into the badge** on screen; the stored words
+   don't change.
+3. **Allusion gets a refresher** with examples kids know (Pinocchio,
+   Sleeping Beauty, the Flash, the Hulk). New paths put it late, like
+   Classic's Day 35.
+4. Refresher wording approved as on the canvas content sheet. Senses opens
+   by itself on Day 1.
 
 ## Open questions
 
-1. **Technique nudges on Classic.** Days 1–30 are senses Tells; Days 31–35
-   already ask for a simile, metaphor, personification, hyperbole and
-   allusion in their own words. Suggestion: don't add new nudges to Classic,
-   since it's frozen. Tag only what it already asks for, and save
-   onomatopoeia and alliteration for new paths. This means Days 32 and 34
-   need the metaphor and hyperbole refreshers too; their wording is already
-   on the content sheet.
-2. **"(Use a Simile)" in the Tell's words.** Keep it as is (simplest), or
-   show the Tell without it and use the "This Tell asks for a simile" badge
-   instead? The stored words on old sentences wouldn't change either way.
-3. **Allusion (Day 35).** Write a refresher for it, or leave Day 35 without
-   one?
-4. **Placement quiz:** how many questions, and should a teacher see the
-   result?
+- **Placement quiz:** how many questions, and should a teacher see the
+  result? (Task 10)

@@ -18,7 +18,9 @@ const loggedInState: Partial<RootState> = {
   user: { firstName: "Ada", isAdmin: true },
   usersentences: [{ ...day1, show: "Ada's sentence" }],
   approvalsentences: [{ ...day1, show: "Waiting for review", author }],
-  tellsentences: [{ key: 1, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" }],
+  tellsentences: [
+    { key: 1, id: "day1", technique: "senses", title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" },
+  ],
   approvedsentences: [{ ...day1, show: "Public sentence", author }],
 };
 

@@ -15,6 +15,8 @@ const ada = { firstName: "Ada", isAdmin: false };
 const tells = (n: number): TellSentence[] =>
   Array.from({ length: n }, (_, i) => ({
     key: i + 1,
+    id: `day${i + 1}`,
+    technique: "senses",
     title: `Day ${i + 1}`,
     tell: `Tell ${i + 1}`,
     image: `/day${i + 1}.jpg`,

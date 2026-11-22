@@ -166,9 +166,26 @@ export const TestLoginBody = z.object({
 // contract doesn't list (a profile's login details, a sentence's GID) never
 // leaves the server.
 
+// What a Tell sentence asks the student to use: the five senses, or a figure
+// of speech (backend/public/tellList.ts)
+export const TECHNIQUES = [
+  "senses",
+  "simile",
+  "metaphor",
+  "personification",
+  "onomatopoeia",
+  "hyperbole",
+  "alliteration",
+  "allusion",
+] as const;
+
 // GET /: a day's tell sentence (backend/public/tellList.ts)
 export const TellSentence = z.object({
   key: z.number(),
+  // Its permanent id: a student's sentence names its Tell by it (the
+  // sentence's title). Classic's are "day1".."day35".
+  id: z.string(),
+  technique: z.enum(TECHNIQUES),
   title: z.string(), // "Day 1"
   tell: z.string(),
   image: z.string(), // its picture on the Collections page
@@ -336,6 +353,7 @@ export type ReviewBody = z.infer<typeof ReviewBody>;
 export type LoginBody = z.infer<typeof LoginBody>;
 export type TestLoginBody = z.infer<typeof TestLoginBody>;
 export type TellSentence = z.infer<typeof TellSentence>;
+export type Technique = (typeof TECHNIQUES)[number];
 export type User = z.infer<typeof User>;
 export type LoginAnswer = z.infer<typeof LoginAnswer>;
 export type Sentence = z.infer<typeof Sentence>;

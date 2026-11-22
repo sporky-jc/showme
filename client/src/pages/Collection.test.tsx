@@ -9,7 +9,7 @@ import type { SentenceWithAuthor } from "../api/types";
 
 // The Show ME gallery (the Collections page): what a visitor sees.
 
-const tellsentences = [{ key: 1, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" }];
+const tellsentences = [{ key: 1, id: "day1", technique: "senses" as const, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" }];
 
 // Approved sentences, newest first (the order the server sends them in)
 const fromServer = (n: number): SentenceWithAuthor[] =>
