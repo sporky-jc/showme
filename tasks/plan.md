@@ -61,7 +61,7 @@ The tasks with acceptance criteria are in `tasks/todo.md`.
 ### Phase 2: Refreshers
 - [x] Task 3: Refresher content as data
 - [x] Task 4: Refresher pop-up, opened from "What's a …?"
-- [ ] Task 5: Remember which refreshers a student has seen (backend)
+- [x] Task 5: Remember which refreshers a student has seen (backend)
 - [ ] Task 6: Open a refresher by itself the first time (senses on Day 1)
 
 ### Checkpoint: Refreshers

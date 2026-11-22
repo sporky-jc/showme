@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { TestLoginBody } from "../contract/api.js";
+import { TECHNIQUES, TestLoginBody } from "../contract/api.js";
 import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
 import { messageOf } from "../utils/errors.js";
@@ -14,6 +14,8 @@ import { TEST_ACCOUNT_PREFIX } from "../config/testAccounts.js";
 // With `fresh: true` it first deletes that test account's own sentences, and
 // takes back every like it gave, so a test starts from a clean slate (Day 1,
 // nothing liked) every run; the app itself has no way to delete a sentence.
+// A test account has seen every refresher (none opens by itself over the
+// page), unless the login asks for `refreshers: "new"`.
 //
 // Each browser test that wipes sentences gets its own student account, so
 // tests running at the same time can't wipe each other's sentences.
@@ -142,7 +144,7 @@ export const testLogin = async (req: Request, res: Response) => {
       .status(400)
       .json({ message: `role must be one of: ${Object.keys(TEST_ACCOUNTS).join(", ")}` });
   }
-  const { role, fresh } = body.data;
+  const { role, fresh, refreshers } = body.data;
   const account = TEST_ACCOUNTS[role];
 
   try {
@@ -164,10 +166,16 @@ export const testLogin = async (req: Request, res: Response) => {
       }
     }
 
-    // Create the test account the first time; reuse it after that
+    // Create the test account the first time; reuse it after that. Every
+    // login sets which refreshers it has seen: all of them, so none opens by
+    // itself over a test's page, unless the test asks for a student new to
+    // them (refreshers: "new"), to test the first one opening.
     const user = await Profile.findOneAndUpdate(
       { id: account.id },
-      { $setOnInsert: account },
+      {
+        $setOnInsert: account,
+        $set: { seenRefreshers: refreshers === "new" ? [] : [...TECHNIQUES] },
+      },
       { upsert: true, returnDocument: "after" }
     );
 

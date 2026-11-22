@@ -158,6 +158,10 @@ export const TestLoginBody = z.object({
   secret: z.string().min(1),
   role: z.string(),
   fresh: z.boolean().optional().catch(undefined),
+  // "new": the test student hasn't seen any refresher, so the first one
+  // opens by itself (to test that). Anything else: they've seen them all,
+  // so no refresher opens by itself over a test's page.
+  refreshers: z.enum(["new", "seen"]).optional().catch(undefined),
 });
 
 // ---- Answers ---------------------------------------------------------------
@@ -178,6 +182,9 @@ export const TECHNIQUES = [
   "alliteration",
   "allusion",
 ] as const;
+
+// PUT /Login/refreshers/:technique: the refresher the student just saw
+export const TechniqueParam = z.enum(TECHNIQUES, { error: "Unknown technique" });
 
 // GET /: a day's tell sentence (backend/public/tellList.ts)
 export const TellSentence = z.object({
@@ -205,6 +212,11 @@ export const User = z.object({
     .optional(),
   email: z.string(),
   isAdmin: z.boolean(),
+  // The refreshers the student has seen (PUT /Login/refreshers/:technique):
+  // each one opens by itself only the first time. This server always sends
+  // it (older profiles: none), but a login saved by the website before it
+  // existed has none, so it's optional to the website.
+  seenRefreshers: z.array(z.enum(TECHNIQUES)).optional(),
 });
 export const LoginAnswer = z.object({ user: User });
 

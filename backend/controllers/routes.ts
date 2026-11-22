@@ -3,6 +3,7 @@ import {
   EditSentenceBody,
   Look,
   SentenceIdParam,
+  TechniqueParam,
   GallerySentences,
   NewSentenceBody,
   OwnSentence,
@@ -235,6 +236,32 @@ export const setSentenceLook = async (req: Request, res: Response) => {
     }
 
     answer(res, 200, OwnSentence, updated);
+  } catch (error) {
+    res.locals.error = error;
+    res.status(500).json({ message: messageOf(error) });
+  }
+};
+
+// PUT /Login/refreshers/:technique: the signed-in student has seen this
+// refresher, so it won't open by itself again. Repeating it changes nothing.
+// Answers with the student, as GET /Login does.
+export const markRefresherSeen = async (req: Request, res: Response) => {
+  // Only a known technique goes into the profile (see the contract)
+  const technique = TechniqueParam.safeParse(req.params.technique);
+  if (!technique.success) {
+    return res.status(400).json({ message: firstProblem(technique.error) });
+  }
+  try {
+    // $addToSet adds it only if it isn't there yet, in one step
+    const user = await Profile.findOneAndUpdate(
+      { id: req.userId },
+      { $addToSet: { seenRefreshers: technique.data } },
+      { returnDocument: "after" }
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    answer(res, 200, User, user);
   } catch (error) {
     res.locals.error = error;
     res.status(500).json({ message: messageOf(error) });
