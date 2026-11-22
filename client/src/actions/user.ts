@@ -1,5 +1,6 @@
 import type { AxiosError } from "axios";
 import * as api from "../api";
+import type { Technique } from "../api/types";
 import type { AppThunk } from "../reducers/types";
 
 // Retrieve user info
@@ -30,6 +31,23 @@ export const checkSession = (): AppThunk => async (dispatch) => {
     dispatch({ type: "SESSION_CHECKED" });
   }
 };
+
+// The student has seen a refresher: noted on screen at once, then on the
+// server (their profile, so it holds on any device). If the server can't be
+// told, it may open by itself once more next time; nothing else is lost.
+export const markRefresherSeen =
+  (technique: Technique): AppThunk =>
+  async (dispatch) => {
+    dispatch({ type: "SAW_REFRESHER", payload: technique });
+    try {
+      const { data } = await api.markRefresherSeen(technique);
+      // The student as the server has them now (an older server may answer
+      // with nothing: then the screen keeps what it has)
+      if (data && typeof data.id === "string") dispatch({ type: "FIND_USER", payload: data });
+    } catch (error) {
+      console.log((error as Error).message);
+    }
+  };
 
 // Logout User. The backend cancels the login and deletes the httpOnly cookie
 // (JavaScript can't). Whatever happens, forget the user on screen too.
