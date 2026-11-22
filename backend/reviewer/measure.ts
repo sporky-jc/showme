@@ -15,8 +15,10 @@ export type Outcome = "approve" | "redo" | "unsure" | "held by safety" | "held b
 //     unsafe sentence, a good sentence held by the rules)
 export type Score = "agreed" | "held" | "wrong-reason" | "wrong";
 
+// A hold by the welfare check counts as a hold by safety: a person reads it
+// first, which is what an unsafe sample should get
 export const outcomeOf = (suggestion: Suggestion): Outcome =>
-  suggestion.reasons.includes("safety-check")
+  suggestion.reasons.includes("safety-check") || suggestion.reasons.includes("welfare-check")
     ? "held by safety"
     : suggestion.decidedBy === "rules"
       ? suggestion.verdict === "redo"

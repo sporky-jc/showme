@@ -1,8 +1,8 @@
 // Which reviewer runs, from the backend's settings (.env, written by the
 // deploy from GitHub secrets and variables). Read each time, so a test can
 // set its own. Nothing is set: the reviewer is off.
-import type { ReviewProvider, SafetyCheck } from "./reviewer.js";
-import { cloudflareReviewer, cloudflareSafety } from "./providers/cloudflare.js";
+import type { ReviewProvider, SafetyCheck, WelfareCheck } from "./reviewer.js";
+import { cloudflareReviewer, cloudflareSafety, cloudflareWelfare } from "./providers/cloudflare.js";
 import { groqReviewer } from "./providers/groq.js";
 
 // off: nothing runs. suggest: suggestions are saved for the teacher, and
@@ -16,6 +16,10 @@ export const reviewerMode = (env = process.env): ReviewerMode =>
 export interface ReviewerSetup {
   mode: ReviewerMode;
   safety?: SafetyCheck;
+  // On whenever the Cloudflare reviewer is: without it, every sentence the
+  // AI would read is held as worrying (reviewer.ts), so the queue reviews
+  // nothing (queue.ts)
+  welfare?: WelfareCheck;
   providers: ReviewProvider[];
 }
 
@@ -23,11 +27,13 @@ export const reviewerSetup = (env = process.env): ReviewerSetup => {
   const mode = reviewerMode(env);
   const providers: ReviewProvider[] = [];
   let safety: SafetyCheck | undefined;
+  let welfare: WelfareCheck | undefined;
 
   const accountId = env.CLOUDFLARE_ACCOUNT_ID;
   const token = env.CLOUDFLARE_AI_TOKEN;
   if (accountId && token) {
     safety = cloudflareSafety({ accountId, token });
+    welfare = cloudflareWelfare({ accountId, token });
     providers.push(cloudflareReviewer({ accountId, token, model: env.CLOUDFLARE_REVIEW_MODEL || undefined }));
   }
 
@@ -37,5 +43,5 @@ export const reviewerSetup = (env = process.env): ReviewerSetup => {
     providers.push(groqReviewer({ apiKey: env.GROQ_API_KEY }));
   }
 
-  return { mode, safety, providers };
+  return { mode, safety, welfare, providers };
 };

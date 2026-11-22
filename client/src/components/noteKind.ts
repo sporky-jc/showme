@@ -16,6 +16,14 @@ export const HELD = {
   "too-long": "It's much longer than a Show sentence,",
 } as const;
 
+// Why a worrying sentence was held when an AI did read it: the welfare check
+// (backend/reviewer/reviewer.ts) was worried, or couldn't answer and so held
+// it to be safe. A worrying sentence the rules held was seen by no AI.
+export const CHECK_IN = {
+  "welfare-check": "Our welfare check thinks it may be worrying,",
+  "no-welfare-check": "Our welfare check couldn't answer for this one, and it may be worrying,",
+} as const;
+
 // Which note a suggestion makes. A worrying sentence always comes first.
 export const noteKind = (suggestion: ScribblesSuggestion): NoteKind => {
   if (suggestion.reasons.includes("worrying")) return "check-in";

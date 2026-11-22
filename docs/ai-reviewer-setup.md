@@ -8,7 +8,7 @@ About 20 minutes, once. Everything here is free, and nothing asks for a credit c
 
 | Service | What for | Free allowance | What happens at the limit |
 |---|---|---|---|
-| **Cloudflare Workers AI** (main) | The safety check (Llama Guard) and the AI review | 10,000 "Neurons" a day ≈ **200 sentences a day** | Requests stop until midnight UTC. The teacher reviews as usual. **Nothing is charged.** |
+| **Cloudflare Workers AI** (main) | The safety check (Llama Guard), the welfare check and the AI review (Llama 3.3 70B) | 10,000 "Neurons" a day ≈ **100 sentences a day** (an estimate: the welfare check is a second call to the 70B model) | Requests stop until midnight UTC. The teacher reviews as usual. **Nothing is charged.** |
 | **Google Cloud Scheduler** | Runs the reviewer every 10 minutes | 3 schedules free per billing account (we use 2: staging and production) | Not reached |
 | **Groq** (optional, off) | A second AI reviewer | About 1,000 requests a day | Only for classes where **every student is 13 or older**: Groq's terms don't allow data about children under 13 |
 

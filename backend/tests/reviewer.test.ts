@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { checkRules, hasPersonalDetails, isUnsafe, isWorrying } from "../reviewer/rules.js";
-import { reviewSentence, type ReviewProvider, type SafetyCheck } from "../reviewer/reviewer.js";
-import { ProviderAnswer } from "../reviewer/contract.js";
+import { reviewSentence, type ReviewProvider, type SafetyCheck, type WelfareCheck } from "../reviewer/reviewer.js";
+import { ProviderAnswer, WelfareAnswer } from "../reviewer/contract.js";
 import { PRAISE, TIPS, TIP_IDS } from "../reviewer/tips.js";
+import { ProviderError } from "../reviewer/providers/http.js";
 
 // The reviewer: rule checks first, then AI providers, then a person.
 // No real provider is called here: providers are stand-ins.
@@ -429,7 +430,17 @@ const safetyCheck = (answer: unknown): SafetyCheck & { check: ReturnType<typeof 
     return answer as "safe" | "unsafe";
   }),
 });
-const SAFE = { safety: safetyCheck("safe") };
+// A stand-in welfare check that gives this raw answer (or throws it)
+const welfareCheck = (answer: unknown): WelfareCheck & { check: ReturnType<typeof vi.fn> } => ({
+  name: "welfare",
+  check: vi.fn(async () => {
+    if (answer instanceof Error) throw answer;
+    return answer;
+  }),
+});
+// The welfare check seeing nothing worrying
+const calm = () => welfareCheck({ concern: "no" });
+const SAFE = { safety: safetyCheck("safe"), welfare: calm() };
 // Who answered what, without how long it took
 const outcomes = (attempts: { provider: string; outcome: string }[]) =>
   attempts.map(({ provider, outcome }) => ({ provider, outcome }));
@@ -448,11 +459,14 @@ describe("the reviewer", () => {
     const ai = provider("ai", { verdict: "approve", tip: "great" });
     const safety = safetyCheck("safe");
 
-    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: "It is cold outside." }, [ai], { safety });
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: "It is cold outside." }, [ai], { safety, welfare: calm() });
 
     expect(suggestion).toEqual({ verdict: "redo", tip: "ownWords", reasons: ["copies-tell"], decidedBy: "rules" });
     expect(safety.check).toHaveBeenCalledTimes(1);
-    expect(outcomes(attempts)).toEqual([{ provider: "guard", outcome: "safe" }]);
+    expect(outcomes(attempts)).toEqual([
+      { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome: "no-concern" },
+    ]);
     expect(ai.review).not.toHaveBeenCalled();
   });
 
@@ -465,7 +479,7 @@ describe("the reviewer", () => {
     for (const show of ["It is cold outside.", "it is very cold outside", "It is really cold outside today."]) {
       // (The rules alone would send each back as a copy)
       expect(checkRules(COLD, show)).toMatchObject({ outcome: "redo", reasons: ["copies-tell"] });
-      const { suggestion } = await reviewSentence({ tell: COLD, show }, [provider("ai", {})], { safety });
+      const { suggestion } = await reviewSentence({ tell: COLD, show }, [provider("ai", {})], { safety, welfare: calm() });
       expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons, decidedBy });
     }
   });
@@ -473,14 +487,14 @@ describe("the reviewer", () => {
   it("asks the safety check and the AI about a copy with a cry for help added", async () => {
     const ai = provider("ai", { verdict: "unsure", tip: "great" });
     const safety = safetyCheck("safe");
-    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, help me." }, [ai], { safety });
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, help me." }, [ai], { safety, welfare: calm() });
     expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "ai" });
     expect(ai.review).toHaveBeenCalledTimes(1);
   });
 
   it("still holds a sentence the rules held before any request, a copy of the Tell or not", async () => {
     const safety = safetyCheck("safe");
-    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, damn." }, [provider("ai", {})], { safety });
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, damn." }, [provider("ai", {})], { safety, welfare: calm() });
     expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "rules" });
     expect(safety.check).not.toHaveBeenCalled();
   });
@@ -489,6 +503,7 @@ describe("the reviewer", () => {
     const { attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [provider("ai", { verdict: "approve", tip: "great" })], SAFE);
     expect(attempts).toEqual([
       { provider: "guard", outcome: "safe", ms: expect.any(Number) },
+      { provider: "welfare", outcome: "no-concern", ms: expect.any(Number) },
       { provider: "ai", outcome: "answered", ms: expect.any(Number) },
     ]);
   });
@@ -507,6 +522,7 @@ describe("the reviewer", () => {
     );
     expect(outcomes(attempts)).toEqual([
       { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome: "no-concern" },
       { provider: "limited", outcome: "rate-limited" },
       { provider: "refused", outcome: "credentials" },
       { provider: "forbidden", outcome: "credentials" },
@@ -519,7 +535,7 @@ describe("the reviewer", () => {
       { safety: safetyCheck("unsafe"), ai: provider("ai", {}), reasons: ["safety-check"] },
       { safety: safetyCheck("safe"), ai: provider("ai", { verdict: "unsure", tip: "great" }), reasons: ["ai"] },
     ]) {
-      const { suggestion } = await reviewSentence({ tell: COLD, show: "the wind bit my noze" }, [ai], { safety });
+      const { suggestion } = await reviewSentence({ tell: COLD, show: "the wind bit my noze" }, [ai], { safety, welfare: calm() });
       expect(suggestion).toMatchObject({ verdict: "unsure", reasons, misspelled: ["noze"] });
       expect(suggestion.mechanics?.length).toBeGreaterThan(0);
     }
@@ -551,6 +567,7 @@ describe("the reviewer", () => {
     expect(second.review).not.toHaveBeenCalled();
     expect(outcomes(attempts)).toEqual([
       { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome: "no-concern" },
       { provider: "first", outcome: "answered" },
     ]);
   });
@@ -578,11 +595,13 @@ describe("the reviewer", () => {
     const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [broken, chatty, slow, backup], {
       timeoutMs: 50,
       safety: safetyCheck("safe"),
+      welfare: calm(),
     });
 
     expect(suggestion).toEqual({ verdict: "redo", tip: "smell", reasons: ["ai"], decidedBy: "backup" });
     expect(outcomes(attempts)).toEqual([
       { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome: "no-concern" },
       { provider: "broken", outcome: "failed" },
       { provider: "chatty", outcome: "invalid" },
       { provider: "slow", outcome: "timeout" },
@@ -603,7 +622,7 @@ describe("the reviewer", () => {
         }),
     };
 
-    await reviewSentence({ tell: COLD, show: GOOD }, [slow], { timeoutMs: 20, safety: safetyCheck("safe") });
+    await reviewSentence({ tell: COLD, show: GOOD }, [slow], { timeoutMs: 20, safety: safetyCheck("safe"), welfare: calm() });
 
     expect(aborted).toBe(true);
   });
@@ -650,7 +669,7 @@ describe("the reviewer", () => {
   ])("asks no reviewer when the safety check %s", async (_, safety) => {
     const ai = provider("ai", { verdict: "approve", tip: "great" });
 
-    const { suggestion } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], { safety });
+    const { suggestion } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], { safety, welfare: calm() });
 
     expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons: ["no-safety-check"], decidedBy: "none" });
     expect(ai.review).not.toHaveBeenCalled();
@@ -670,8 +689,254 @@ describe("the reviewer", () => {
   it("never runs the safety check on a sentence the rules held", async () => {
     const safety = safetyCheck("safe");
 
-    await reviewSentence({ tell: COLD, show: "My email is a@b.co and it is freezing." }, [provider("ai", {})], { safety });
+    await reviewSentence({ tell: COLD, show: "My email is a@b.co and it is freezing." }, [provider("ai", {})], { safety, welfare: calm() });
 
     expect(safety.check).not.toHaveBeenCalled();
+  });
+});
+
+// The welfare check (reviewer.ts, step 3), with stand-ins: no request is
+// sent. Made-up sentences that hint a child may be at risk without a word
+// the rules hold for, so they reach the AI.
+const HINTS = [
+  "I put my coat and all my toys in a box for my cousin because I won't need them after this week.",
+  "My tummy growled all night because the fridge was empty again and nobody came home.",
+  "I wore my long sleeves even though it was hot so nobody would see my arm.",
+  "My gaming friend gave me free coins and wants us to chat on a different app.",
+  "I ran laps around the yard until my legs shook so my dinner would not count.",
+  "I walked home as slowly as I could because I didn't want to open our front door.",
+];
+
+describe("the welfare check", () => {
+  it.each(HINTS)("reaches the AI with no word the rules hold for: %s", (show) => {
+    expect(checkRules(COLD, show)).toEqual({ outcome: "pass" });
+  });
+
+  it.each(HINTS)("holds a sentence it's worried about as worrying, and uses no reviewer's verdict: %s", async (show) => {
+    // A reviewer that only thinks about the writing would send it back
+    const ai = provider("ai", { verdict: "redo", tip: "onTopic" });
+    const welfare = welfareCheck({ concern: "yes" });
+
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show }, [ai], { safety: safetyCheck("safe"), welfare });
+
+    expect(suggestion).toMatchObject({ verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: "welfare" });
+    expect(outcomes(attempts)).toEqual([
+      { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome: "concern" },
+    ]);
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it("goes on to the reviewer when it sees nothing worrying, shown only the Tell and the sentence", async () => {
+    const ai = provider("ai", { verdict: "approve", tip: "great" });
+    const welfare = calm();
+    const input = { tell: COLD, show: GOOD, author: "Ada Lovelace" };
+
+    const { suggestion } = await reviewSentence(input, [ai], { safety: safetyCheck("safe"), welfare });
+
+    expect(suggestion).toMatchObject({ verdict: "approve", decidedBy: "ai" });
+    expect(welfare.check).toHaveBeenCalledWith({ tell: COLD, show: GOOD }, expect.any(AbortSignal));
+    expect(ai.review).toHaveBeenCalledTimes(1);
+  });
+
+  it("is asked after the safety check and before the reviewer, so a reviewer's \"unsure\" never stands in for it", async () => {
+    const order: string[] = [];
+    const ai: ReviewProvider = {
+      name: "ai",
+      review: async () => {
+        order.push("ai");
+        return { verdict: "unsure", tip: "great" };
+      },
+    };
+    const safety: SafetyCheck = {
+      name: "guard",
+      check: async () => {
+        order.push("guard");
+        return "safe";
+      },
+    };
+    const welfare: WelfareCheck = {
+      name: "welfare",
+      check: async () => {
+        order.push("welfare");
+        return { concern: "yes" };
+      },
+    };
+
+    const { suggestion } = await reviewSentence({ tell: COLD, show: HINTS[1] }, [ai], { safety, welfare });
+
+    expect(order).toEqual(["guard", "welfare"]);
+    expect(suggestion.reasons).toEqual(["worrying", "welfare-check"]);
+  });
+
+  // Fails closed: anything but exactly {"concern": "no"} holds it
+  it.each([
+    ["yes as plain text", "yes"],
+    ["no as plain text", "no"],
+    ["an unknown answer", { concern: "maybe" }],
+    ["another case", { concern: "No" }],
+    ["a field more", { concern: "no", note: "this child is fine" }],
+    ["the reviewer's form", { verdict: "approve", tip: "great" }],
+    ["true or false", { concern: false }],
+    ["nothing", undefined],
+    ["null", null],
+  ])("holds the sentence as worrying when it answers %s", async (_, answer) => {
+    const ai = provider("ai", { verdict: "approve", tip: "great" });
+
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], {
+      safety: safetyCheck("safe"),
+      welfare: welfareCheck(answer),
+    });
+
+    expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons: ["worrying", "no-welfare-check"], decidedBy: "none" });
+    expect(outcomes(attempts)).toEqual([
+      { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome: "invalid" },
+    ]);
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["fails", new Error("down"), "failed"],
+    ["is out of free requests", new ProviderError("HTTP 429", 429), "rate-limited"],
+    ["has its key refused", new ProviderError("HTTP 401", 401), "credentials"],
+    ["refuses the request", new ProviderError("HTTP 400", 400), "refused"],
+    ["answers in no form at all", new ProviderError("Unexpected answer", undefined, true), "invalid"],
+  ])("holds the sentence as worrying when it %s", async (_, error, outcome) => {
+    const ai = provider("ai", { verdict: "approve", tip: "great" });
+
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], {
+      safety: safetyCheck("safe"),
+      welfare: welfareCheck(error),
+    });
+
+    expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons: ["worrying", "no-welfare-check"], decidedBy: "none" });
+    expect(outcomes(attempts)).toEqual([
+      { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome },
+    ]);
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it("holds the sentence as worrying when it takes too long, and gives it up", async () => {
+    const ai = provider("ai", { verdict: "approve", tip: "great" });
+    let aborted = false;
+    const slow: WelfareCheck = {
+      name: "welfare",
+      check: (_input, signal) =>
+        new Promise((resolve) => {
+          signal.addEventListener("abort", () => {
+            aborted = true;
+            resolve({ concern: "no" });
+          });
+        }),
+    };
+
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], {
+      safety: safetyCheck("safe"),
+      welfare: slow,
+      timeoutMs: 20,
+    });
+
+    expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["worrying", "no-welfare-check"] });
+    expect(outcomes(attempts)).toEqual([
+      { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome: "timeout" },
+    ]);
+    expect(aborted).toBe(true);
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it("holds every sentence the AI would read as worrying when it isn't set up", async () => {
+    const ai = provider("ai", { verdict: "approve", tip: "great" });
+
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], { safety: safetyCheck("safe") });
+
+    expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons: ["worrying", "no-welfare-check"], decidedBy: "none" });
+    expect(outcomes(attempts)).toEqual([{ provider: "guard", outcome: "safe" }]);
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it("checks a copy of the Tell before it's sent back", async () => {
+    const copy = "It is cold outside.";
+    expect(checkRules(COLD, copy)).toMatchObject({ outcome: "redo" });
+
+    const calmCheck = calm();
+    const sentBack = await reviewSentence({ tell: COLD, show: copy }, [], { safety: safetyCheck("safe"), welfare: calmCheck });
+    expect(sentBack.suggestion).toMatchObject({ verdict: "redo", reasons: ["copies-tell"], decidedBy: "rules" });
+    expect(outcomes(sentBack.attempts)).toEqual([
+      { provider: "guard", outcome: "safe" },
+      { provider: "welfare", outcome: "no-concern" },
+    ]);
+
+    // Held, never sent back, when it's worried or can't say
+    for (const [welfare, reasons] of [
+      [welfareCheck({ concern: "yes" }), ["worrying", "welfare-check"]],
+      [welfareCheck(new Error("down")), ["worrying", "no-welfare-check"]],
+      [welfareCheck("no"), ["worrying", "no-welfare-check"]],
+      [undefined, ["worrying", "no-welfare-check"]],
+    ] as const) {
+      const { suggestion } = await reviewSentence({ tell: COLD, show: copy }, [], { safety: safetyCheck("safe"), welfare });
+      expect(suggestion).toMatchObject({ verdict: "unsure", tip: null, reasons });
+    }
+  });
+
+  it("checks a copy of the Tell with more on the end", async () => {
+    const show = "It is really cold outside today.";
+    expect(checkRules(COLD, show)).toMatchObject({ outcome: "redo" });
+    const welfare = welfareCheck({ concern: "yes" });
+
+    const { suggestion } = await reviewSentence({ tell: COLD, show }, [], { safety: safetyCheck("safe"), welfare });
+
+    expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["worrying", "welfare-check"] });
+    expect(welfare.check).toHaveBeenCalledWith({ tell: COLD, show }, expect.any(AbortSignal));
+  });
+
+  it("is never asked about a sentence the rules held", async () => {
+    const safety = safetyCheck("safe");
+    const welfare = calm();
+    const ai = provider("ai", { verdict: "approve", tip: "great" });
+
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "My email is a@b.co and it is freezing." }, [ai], {
+      safety,
+      welfare,
+    });
+
+    expect(suggestion.decidedBy).toBe("rules");
+    expect(safety.check).not.toHaveBeenCalled();
+    expect(welfare.check).not.toHaveBeenCalled();
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["says unsafe", safetyCheck("unsafe"), ["safety-check"]],
+    ["fails", safetyCheck(new Error("down")), ["no-safety-check"]],
+    ["isn't set up", undefined, ["no-safety-check"]],
+  ])("is never asked when the safety check %s", async (_, safety, reasons) => {
+    const welfare = calm();
+    for (const show of [GOOD, "It is cold outside."]) {
+      const { suggestion } = await reviewSentence({ tell: COLD, show }, [provider("ai", {})], { safety, welfare });
+      expect(suggestion.reasons).toEqual(reasons);
+    }
+    expect(welfare.check).not.toHaveBeenCalled();
+  });
+
+  it("keeps its hold reasons, with the writing mistakes as evidence", async () => {
+    const { suggestion } = await reviewSentence(
+      { tell: COLD, show: "nobody makes me dinner so my tumy hurts" },
+      [provider("ai", {})],
+      { safety: safetyCheck("safe"), welfare: welfareCheck({ concern: "yes" }) }
+    );
+    expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["worrying", "welfare-check"], misspelled: ["tumy"] });
+  });
+});
+
+describe("the welfare check's answer", () => {
+  it.each([[{ concern: "yes" }], [{ concern: "no" }]])("is taken as %o", (answer) => {
+    expect(WelfareAnswer.safeParse(answer).success).toBe(true);
+  });
+
+  it.each([["yes"], [{ concern: "YES" }], [{ concern: "no", why: "fine" }], [{}], [null]])("is refused as %o", (answer) => {
+    expect(WelfareAnswer.safeParse(answer).success).toBe(false);
   });
 });

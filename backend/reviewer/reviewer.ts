@@ -10,12 +10,23 @@
 //      copy of the Tell the rules found is only sent back once this check
 //      says it's safe: "It is cold outside, help me." copies the Tell, and
 //      must still be read by a person if it's worrying.
-//   3. Each AI provider, in order, until one gives a valid answer. A
+//   3. The AI welfare check: a model asked one question only, "could the
+//      child who wrote this be at risk, unsafe, neglected or in distress?"
+//      The safety check catches what is plainly harmful; this catches the
+//      hints a safety check and a writing reviewer both read past ("I gave
+//      my bike and my books away to my friends.", "I'm not allowed to tell
+//      anyone about my online friend."). It runs on every sentence the
+//      safety check passed, the rules' copies of the Tell too, before any
+//      reviewer's verdict is used. It fails closed: "yes", or no clear "no"
+//      (not set up, failed, too slow, out of free requests, an answer in any
+//      other form), and the sentence is held for a person as worrying, so
+//      it's shown first ("Check in"), and no AI reviewer's verdict is used.
+//   4. Each AI provider, in order, until one gives a valid answer. A
 //      provider that fails, takes too long, has run out of free requests or
 //      answers anything but the fixed form (contract.ts) is skipped.
-//   4. Nobody could decide: "unsure", which leaves the sentence for a person,
+//   5. Nobody could decide: "unsure", which leaves the sentence for a person,
 //      exactly as if there were no AI at all.
-//   5. The writing checks: spelling (spelling.ts), and capitals, end marks,
+//   6. The writing checks: spelling (spelling.ts), and capitals, end marks,
 //      punctuation, repeated words and "a"/"an" (mechanics.ts). Mistakes are
 //      listed for the teacher, and an approval becomes "redo" with the tip
 //      for the first one, so a sentence with mistakes never reaches the
@@ -23,7 +34,7 @@
 //
 // So no provider can break reviewing, and switching or adding one is a
 // matter of the list passed in, not a change to the site.
-import { ProviderAnswer, type AttemptOutcome, type Reason, type Suggestion } from "./contract.js";
+import { ProviderAnswer, WelfareAnswer, type AttemptOutcome, type Reason, type Suggestion } from "./contract.js";
 import { MECHANIC_TIP, MECHANICS, mechanicsIssues } from "./mechanics.js";
 import { ProviderError } from "./providers/http.js";
 import { checkRules } from "./rules.js";
@@ -48,6 +59,21 @@ export interface ReviewProvider {
 export interface SafetyCheck {
   name: string;
   check(input: ReviewInput, signal: AbortSignal): Promise<"safe" | "unsafe">;
+}
+
+// The AI welfare check (step 3 above). It returns its raw answer, which the
+// reviewer checks against the fixed form (WelfareAnswer in contract.ts:
+// {"concern": "yes"} or {"concern": "no"}), or it throws.
+export interface WelfareCheck {
+  name: string;
+  check(input: ReviewInput, signal: AbortSignal): Promise<unknown>;
+}
+
+// The checks asked before any AI reviewer, and how long each may take
+interface Checks {
+  timeoutMs?: number;
+  safety?: SafetyCheck;
+  welfare?: WelfareCheck;
 }
 
 // How long one provider may take before the next one is asked
@@ -119,7 +145,7 @@ const ask = async (
 export const reviewSentence = async (
   input: ReviewInput,
   providers: ReviewProvider[],
-  { timeoutMs = PROVIDER_TIMEOUT_MS, safety }: { timeoutMs?: number; safety?: SafetyCheck } = {}
+  { timeoutMs = PROVIDER_TIMEOUT_MS, safety, welfare }: Checks = {}
 ): Promise<ReviewResult> => {
   // Only the two texts are passed on, whatever else the caller's object holds
   const shown: ReviewInput = { tell: input.tell, show: input.show };
@@ -133,10 +159,11 @@ export const reviewSentence = async (
   }
 
   // A copy of the Tell: sent back, but only once the safety check has said
-  // it's safe (step 2 above)
+  // it's safe and the welfare check has seen nothing worrying (steps 2 and 3
+  // above)
   if (rules.outcome === "redo") {
     const attempts: ProviderAttempt[] = [];
-    const held = await checkSafety(shown, safety, timeoutMs, attempts);
+    const held = await checkFirst(shown, { safety, welfare }, timeoutMs, attempts);
     if (held) return { suggestion: held, attempts };
     return {
       suggestion: { verdict: "redo", tip: rules.tip, reasons: rules.reasons, decidedBy: "rules" },
@@ -149,7 +176,7 @@ export const reviewSentence = async (
   // safety checks, and only ever stop an approval (spelling.ts, mechanics.ts).
   const misspelled = misspelledWords(shown.show);
   const mechanics = mechanicsIssues(shown.show);
-  const { suggestion, attempts } = await askProviders(shown, providers, { timeoutMs, safety });
+  const { suggestion, attempts } = await askProviders(shown, providers, { timeoutMs, safety, welfare });
   if (misspelled.length === 0 && mechanics.length === 0) return { suggestion, attempts };
 
   // The mistakes found, as evidence for the teacher, whatever the verdict.
@@ -198,11 +225,54 @@ const checkSafety = async (
   return null;
 };
 
-// The safety check, then each provider in turn (steps 2 to 4 above)
+// The welfare check (step 3 above), once the safety check has said safe. Its
+// answer is added to `attempts`; it gives back the hold to save unless the
+// answer is exactly "no". A hold is always "worrying": the check said "yes",
+// or it couldn't say "no", and either way a person should read it first.
+const checkWelfare = async (
+  shown: ReviewInput,
+  welfare: WelfareCheck | undefined,
+  timeoutMs: number,
+  attempts: ProviderAttempt[]
+): Promise<Suggestion | null> => {
+  const unchecked: Suggestion = {
+    verdict: "unsure",
+    tip: null,
+    reasons: ["worrying", "no-welfare-check"],
+    decidedBy: "none",
+  };
+  if (!welfare) return unchecked;
+  const checked = await ask({ review: (i, signal) => welfare.check(i, signal) }, shown, timeoutMs);
+  const parsed = checked.kind === "answer" ? WelfareAnswer.safeParse(checked.answer) : undefined;
+  const concern = parsed?.success ? parsed.data.concern : null;
+  attempts.push({
+    provider: welfare.name,
+    outcome: concern === "yes" ? "concern" : concern === "no" ? "no-concern" : checked.kind === "answer" ? "invalid" : checked.kind,
+    ms: checked.ms,
+  });
+  if (concern === "yes") {
+    return { verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: welfare.name };
+  }
+  if (concern !== "no") return unchecked;
+  return null;
+};
+
+// The checks before any AI reviewer's verdict is used: the safety check,
+// then, only if it said safe, the welfare check (steps 2 and 3 above)
+const checkFirst = async (
+  shown: ReviewInput,
+  { safety, welfare }: { safety?: SafetyCheck; welfare?: WelfareCheck },
+  timeoutMs: number,
+  attempts: ProviderAttempt[]
+): Promise<Suggestion | null> =>
+  (await checkSafety(shown, safety, timeoutMs, attempts)) ?? (await checkWelfare(shown, welfare, timeoutMs, attempts));
+
+// The safety and welfare checks, then each provider in turn (steps 2 to 5
+// above)
 const askProviders = async (
   shown: ReviewInput,
   providers: ReviewProvider[],
-  { timeoutMs, safety }: { timeoutMs: number; safety?: SafetyCheck }
+  { timeoutMs, safety, welfare }: { timeoutMs: number; safety?: SafetyCheck; welfare?: WelfareCheck }
 ): Promise<ReviewResult> => {
   const attempts: ProviderAttempt[] = [];
 
@@ -214,9 +284,9 @@ const askProviders = async (
     };
   }
 
-  // The safety check first, and a sentence it hasn't passed never reaches a
-  // reviewer
-  const held = await checkSafety(shown, safety, timeoutMs, attempts);
+  // The safety and welfare checks first: a sentence either holds is never
+  // sent to a reviewer
+  const held = await checkFirst(shown, { safety, welfare }, timeoutMs, attempts);
   if (held) return { suggestion: held, attempts };
 
   for (const provider of providers) {

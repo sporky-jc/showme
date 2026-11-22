@@ -1,16 +1,19 @@
-// Cloudflare Workers AI: the safety check and the main AI reviewer.
+// Cloudflare Workers AI: the safety check, the welfare check and the main AI
+// reviewer.
 //
 // Free: 10,000 "Neurons" a day on the Workers Free plan, with no card.
 // When they run out, requests fail until midnight UTC (nothing is ever
 // charged), and the reviewer leaves sentences for the teacher. A review
-// with its safety check uses roughly 50 Neurons, so about 200 sentences a
-// day. Cloudflare doesn't train models on what it's sent or keep it
+// with its safety check used roughly 50 Neurons; the welfare check is a
+// second, shorter call to the same 70B model, so count on roughly 90, about
+// 100 sentences a day (an estimate: measure it on the account). Cloudflare
+// doesn't train models on what it's sent or keep it
 // (developers.cloudflare.com/workers-ai/platform/data-usage/).
 //
 // Needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN (an API token with
 // only the "Workers AI" permission). See docs/ai-reviewer-setup.md.
-import type { ReviewInput, ReviewProvider, SafetyCheck } from "../reviewer.js";
-import { ANSWER_SCHEMA, REVIEW_INSTRUCTIONS, reviewMessage } from "../prompt.js";
+import type { ReviewInput, ReviewProvider, SafetyCheck, WelfareCheck } from "../reviewer.js";
+import { ANSWER_SCHEMA, REVIEW_INSTRUCTIONS, reviewMessage, WELFARE_INSTRUCTIONS, WELFARE_SCHEMA } from "../prompt.js";
 import { asJson, postJson, ProviderError } from "./http.js";
 
 export interface CloudflareSettings {
@@ -22,6 +25,9 @@ export interface CloudflareSettings {
 
 export const CLOUDFLARE_REVIEW_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 export const CLOUDFLARE_SAFETY_MODEL = "@cf/meta/llama-guard-3-8b";
+// The welfare check's model: fixed, not the reviewer's (which can be changed
+// with CLOUDFLARE_REVIEW_MODEL), so trying another reviewer never weakens it
+export const CLOUDFLARE_WELFARE_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
 const runUrl = (accountId: string, model: string) =>
   `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`;
@@ -120,3 +126,31 @@ export const readSafetyAnswer = (answer: unknown): "safe" | "unsafe" => {
   }
   throw new ProviderError("Unexpected answer from the safety check", undefined, true);
 };
+
+// The welfare check (reviewer.ts, step 3): the same kind of call as the
+// reviewer, with its own instructions and answer form (prompt.ts). Its
+// answer is handed back as it came; the reviewer checks it strictly, and
+// anything but {"concern": "no"} holds the sentence as worrying. Named apart
+// from the reviewer, though it's the same model, so the queue can tell their
+// attempts apart (queue.ts).
+export const cloudflareWelfare = ({ accountId, token }: CloudflareSettings): WelfareCheck => ({
+  name: `cloudflare-welfare:${CLOUDFLARE_WELFARE_MODEL}`,
+  check: async (input: ReviewInput, signal: AbortSignal) => {
+    const body = await postJson(
+      runUrl(accountId, CLOUDFLARE_WELFARE_MODEL),
+      token,
+      {
+        messages: [
+          { role: "system", content: WELFARE_INSTRUCTIONS },
+          { role: "user", content: reviewMessage(input) },
+        ],
+        response_format: { type: "json_schema", json_schema: WELFARE_SCHEMA },
+        temperature: 0,
+        max_tokens: 20,
+      },
+      signal,
+      { statusOf }
+    );
+    return asJson(responseOf(body));
+  },
+});
