@@ -1,47 +1,57 @@
-/* The "paper cut-out" theme: sky, paper cards with a solid shadow, orange
-   for anything you can press, and one color per sentence status.
+/* The "Picture it" theme: a fresh mint page, white cards with a solid
+   shadow, coral for anything you can press, and one color per sentence
+   status. (The tokens keep their old --paper- names so every page picks up
+   the new colors without changing its layout.)
 
    Imported in src/index.tsx after Bootstrap, so equal-strength rules
-   here win over theirs. Pages still use public/styles.css for their layout. */
+   here win over theirs. Pages still use public/styles.css for their layout.
+   Contrast is checked in src/theme/contrast.test.ts. */
 
 :root {
   /* Surfaces */
-  --paper-sky: #dff1ff;
+  --paper-sky: #effff6;
   --paper-white: #ffffff;
-  --paper-edge: #b9cfe0; /* the solid "paper shadow" under white cards */
-  --paper-control-edge: #74889c; /* the outline of a box or button on white (3.6:1) */
+  --paper-edge: #cfe9dc; /* the solid shadow under white cards */
+  --paper-control-edge: #6f8a80; /* the outline of a box or button (3.7:1 on white) */
 
   /* Text */
-  --paper-ink: #2d2a32;
-  --paper-muted: #5c5670; /* 6:1 on the sky, 7:1 on white */
+  --paper-ink: #20304a;
+  --paper-muted: #4b5b73; /* 6.7:1 on the page, 6.9:1 on white */
 
-  /* Anything you can press. Dark ink on this orange reads at 6:1; white
-     text on it doesn't (2.4:1), so action text is ink. */
-  --paper-action: #ff8a3d;
-  --paper-action-shadow: #d9661e;
-  --paper-action-ink: #2d2a32;
+  /* Anything you can press. Dark ink on this coral reads at 4.7:1; white
+     text on it doesn't (2.8:1), so action text is ink. */
+  --paper-action: #ff6b5b;
+  --paper-action-shadow: #d94a3b;
+  --paper-action-ink: #20304a;
 
-  /* Sentence status: done, your turn, try again (text 4.7–5.4:1 on its
+  /* The brand violet: the logo's "ME" tag and the frame around pictures.
+     White on it is 4.4:1, so white text on violet must be big and bold
+     (24px, or 19px bold). */
+  --paper-brand: #7a5cff;
+  --paper-brand-shadow: #5a3fd6;
+  --paper-brand-ink: #ffffff;
+
+  /* Sentence status: done, your turn, try again (text 5.8–6:1 on its
      background) */
-  --paper-done-bg: #def5e4;
-  --paper-done-ink: #1f7a3e;
-  --paper-done-edge: #9fd7ae;
-  --paper-turn-bg: #fff6cc;
-  --paper-turn-ink: #8a6a00;
-  --paper-turn-edge: #e8d27a;
-  --paper-retry-bg: #ffe2e0;
-  --paper-retry-ink: #b42318;
-  --paper-retry-edge: #f0b3ae;
+  --paper-done-bg: #d9f7e8;
+  --paper-done-ink: #17694a;
+  --paper-done-edge: #6fe0b0;
+  --paper-turn-bg: #fff1c2;
+  --paper-turn-ink: #7a5600;
+  --paper-turn-edge: #ffc93c;
+  --paper-retry-bg: #ffe0dc;
+  --paper-retry-ink: #a1281b;
+  --paper-retry-edge: #ff9f94;
 
   /* Scenery */
   --paper-hill-1: #9fdcae;
   --paper-hill-2: #5fbf7d;
   --paper-hill-3: #3a9a5c;
-  --paper-sun: #ffd35c;
+  --paper-sun: #ffc93c;
 
   --paper-radius: 20px;
-  --paper-font-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
-  --paper-font-body: Nunito, "Segoe UI", system-ui, sans-serif;
+  --paper-font-display: Grandstander, "Trebuchet MS", system-ui, sans-serif;
+  --paper-font-body: Lexend, "Segoe UI", system-ui, sans-serif;
 }
 
 body {
@@ -267,7 +277,7 @@ h3,
   gap: 6px;
   border-radius: 20px;
   background: var(--paper-white);
-  box-shadow: 0 6px 0 var(--paper-edge), 0 14px 28px rgba(45, 42, 50, 0.16);
+  box-shadow: 0 6px 0 var(--paper-edge), 0 14px 28px rgba(32, 48, 74, 0.16);
   text-align: left;
 }
 
@@ -349,7 +359,7 @@ h3,
     line-height: 1.15;
   }
 
-  /* The page you're on, on the green: orange alone doesn't stand out from
+  /* The page you're on, on the green: coral alone doesn't stand out from
      it, so it also gets an ink outline */
   .paper-nav__links a[aria-current="page"] {
     box-shadow: 0 0 0 3px var(--paper-ink);
@@ -467,10 +477,10 @@ h3,
 
 .paper-logo__me {
   z-index: 2;
-  background: var(--paper-action);
-  color: var(--paper-ink);
+  background: var(--paper-brand);
+  color: var(--paper-brand-ink);
   border-radius: 0 0.45em 0.45em 0;
-  box-shadow: 0.13em 0.16em 0 var(--paper-action-shadow);
+  box-shadow: 0.13em 0.16em 0 var(--paper-brand-shadow);
 }
 
 .paper-logo__line {
@@ -506,6 +516,9 @@ h3,
 
 /* ---- Scribbles the pencil ---- */
 
+/* He's always moving: one big, simple motion per mood. Origins are in his
+   drawing's own units (viewBox 0 0 210 216): his feet at 100,200 and his
+   shoulders at 64,108 and 136,108. */
 .scribbles {
   display: inline-block;
   overflow: visible;
@@ -518,18 +531,46 @@ h3,
 }
 
 .scribbles__body {
-  transform-origin: 100px 180px;
-  animation: scribbles-sway 4s ease-in-out infinite;
+  transform-origin: 100px 200px;
+  animation: scribbles-bob 3s ease-in-out infinite;
+}
+
+.scribbles__shadow {
+  transform-origin: 100px 208px;
 }
 
 .scribbles--happy .scribbles__body {
-  transform-origin: 100px 120px;
-  animation: scribbles-spin 5s ease-in-out infinite;
+  animation: scribbles-hop 1.1s ease-in-out infinite;
+}
+
+.scribbles--happy .scribbles__shadow {
+  animation: scribbles-shadow 1.1s ease-in-out infinite;
+}
+
+.scribbles--thinking .scribbles__body {
+  animation: scribbles-ponder 2.6s ease-in-out infinite;
+}
+
+.scribbles--worried .scribbles__body {
+  animation: scribbles-wobble 1.8s ease-in-out infinite;
 }
 
 .scribbles__arm {
-  transform-origin: 66px 104px;
+  transform-origin: 64px 106px;
   animation: scribbles-wave 2.4s ease-in-out infinite;
+}
+
+.scribbles__arm--right {
+  transform-origin: 136px 106px;
+  animation-name: scribbles-wave-right;
+}
+
+.scribbles--happy .scribbles__arm {
+  animation-duration: 0.55s;
+}
+
+.scribbles--happy .scribbles__arm--right {
+  animation-delay: 0.27s;
 }
 
 .scribbles--thinking .scribbles__arm {
@@ -540,6 +581,20 @@ h3,
   transform-box: fill-box;
   transform-origin: center;
   animation: scribbles-blink 4.5s infinite;
+}
+
+.scribbles__dots circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: scribbles-dot 1.2s ease-in-out infinite;
+}
+
+.scribbles__dots circle:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.scribbles__dots circle:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
 @keyframes scribbles-squiggle {
@@ -555,27 +610,72 @@ h3,
   }
 }
 
-@keyframes scribbles-sway {
+@keyframes scribbles-bob {
   0%,
   100% {
-    transform: rotate(-3deg);
+    transform: translateY(0) rotate(-3deg);
   }
   50% {
-    transform: rotate(3deg);
+    transform: translateY(-10px) rotate(3deg);
   }
 }
 
-@keyframes scribbles-spin {
+/* Squash, jump, stretch, land */
+@keyframes scribbles-hop {
   0%,
-  78% {
-    transform: translateY(0) rotate(0);
-  }
-  84% {
-    transform: translateY(-14px) rotate(180deg);
-  }
-  90%,
   100% {
-    transform: translateY(0) rotate(360deg);
+    transform: translateY(0) scale(1, 1);
+  }
+  15% {
+    transform: translateY(0) scale(1.1, 0.9);
+  }
+  45% {
+    transform: translateY(-30px) scale(0.94, 1.08) rotate(-4deg);
+  }
+  70% {
+    transform: translateY(0) scale(1.08, 0.92);
+  }
+  85% {
+    transform: translateY(-5px) scale(1, 1);
+  }
+}
+
+@keyframes scribbles-shadow {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  45% {
+    transform: scaleX(0.6);
+  }
+}
+
+@keyframes scribbles-ponder {
+  0%,
+  100% {
+    transform: rotate(-7deg);
+  }
+  50% {
+    transform: rotate(7deg);
+  }
+}
+
+@keyframes scribbles-wobble {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+  40% {
+    transform: translateX(5px) rotate(2deg);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
   }
 }
 
@@ -585,7 +685,17 @@ h3,
     transform: rotate(0);
   }
   50% {
-    transform: rotate(-14deg);
+    transform: rotate(-20deg);
+  }
+}
+
+@keyframes scribbles-wave-right {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(20deg);
   }
 }
 
@@ -600,9 +710,21 @@ h3,
   }
 }
 
+@keyframes scribbles-dot {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+}
+
 /* ---- Shared by the Welcome and Today pages ---- */
 
-/* A white card with an orange sheet of paper peeking out behind it */
+/* A white card with a coral sheet of paper peeking out behind it */
 .paper-stack {
   position: relative;
 }
@@ -611,7 +733,7 @@ h3,
   content: "";
   position: absolute;
   inset: 0;
-  background: #ffb27a;
+  background: #ffb3a8;
   border-radius: 32px;
   transform: translate(12px, 12px) rotate(0.9deg);
 }
@@ -648,7 +770,7 @@ h3,
   transform: rotate(45deg);
 }
 
-/* Two or more choices in one pill; the chosen one is orange */
+/* Two or more choices in one pill; the chosen one is coral */
 .paper-toggle {
   display: flex;
   gap: 4px;
@@ -724,7 +846,7 @@ h3,
   background: var(--paper-sun);
   border-radius: 14px;
   padding: 0 0.2em;
-  /* Baloo's letters sit low in their line: trim the yellow to fit them */
+  /* Keep the yellow tight around the display font's letters */
   line-height: 1;
   display: inline-block;
 }
@@ -894,7 +1016,7 @@ h3,
 }
 
 /* Dark enough to see on the sky: the dots 6:1, and the chosen one's dark
-   ring where its orange alone would be 2:1 */
+   ring where its coral alone would be 2:1 */
 .paper-welcome__picker button::before {
   content: "";
   display: block;
@@ -1304,7 +1426,7 @@ h3,
   display: flex;
 }
 
-/* A white card on a sheet of colored paper: orange and blue take turns */
+/* A white card on a sheet of colored paper: coral and blue take turns */
 .paper-gallery__card {
   flex: 1;
   display: flex;
@@ -1313,7 +1435,7 @@ h3,
   overflow: hidden;
   background: var(--paper-white);
   border-radius: 22px;
-  box-shadow: 6px 7px 0 #ffd8bd;
+  box-shadow: 6px 7px 0 #ffd9d3;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -1343,7 +1465,7 @@ h3,
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #b93a0a; /* 5.7:1 on white */
+  color: #a83224; /* 6.7:1 on white */
 }
 
 .paper-gallery__show {
@@ -1378,7 +1500,7 @@ h3,
 @media (hover: hover) {
   .paper-gallery__card:hover {
     transform: translateY(-6px) rotate(-0.8deg);
-    box-shadow: 10px 13px 0 #ffd8bd;
+    box-shadow: 10px 13px 0 #ffd9d3;
   }
 
   .paper-gallery__cards > li:nth-child(even) .paper-gallery__card:hover {
@@ -1491,8 +1613,10 @@ h3,
   }
 
   .scribbles__body,
+  .scribbles__shadow,
   .scribbles__arm,
   .scribbles__eye,
+  .scribbles__dots circle,
   .paper-btn,
   .paper-welcome__photo img,
   .paper-note,
@@ -1656,8 +1780,8 @@ h3,
   padding: 10px 16px;
   border: 3px solid var(--paper-control-edge);
   border-radius: 20px;
-  background-color: #fffdf5;
-  background-image: linear-gradient(transparent 39px, #dbe7f1 39px);
+  background-color: #f8fffb;
+  background-image: linear-gradient(transparent 39px, #d6e9df 39px);
   background-size: 100% 40px;
   background-attachment: local;
   color: var(--paper-ink);
@@ -1780,7 +1904,7 @@ h3,
   font-size: 0.9rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #b93a0a;
+  color: #a83224;
 }
 
 .paper-write__sent-show {
@@ -2164,7 +2288,7 @@ h3,
   padding: 16px 18px 18px;
   border-radius: 24px;
   background: var(--paper-white);
-  box-shadow: 0 6px 0 #ffb27a;
+  box-shadow: 0 6px 0 #ffb3a8;
 }
 
 .paper-review__who {
@@ -2221,7 +2345,7 @@ h3,
   font-size: 0.85rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #b93a0a;
+  color: #a83224;
 }
 
 .paper-review__show {
@@ -2238,7 +2362,7 @@ h3,
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   padding-top: 14px;
-  border-top: 2px dashed #e4eef7;
+  border-top: 2px dashed #e3f1ea;
 }
 
 .paper-review__decide .paper-btn {
@@ -2249,7 +2373,7 @@ h3,
 /* White on this green reads at 5.4:1 */
 .paper-review__approve {
   background: var(--paper-done-ink);
-  box-shadow: 0 4px 0 #14562b;
+  box-shadow: 0 4px 0 #0f4d35;
   color: var(--paper-white);
 }
 
@@ -2335,7 +2459,7 @@ h3,
 .paper-review__sticker--your-call {
   background: var(--paper-white);
   color: var(--paper-muted);
-  box-shadow: 0 3px 0 #d3e0ec;
+  box-shadow: 0 3px 0 #cfe3d9;
   transform: rotate(2deg);
 }
 
@@ -2370,7 +2494,7 @@ h3,
   margin-top: 6px;
   padding: 14px 16px;
   border-radius: 6px 20px 20px 20px;
-  background: #f2f6fa;
+  background: #eef7f2;
 }
 
 .paper-scribbles-note--check-in {
@@ -2444,7 +2568,7 @@ h3,
 
 /* The button Scribbles would press: a ring around it */
 .paper-review__approve.paper-review__pick {
-  box-shadow: 0 4px 0 #14562b, 0 0 0 3px var(--paper-white), 0 0 0 6px var(--paper-done-edge);
+  box-shadow: 0 4px 0 #0f4d35, 0 0 0 3px var(--paper-white), 0 0 0 6px var(--paper-done-edge);
 }
 
 .paper-review__again.paper-review__pick {
@@ -2464,7 +2588,7 @@ h3,
   gap: 10px;
   padding: 16px;
   border-radius: 20px;
-  background: #f6faff;
+  background: #f6fffa;
 }
 
 .paper-review__tips-question {
@@ -2480,7 +2604,7 @@ h3,
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  border: 3px solid #e4eef7;
+  border: 3px solid #e3f1ea;
   border-radius: 16px;
   background: var(--paper-white);
   font-weight: 700;
@@ -2497,7 +2621,7 @@ h3,
 
 .paper-review__tip--chosen {
   border-color: var(--paper-action);
-  box-shadow: 0 4px 0 #ffd1b0;
+  box-shadow: 0 4px 0 #ffd9d3;
 }
 
 .paper-review__tip-pick {
@@ -2516,7 +2640,7 @@ h3,
   border: 0;
   padding: 6px 0;
   background: none;
-  color: #b93a0a;
+  color: #a83224;
   font-weight: 800;
   text-decoration: underline;
   cursor: pointer;
@@ -2524,8 +2648,8 @@ h3,
 
 .paper-review__cancel {
   background: var(--paper-white);
-  box-shadow: 0 4px 0 #d3e0ec;
-  outline: 2px solid #d3e0ec;
+  box-shadow: 0 4px 0 #cfe3d9;
+  outline: 2px solid #cfe3d9;
   color: var(--paper-ink);
 }
 
@@ -2635,7 +2759,7 @@ h3,
 
 /* The Tell and its Show sentence, under the photo */
 .paper-about__example {
-  margin: 0 12px 12px 0; /* room for the orange sheet behind */
+  margin: 0 12px 12px 0; /* room for the coral sheet behind */
 }
 
 .paper-about__example-card {
@@ -2760,7 +2884,7 @@ h3,
 }
 
 .paper-about__step--action {
-  box-shadow: 0 7px 0 #ffb27a;
+  box-shadow: 0 7px 0 #ffb3a8;
 }
 
 .paper-about__step--action .paper-about__number {
@@ -2876,7 +3000,7 @@ h3,
 /* The same colors as the real buttons on the review page */
 .paper-about__approve {
   background: var(--paper-done-ink);
-  box-shadow: 0 4px 0 #14562b;
+  box-shadow: 0 4px 0 #0f4d35;
   color: var(--paper-white);
 }
 
@@ -2925,13 +3049,13 @@ h3,
 }
 
 /* ---- The sign-in pop-up (pages/Login.tsx) ----
-   A native <dialog>. Wide screens: a paper card with an orange shadow and
+   A native <dialog>. Wide screens: a paper card with a coral shadow and
    Scribbles waving on top. Phones: a sheet that slides up from the bottom,
    standing on the same green hill as the bottom bar. */
 
 .paper-signin {
   border: 0;
-  /* room for the card's orange shadow, inside the dialog's scroll box */
+  /* room for the card's coral shadow, inside the dialog's scroll box */
   padding: 0 14px 14px 0;
   background: transparent;
   color: var(--paper-ink);
@@ -2944,7 +3068,7 @@ h3,
 }
 
 .paper-signin::backdrop {
-  background: rgba(45, 42, 50, 0.45);
+  background: rgba(32, 48, 74, 0.45);
 }
 
 .paper-signin__card {
@@ -2952,7 +3076,7 @@ h3,
   margin-top: 72px; /* room for Scribbles above the card */
   background: var(--paper-white);
   border-radius: 32px;
-  box-shadow: 12px 12px 0 #ffb27a;
+  box-shadow: 12px 12px 0 #ffb3a8;
   padding: 64px 40px 28px;
   display: flex;
   flex-direction: column;
@@ -3006,7 +3130,7 @@ h3,
   height: 44px;
   border: 0;
   border-radius: 14px;
-  background: #f1eefa;
+  background: #ece6ff;
   color: var(--paper-ink);
   display: grid;
   place-items: center;

@@ -650,3 +650,18 @@ describe("the scheduled reviewer, paused from the Teacher page", () => {
     expect(ai.review).not.toHaveBeenCalled();
   });
 });
+
+describe("test-account sentences", () => {
+  it("are never reviewed, so QA Wolf's runs don't use up the AI allowance", async () => {
+    const real = await addSentence();
+    const author = await createUser({ id: "test-student-1", email: "test-student-1@example.com" });
+    const testSentence = await Sentence.create({ title: "Cold", tell: TELL, show: GOOD, author: author._id, GID: author.id });
+    const ai = approving();
+
+    expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 1 });
+    expect(await ReviewSuggestion.exists({ sentence: real._id })).toBeTruthy();
+    expect(await ReviewSuggestion.exists({ sentence: testSentence._id })).toBeNull();
+    expect(ai.review).toHaveBeenCalledTimes(1);
+  });
+});
+

@@ -28,6 +28,12 @@ npm-debug.log*
 # settings (permission rules every session on this repo should use)
 .claude/*
 !.claude/settings.json
+# Shared Claude Code skills, slash commands, subagents and their checklists
+# (see .claude/skills/AGENT-SKILLS.md)
+!.claude/skills/
+!.claude/commands/
+!.claude/agents/
+!.claude/references/
 
 # Editor and operating system files
 .vscode/
