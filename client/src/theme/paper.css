@@ -1519,9 +1519,23 @@ h3,
 /* The photo fills the top of the card, edge to edge. Its frame keeps it in
    place when it grows under the mouse. */
 .paper-gallery__frame {
+  position: relative;
   height: 230px;
   overflow: hidden;
   background: var(--paper-sky);
+}
+
+/* The sentence's first sense word, stuck on the photo's corner */
+.paper-gallery__sticker {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+
+.paper-gallery__sticker .paper-sticker__word {
+  font-size: 0.9rem;
+  padding: 11px 22px;
 }
 
 .paper-gallery__photo {
@@ -2290,6 +2304,19 @@ h3,
   font-weight: 800;
   font-size: 0.8rem;
   color: var(--paper-turn-ink);
+}
+
+/* The senses the sentence uses, as small stickers */
+.paper-mine__senses {
+  margin: 0 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.paper-mine__senses .paper-sticker__word {
+  font-size: 0.8rem;
+  padding: 9px 18px;
 }
 
 .paper-mine__foot {
