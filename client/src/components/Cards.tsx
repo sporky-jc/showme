@@ -2,8 +2,6 @@ import React from "react";
 import { useSelector } from "react-redux";
 import * as config from "../../src/config";
 import LikeButton from "./LikeButton";
-import SenseSticker from "./SenseSticker";
-import { firstSenseWord } from "../senses";
 import type { LikesById } from "./useLikes";
 import type { GallerySentence } from "../api/types";
 import type { RootState } from "../reducers/types";
@@ -19,9 +17,7 @@ const authorName = ({ firstName, lastName }: GallerySentence["author"]) =>
   lastName ? `${firstName} ${Array.from(lastName)[0]}.` : firstName;
 
 // The gallery's cards: each approved sentence under its Tell sentence's
-// photo, with who wrote it and, for signed-in users, its likes. The photo
-// wears a sticker of the sentence's first sense word ("THUMPED!"), so cards
-// for the same Tell don't all look alike.
+// photo, with who wrote it and, for signed-in users, its likes.
 function Cards(props: {
   displaySentences?: GallerySentence[];
   // The signed-in user's view of each sentence's likes, or null for none
@@ -40,7 +36,6 @@ function Cards(props: {
     <ul className="paper-gallery__cards">
       {sentences.map((sentence) => {
         const day = Number(sentence.title.match(/\d+$/)?.[0]);
-        const lead = firstSenseWord(sentence.show);
         return (
           <li key={sentence._id}>
             <article className="paper-gallery__card">
@@ -53,11 +48,6 @@ function Cards(props: {
                   alt=""
                   loading="lazy"
                 />
-                {lead && (
-                  <span className="paper-gallery__sticker">
-                    <SenseSticker word={lead.word} sense={lead.sense} tilt={6} />
-                  </span>
-                )}
               </div>
               <p className="paper-gallery__tell">{sentence.tell}</p>
               <p className="paper-gallery__show">{sentence.show}</p>

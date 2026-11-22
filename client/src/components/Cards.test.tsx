@@ -42,20 +42,6 @@ describe("Cards", () => {
     expect(screen.getAllByText("Ada L.")).toHaveLength(2);
   });
 
-  it("sticks the sentence's first sense word on its photo, and nothing on a sentence without one", () => {
-    const [shows, tells] = approved(2);
-    renderCards([
-      { ...shows, show: "Frost sparkled on the gate and my fingers stung." },
-      { ...tells, show: "It was a really good day." },
-    ]);
-
-    const stickers = document.querySelectorAll(".paper-gallery__sticker");
-    expect(stickers).toHaveLength(1);
-    expect(stickers[0]).toHaveTextContent("SPARKLED!");
-    // Decoration: the sentence under the photo says it
-    expect(stickers[0].querySelector(".paper-sticker")).toHaveAttribute("aria-hidden", "true");
-  });
-
   it("shows at most 12 cards", () => {
     renderCards(approved(15));
 

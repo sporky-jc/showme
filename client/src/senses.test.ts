@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstSenseWord, repeatedTellWord, senseCounts, senseWords, wordsOf } from "./senses";
+import { repeatedTellWord, senseCounts, senseWords, wordsOf } from "./senses";
 
 describe("senseWords", () => {
   it("finds the word that uses each sense", () => {
@@ -80,15 +80,5 @@ describe("senseCounts", () => {
 
   it("is all zeros with no sentences", () => {
     expect(senseCounts([])).toEqual({ see: 0, hear: 0, feel: 0, smell: 0, taste: 0 });
-  });
-});
-
-describe("firstSenseWord", () => {
-  it("finds the sentence's first sense word, in reading order", () => {
-    expect(firstSenseWord("He licked my cheek and his tail thumped")).toEqual({ sense: "feel", word: "licked" });
-  });
-
-  it("is null for a sentence that only tells", () => {
-    expect(firstSenseWord("The dog was happy.")).toBeNull();
   });
 });

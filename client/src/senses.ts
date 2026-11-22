@@ -117,13 +117,3 @@ export function senseCounts(sentences: readonly string[]): Record<SenseKey, numb
   }
   return counts;
 }
-
-// The sentence's first word that uses a sense, with that sense: the sticker a
-// gallery card leads with. Null when the sentence uses none.
-export function firstSenseWord(text: string): { sense: SenseKey; word: string } | null {
-  for (const word of wordsOf(text)) {
-    const sense = SENSE_KEYS.find((key) => matches(word, key));
-    if (sense) return { sense, word };
-  }
-  return null;
-}
