@@ -1,4 +1,5 @@
 import express from "express";
+import owner from "../middlewares/owner.js";
 import {
   getUserSentences,
   createNewUserSentence,
@@ -18,6 +19,7 @@ import {
 } from "../controllers/routes.js";
 import { googleAuth } from "../controllers/auth.js";
 import { getReviewerStatus, updateReviewerSwitch } from "../controllers/reviewerSwitch.js";
+import { getOwnerSettings, updateOwnerSettings } from "../controllers/ownerSettings.js";
 import { testLogin } from "../controllers/testLogin.js";
 import {
   getLikes,
@@ -97,6 +99,9 @@ router.get("/Admin/count", reviewCountRateLimit, auth, admin, getReviewCounts);
 // it (controllers/reviewerSwitch.ts).
 router.get("/Admin/reviewer", reviewerSwitchRateLimit, auth, admin, getReviewerStatus);
 router.patch("/Admin/reviewer", reviewerSwitchRateLimit, auth, admin, updateReviewerSwitch);
+// The site owner's settings (the sense tagger's switch): the owner only
+router.get("/Admin/owner", reviewerSwitchRateLimit, auth, admin, owner, getOwnerSettings);
+router.patch("/Admin/owner", reviewerSwitchRateLimit, auth, admin, owner, updateOwnerSettings);
 
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);

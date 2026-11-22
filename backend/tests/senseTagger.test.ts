@@ -145,12 +145,10 @@ describe("tagShow", () => {
 });
 
 describe("taggerSetup", () => {
-  it("is on only with SENSE_TAGGER=on and the Cloudflare account and token", () => {
-    const keys = { CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" };
-    expect(taggerSetup({ SENSE_TAGGER: "on", ...keys })).toEqual({ accountId: "a", token: "t" });
-    expect(taggerSetup({ ...keys })).toBeNull();
-    expect(taggerSetup({ SENSE_TAGGER: "yes", ...keys })).toBeNull();
-    expect(taggerSetup({ SENSE_TAGGER: "on", CLOUDFLARE_ACCOUNT_ID: "a" })).toBeNull();
+  it("has the Cloudflare account and token, or nothing (the owner's switch says whether it runs)", () => {
+    expect(taggerSetup({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" })).toEqual({ accountId: "a", token: "t" });
+    expect(taggerSetup({ CLOUDFLARE_ACCOUNT_ID: "a" })).toBeNull();
+    expect(taggerSetup({})).toBeNull();
   });
 });
 

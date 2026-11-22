@@ -7,9 +7,9 @@
 #   CLOUDFLARE_AI_TOKEN     secret: an API token with only "Workers AI" access
 #   GROQ_API_KEY            secret, optional: only used with REVIEWER_USE_GROQ
 #   REVIEWER_MODE           variable: "off" (the default) or "suggest"
-#   SENSE_TAGGER            variable: "on" turns on the sense tagger
-#                           (backend/tagger, needs the Cloudflare secrets);
-#                           off when unset
+#   OWNER_EMAIL             secret: the email of the site's owner, who sees
+#                           the Owner settings on the Teacher page (turning
+#                           the sense tagger on and off); nobody when unset
 #   REVIEWER_USE_GROQ       variable, optional: "yes" to add Groq (13+ only)
 #   CLOUDFLARE_REVIEW_MODEL variable, optional: another Workers AI model to
 #                           review with (e.g. @cf/meta/llama-3.1-8b-instruct-fast)
@@ -31,12 +31,13 @@ else
   line REVIEWER_MODE off
 fi
 
-case "${SENSE_TAGGER:-}" in
-  on) line SENSE_TAGGER on ;;
-  ""|off) ;;
-  *) echo "::warning::SENSE_TAGGER must be on or off; the sense tagger stays off" >&2 ;;
-esac
-
+if [ -n "${OWNER_EMAIL:-}" ]; then
+  if [[ "$OWNER_EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+    line OWNER_EMAIL "$OWNER_EMAIL"
+  else
+    echo "::warning::OWNER_EMAIL doesn't look like an email; nobody sees the Owner settings" >&2
+  fi
+fi
 if [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || [ -n "${CLOUDFLARE_AI_TOKEN:-}" ]; then
   if [[ "${CLOUDFLARE_ACCOUNT_ID:-}" =~ ^[0-9a-f]{32}$ ]] && [[ "${CLOUDFLARE_AI_TOKEN:-}" =~ ^[A-Za-z0-9_-]{20,200}$ ]]; then
     line CLOUDFLARE_ACCOUNT_ID "$CLOUDFLARE_ACCOUNT_ID"

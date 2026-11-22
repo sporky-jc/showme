@@ -132,6 +132,12 @@ export const ReviewerSwitchBody = z.object({
   paused: z.boolean({ error: "paused must be true or false" }),
 });
 
+// PATCH /Admin/owner (the site's owner only): turns the sense tagger on or
+// off
+export const OwnerSettingsBody = z.object({
+  senseTagger: z.boolean({ error: "senseTagger must be true or false" }),
+});
+
 // PUT and DELETE /Collections/:id/like: the sentence to like or unlike, from
 // the address. It goes into a database query, so, like ReviewBody's, it
 // must be a real id written as text.
@@ -349,6 +355,22 @@ export const ReviewerStatus = z.object({
   pausedAt: z.iso.datetime().optional(),
 });
 
+// GET and PATCH /Admin/owner (the site's owner only): the Owner settings on
+// the Teacher page. The sense tagger (tagger/queue.ts): whether it's on,
+// whether the Cloudflare keys it needs are set (ready), when it was last
+// turned on or off, and how many sentences it tagged today against its
+// daily limit (perDay), and when it last tagged one.
+export const OwnerSettings = z.object({
+  senseTagger: z.object({
+    on: z.boolean(),
+    ready: z.boolean(),
+    changedAt: z.iso.datetime().optional(),
+    today: z.number().int().nonnegative(),
+    perDay: z.number().int().positive(),
+    lastTaggedAt: z.iso.datetime().optional(),
+  }),
+});
+
 // An approved sentence's likes, as a signed-in student sees them: GET
 // /Collections/likes lists every approved sentence's, and PUT and DELETE
 // /Collections/:id/like send back the one changed. Likes are for signed-in
@@ -393,6 +415,8 @@ export type UndoAnswer = z.infer<typeof UndoAnswer>;
 export type ReviewCounts = z.infer<typeof ReviewCounts>;
 export type ReviewerSwitchBody = z.infer<typeof ReviewerSwitchBody>;
 export type ReviewerStatus = z.infer<typeof ReviewerStatus>;
+export type OwnerSettingsBody = z.infer<typeof OwnerSettingsBody>;
+export type OwnerSettings = z.infer<typeof OwnerSettings>;
 export type SentenceLikes = z.infer<typeof SentenceLikes>;
 export type Look = z.infer<typeof Look>;
 export type Frame = (typeof FRAMES)[number];

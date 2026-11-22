@@ -11,6 +11,7 @@ import { RUN_DEADLINE_MS as REVIEW_DEADLINE_MS, reviewWaitingSentences } from ".
 import { reviewerSetup } from "./reviewer/settings.js";
 import { tagApprovedSentences } from "./tagger/queue.js";
 import { taggerSetup } from "./tagger/settings.js";
+import { readOwnerSettings } from "./models/ownerSettings.js";
 
 mongoose.set("strictQuery", false);
 // Connect to mongodb via mongoose. DATABASE_NAME overrides the database in the
@@ -65,11 +66,12 @@ export const reviewer = onSchedule(
   async () => {
     // The sense tagger first (tagger/queue.ts): highlights for approved
     // sentences, from two models that must agree. It runs whether or not
-    // Scribbles is on, only when SENSE_TAGGER is "on", and starts no new
-    // sentence after 45 seconds. Scribbles gets the rest of its 240.
+    // Scribbles is on, only while the owner's switch is on (Owner settings
+    // on the Teacher page) and the Cloudflare keys are set, and starts no
+    // new sentence after 45 seconds. Scribbles gets the rest of its 240.
     const started = Date.now();
     const tagger = taggerSetup();
-    if (tagger) {
+    if (tagger && (await readOwnerSettings()).senseTagger) {
       const { tagged, unreadable, stopped } = await tagApprovedSentences(tagger);
       if (tagged > 0 || stopped) {
         logger.info(
