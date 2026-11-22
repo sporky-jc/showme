@@ -59,9 +59,9 @@ sentences, gallery), since the badge says it instead.
 **Estimated scope:** Medium
 
 ## Checkpoint: Foundation
-- [ ] All tests pass, builds clean
-- [ ] QA Wolf green on staging after both merge
-- [ ] Review with a person
+- [x] All tests pass, builds clean
+- [x] QA Wolf green on staging after both merge
+- [x] Review with a person
 
 ## Phase 2: Refreshers
 
@@ -151,7 +151,7 @@ refresher opens on Day 1.
 
 **Verification:**
 - [x] `cd client && npx vitest run`
-- [ ] New QA Wolf flows (Chi Sandbox): first-time senses refresher on Day 1,
+- [x] New QA Wolf flows (Chi Sandbox): first-time senses refresher on Day 1,
   and reopening from the button; both pass on the preview
 
 **Dependencies:** Tasks 4 and 5
@@ -163,8 +163,8 @@ refresher opens on Day 1.
 **Estimated scope:** Medium
 
 ## Checkpoint: Refreshers
-- [ ] All tests pass, QA Wolf green including the new flows
-- [ ] Review with a person before Phase 3
+- [x] All tests pass, QA Wolf green including the new flows
+- [x] Review with a person before Phase 3
 
 ## Phase 3: Paths and placement (later)
 
