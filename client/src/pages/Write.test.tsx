@@ -123,6 +123,31 @@ describe("Write", () => {
     expect(JSON.parse(saves()[0].data as string)).toMatchObject({ title: "day3" });
   });
 
+  it("opens the Tell's refresher from its button, and puts the keyboard back on the button after", async () => {
+    const user = userEvent.setup();
+    const list = tells(3);
+    list[2] = { ...list[2], technique: "simile", tell: "He dodged all the traps with ease. (Use a Simile)" };
+    renderWrite({ mine: shows(2), tellList: list });
+    await box();
+
+    const what = screen.getByRole("button", { name: "What’s a simile?" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(what);
+
+    expect(screen.getByRole("dialog", { name: "What’s a simile?" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(what).toHaveFocus());
+  });
+
+  it("offers the senses refresher on a Tell that asks for the senses", async () => {
+    renderWrite({ mine: shows(2) });
+    await box();
+
+    expect(screen.getByRole("button", { name: "What’s a sense?" })).toBeInTheDocument();
+    expect(screen.queryByText(/This Tell asks for/)).not.toBeInTheDocument();
+  });
+
   it("shows today's Tell sentence: the one after the student's last", async () => {
     renderWrite({ mine: shows(2) });
 

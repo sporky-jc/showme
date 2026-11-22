@@ -73,13 +73,13 @@ personification, hyperbole and allusion (what Classic asks for), plus
 onomatopoeia for the new paths.
 
 **Acceptance criteria:**
-- [ ] The words match the canvas content sheet exactly
-- [ ] Every refresher has a meaning, a clue, an example, and spot, finish
+- [x] The words match the canvas content sheet exactly
+- [x] Every refresher has a meaning, a clue, an example, and spot, finish
   and check steps, each with a right answer that exists
-- [ ] `wording.test.ts` still passes
+- [x] `wording.test.ts` still passes
 
 **Verification:**
-- [ ] `cd client && npx vitest run src/refreshers.test.ts src/wording.test.ts`
+- [x] `cd client && npx vitest run src/refreshers.test.ts src/wording.test.ts`
 
 **Dependencies:** None (can run alongside Phase 1)
 
@@ -95,16 +95,16 @@ refresher shows its badge and a "What's a …?" button that opens the 5-step
 pop-up from the canvas design. Nothing opens by itself yet.
 
 **Acceptance criteria:**
-- [ ] A real dialog: focus goes to its heading, Esc and Close shut it, and
+- [x] A real dialog: focus goes to its heading, Esc and Close shut it, and
   focus returns to the button; every target is 44px or more
-- [ ] A wrong pick says "Not quite" with the clue; Next unlocks on the right
+- [x] A wrong pick says "Not quite" with the clue; Next unlocks on the right
   answer; motion stops under reduced motion
-- [ ] Existing Write names ("Now show it", sense buttons, Send) unchanged
+- [x] Existing Write names ("Now show it", sense buttons, Send) unchanged
 
 **Verification:**
-- [ ] `cd client && npx vitest run src/components/Refresher.test.tsx
+- [x] `cd client && npx vitest run src/components/Refresher.test.tsx
   src/pages/Write.test.tsx`
-- [ ] Manual: desktop and phone screenshots match the canvas
+- [x] Manual: desktop and phone screenshots match the canvas
 
 **Dependencies:** Tasks 2 and 3
 
