@@ -212,6 +212,75 @@ describe("Collection", () => {
     expect(screen.queryByRole("region", { name: "Scribbles’ pick" })).not.toBeInTheDocument();
   });
 
+  // The sense finder: See, Hear, Feel, Smell and Taste show only the wall's
+  // sentences that use that sense
+  const finder = () => screen.getByRole("group", { name: "Find a sense" });
+  const senseButton = (name: string) => within(finder()).getByRole("button", { name });
+  const withSenses = (): SentenceWithAuthor[] =>
+    ["Rain drummed on the roof.", "The soup smelled of garlic.", "A bell rang twice.", "Sentence 4"].map(
+      (show, i) => ({ ...fromServer(4)[i], show })
+    );
+
+  it("finds the sentences that use a sense, and says how many", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: [...withSenses(), ...fromServer(12).map((s, i) => ({ ...s, _id: `x-${i}` }))] });
+    await screen.findByRole("group", { name: "Find a sense" });
+    await pickSort(user, "Newest");
+
+    await user.click(senseButton("Hear"));
+
+    expect(senseButton("Hear")).toHaveAttribute("aria-pressed", "true");
+    expect(wallShows()).toEqual(["Rain drummed on the roof.", "A bell rang twice."]);
+    expect(screen.getByText("2 sentences you can hear.")).toHaveAttribute("role", "status");
+  });
+
+  it("shows them all again when the sense is pressed again", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: withSenses() });
+    await screen.findByRole("group", { name: "Find a sense" });
+    await pickSort(user, "Newest");
+    const before = wallShows();
+
+    await user.click(senseButton("Smell"));
+    await user.click(senseButton("Smell"));
+
+    expect(senseButton("Smell")).toHaveAttribute("aria-pressed", "false");
+    expect(wallShows()).toEqual(before);
+  });
+
+  it("only one sense at a time", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: withSenses() });
+    await screen.findByRole("group", { name: "Find a sense" });
+
+    await user.click(senseButton("Hear"));
+    await user.click(senseButton("Smell"));
+
+    expect(senseButton("Hear")).toHaveAttribute("aria-pressed", "false");
+    expect(senseButton("Smell")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("says so when no sentence uses the sense, with a way back to all of them", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: withSenses() });
+    await screen.findByRole("group", { name: "Find a sense" });
+
+    await user.click(senseButton("Taste"));
+
+    expect(screen.getByText("No sentences you can taste yet.")).toBeInTheDocument();
+    expect(wallShows()).toEqual([]);
+    await user.click(screen.getByRole("button", { name: "Show all" }));
+    expect(senseButton("Taste")).toHaveAttribute("aria-pressed", "false");
+    expect(wallShows()).toHaveLength(3);
+  });
+
+  it("has no sense finder without sentences", async () => {
+    renderCollection({ server: [] });
+    await screen.findByText(/No sentences have been approved yet/);
+
+    expect(screen.queryByRole("group", { name: "Find a sense" })).not.toBeInTheDocument();
+  });
+
   it("says when no sentences have been approved yet", async () => {
     renderCollection({ server: [] });
 

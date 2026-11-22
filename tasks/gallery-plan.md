@@ -51,9 +51,9 @@ flows that read it) stays as it was. With 12 or fewer, it's the first, and
 the wall shows the rest. Its classes are its own (`paper-pick__…`), since
 flows find cards by `.paper-gallery__card`. Signed-in users can like it.
 
-- [ ] The pick isn't repeated in the wall below
-- [ ] Focus stays on "Show me another"; the new sentence is announced
-- [ ] Motion stops under reduced motion
+- [x] The pick isn't repeated in the wall below
+- [x] Focus stays on "Show me another"; the new sentence is announced
+- [x] Motion stops under reduced motion
 
 Files: `client/src/pages/Collection.tsx`, a new `GalleryPick.tsx`,
 `paper.css`
@@ -62,6 +62,9 @@ Files: `client/src/pages/Collection.tsx`, a new `GalleryPick.tsx`,
 
 See, Hear, Feel, Smell and Taste buttons (`aria-pressed`) show only the
 sentences that use that sense; a status line says how many.
+
+It filters the wall only; Scribbles' pick stays. With no sense pressed, the
+wall is exactly as before.
 
 - [ ] Works with Shuffle and Newest; pressing again shows all
 - [ ] A sense with no sentences says so and offers Show all
