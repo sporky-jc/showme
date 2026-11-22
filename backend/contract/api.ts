@@ -158,6 +158,10 @@ export const TestLoginBody = z.object({
   secret: z.string().min(1),
   role: z.string(),
   fresh: z.boolean().optional().catch(undefined),
+  // "new": the test student hasn't seen any refresher, so the first one
+  // opens by itself (to test that). Anything else: they've seen them all,
+  // so no refresher opens by itself over a test's page.
+  refreshers: z.enum(["new", "seen"]).optional().catch(undefined),
 });
 
 // ---- Answers ---------------------------------------------------------------

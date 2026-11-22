@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import app from "../app.js";
+import { TECHNIQUES } from "../contract/api.js";
 import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
 import { createSentence, createUser, tokenFromLogin } from "./helpers.js";
@@ -241,9 +242,25 @@ describe("POST /auth/test (test-only login, for automated browser tests on stagi
           firstName: "Test",
           lastName: "Student",
           isAdmin: false,
-          seenRefreshers: [],
+          seenRefreshers: [...TECHNIQUES],
         });
       }
+    });
+
+    it("has seen every refresher, so none opens by itself over a test's page", async () => {
+      const res = await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
+
+      expect(res.body.user.seenRefreshers).toEqual([...TECHNIQUES]);
+    });
+
+    it("with refreshers: \"new\", has seen none, and the next login without it has seen them all again", async () => {
+      const fresh = await request(app)
+        .post("/auth/test")
+        .send({ secret: pass(), role: "student", refreshers: "new" });
+      expect(fresh.body.user.seenRefreshers).toEqual([]);
+
+      const next = await request(app).post("/auth/test").send({ secret: pass(), role: "student" });
+      expect(next.body.user.seenRefreshers).toEqual([...TECHNIQUES]);
     });
 
     it("with fresh: true, takes back the account's likes, and only its likes", async () => {
