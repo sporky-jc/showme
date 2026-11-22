@@ -295,11 +295,10 @@ const tellList: TellSentence[] = [
   },
 ];
 
-// The Tell sentence for a day's title, as the website names its days: "day1"
-// is the list's first entry, "day2" its second, and so on (the website picks
-// a day's Tell the same way, by its place in this list). Anything else, or a
-// day past the end of the list, has none. The server stores this Tell with a
-// student's sentence, never one sent in a request.
+// The Tell a sentence's title names: its Tell's id ("day1".."day35" on the
+// Classic path). The website finds Tells by id too (client/src/tells.ts),
+// never by their place in this list. Anything else has none. The server
+// stores this Tell with a student's sentence, never one sent in a request.
 export const tellForTitle = (title: string): string | undefined =>
   tellList.find((tell) => tell.id === title)?.tell;
 

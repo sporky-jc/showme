@@ -1761,6 +1761,10 @@ h3,
   flex-direction: column;
   gap: 18px;
   text-align: left;
+  /* The tilted sheet behind the card reaches into the side margin; on a
+     phone, a tall card's sheet would poke past the screen edge and let the
+     page slide sideways, so it's cut at the page's edge */
+  overflow-x: clip;
 }
 
 .paper-write__top {

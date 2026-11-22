@@ -38,3 +38,9 @@ const ASKS: Record<Exclude<Technique, "senses">, string> = {
 
 export const askOf = (technique: Technique | undefined) =>
   technique && technique !== "senses" ? `This Tell asks for ${ASKS[technique]}` : null;
+
+// Today's hint for writing the Tell: the senses, or what the Tell asks for
+export const hintFor = (technique: Technique | undefined) =>
+  technique && technique !== "senses"
+    ? `Show it with ${ASKS[technique]}.`
+    : "Show it with what you see, hear and feel.";

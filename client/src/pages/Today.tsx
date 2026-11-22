@@ -8,7 +8,7 @@ import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
 import { nextDay } from "../days";
-import { askOf, classicId, tellById, withoutAsk } from "../tells";
+import { askOf, classicId, hintFor, tellById, withoutAsk } from "../tells";
 import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, leastUsedSense, senseCounts } from "../senses";
 
 // How many of the student's latest sentences to show under their next Tell
@@ -91,9 +91,7 @@ function Today() {
               <span className="paper-status paper-status--retry">Your next Tell</span>
               <p className="paper-today__sentence">“{withoutAsk(today.tell)}”</p>
               {ask && <span className="paper-status paper-status--turn">{ask}</span>}
-              <p className="paper-today__hint">
-                Show it with what you see, hear and feel.
-              </p>
+              <p className="paper-today__hint">{hintFor(today.technique)}</p>
               <p
                 className="paper-today__tip"
                 style={{ "--tip-color": `var(--paper-sense-${tipSense})` } as CSSProperties}

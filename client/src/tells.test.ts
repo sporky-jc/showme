@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { askOf, classicId, hasIds, tellById, withoutAsk } from "./tells";
+import { askOf, classicId, hasIds, hintFor, tellById, withoutAsk } from "./tells";
 import type { TellSentence } from "./api/types";
 
 const tell = (id: string, words: string): TellSentence => ({
@@ -56,5 +56,14 @@ describe("askOf", () => {
     expect(askOf("personification")).toBe("This Tell asks for personification");
     expect(askOf("senses")).toBeNull();
     expect(askOf(undefined)).toBeNull();
+  });
+});
+
+describe("hintFor", () => {
+  it("asks for the senses, or for what the Tell asks for", () => {
+    expect(hintFor("senses")).toBe("Show it with what you see, hear and feel.");
+    expect(hintFor(undefined)).toBe("Show it with what you see, hear and feel.");
+    expect(hintFor("simile")).toBe("Show it with a simile.");
+    expect(hintFor("allusion")).toBe("Show it with an allusion.");
   });
 });
