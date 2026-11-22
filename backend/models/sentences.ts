@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { TIP_IDS } from "../reviewer/tips.js";
-import { FRAMES, STICKER_SENSES } from "../contract/api.js";
+import { FRAMES } from "../contract/api.js";
 
 // User sentence schema
 const sentenceSchema = new mongoose.Schema({
@@ -40,23 +40,11 @@ const sentenceSchema = new mongoose.Schema({
   ],
   GID: { type: String, required: true },
   // Its look in the gallery, picked by its author once it's approved (PUT
-  // /MyPage/:id/look, see Look in contract/api.ts): a frame, and maybe one
-  // of its words on a sticker. Cleared when the student edits it.
+  // /MyPage/:id/look, see Look in contract/api.ts): its frame's color.
+  // Cleared when the student edits it.
   look: {
     type: new mongoose.Schema(
-      {
-        frame: { type: String, enum: FRAMES, required: true },
-        sticker: {
-          type: new mongoose.Schema(
-            {
-              word: { type: String, required: true },
-              sense: { type: String, enum: STICKER_SENSES, required: true },
-            },
-            { _id: false }
-          ),
-          default: null,
-        },
-      },
+      { frame: { type: String, enum: FRAMES, required: true } },
       { _id: false }
     ),
     default: undefined,

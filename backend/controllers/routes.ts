@@ -3,8 +3,6 @@ import {
   EditSentenceBody,
   Look,
   SentenceIdParam,
-  STICKER_NOT_IN_SENTENCE,
-  wordsOf,
   GallerySentences,
   NewSentenceBody,
   OwnSentence,
@@ -192,7 +190,7 @@ export const editUserSentence = async (req: Request, res: Response) => {
         // ... and when the reviewer last tried and failed (its new words go
         // in line with the other new sentences, reviewer/queue.ts)
         // ... and when a teacher decided it: it's waiting again
-        // ... and its look: the sticker was a word of the old text
+        // ... and its look: it waits to be approved again
         $unset: { tip: "", lastTriedAt: "", decidedAt: "", look: "" },
       },
       { new: true }
@@ -209,10 +207,10 @@ export const editUserSentence = async (req: Request, res: Response) => {
   }
 };
 
-// PUT /MyPage/:id/look: the student picks how their approved sentence looks
-// in the gallery (see Look in the contract). Only their own, and only once
-// it's approved: before that it isn't in the gallery, and its words aren't
-// reviewed yet. Can be repeated: the newest pick replaces the last.
+// PUT /MyPage/:id/look: the student picks the frame their approved sentence
+// has in the gallery (see Look in the contract). Only their own, and only
+// once it's approved: before that it isn't in the gallery. Can be repeated:
+// the newest pick replaces the last.
 export const setSentenceLook = async (req: Request, res: Response) => {
   try {
     // The id goes into a database query, so it must be a real id
@@ -224,22 +222,12 @@ export const setSentenceLook = async (req: Request, res: Response) => {
     if (!body.success) {
       return res.status(400).json({ message: firstProblem(body.error) });
     }
-    const look = body.data;
 
-    const mine = { _id: id.data, GID: req.userId, approved: true };
-    const sentence = await Sentence.findOne(mine, "show");
-    if (!sentence) {
-      return res.status(404).json({ message: "Sentence not found" });
-    }
-    if (look.sticker && !wordsOf(sentence.show).includes(look.sticker.word)) {
-      return res.status(400).json({ message: STICKER_NOT_IN_SENTENCE });
-    }
-
-    // The filter holds the words checked, so an edit landing between the
-    // check and the save (new words, no longer approved) isn't given it
+    // approved: true is part of the filter, so an edit landing first (no
+    // longer approved) isn't given it
     const updated = await Sentence.findOneAndUpdate(
-      { ...mine, show: sentence.show },
-      { $set: { look } },
+      { _id: id.data, GID: req.userId, approved: true },
+      { $set: { look: body.data } },
       { returnDocument: "after" }
     );
     if (!updated) {

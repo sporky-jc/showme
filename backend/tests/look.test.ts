@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import app from "../app.js";
-import { STICKER_NOT_IN_SENTENCE } from "../contract/api.js";
 import { LOOK_WRITES_PER_MINUTE } from "../middlewares/rateLimit.js";
 import { Sentence } from "../models/sentences.js";
 import { createSentence, createUser, sessionCookie } from "./helpers.js";
 
 // PUT /MyPage/:id/look: a student picks how their approved sentence looks in
-// the gallery, a frame and maybe a sticker with one of its words.
+// the gallery: the color of its picture's frame.
 
 const SHOW = "Pink powder tickled my nose and the crowd’s cheers buzzed.";
-const look = { frame: "teal", sticker: { word: "buzzed", sense: "hear" } };
+const look = { frame: "teal" };
 
 // Ada wrote an approved sentence; Alan is another student
 const setUp = async (approved = true) => {
@@ -29,7 +28,7 @@ describe("PUT /MyPage/:id/look", () => {
     expect((await request(app).put(path).send(look)).status).toBe(401);
   });
 
-  it("saves the frame and sticker, and sends the sentence back with them", async () => {
+  it("saves the frame, and sends the sentence back with them", async () => {
     const { ada, path, sentence } = await setUp();
 
     const res = await put(path, ada, look);
@@ -40,42 +39,28 @@ describe("PUT /MyPage/:id/look", () => {
     expect((await Sentence.findById(sentence._id))?.toObject().look).toEqual(look);
   });
 
-  it("can be a frame with no sticker, and a new pick replaces the last", async () => {
+  it("takes a new pick in place of the last", async () => {
     const { ada, path } = await setUp();
     await put(path, ada, look);
 
-    const res = await put(path, ada, { frame: "sun", sticker: null });
+    const res = await put(path, ada, { frame: "sun" });
 
     expect(res.status).toBe(200);
-    expect(res.body.look).toEqual({ frame: "sun", sticker: null });
+    expect(res.body.look).toEqual({ frame: "sun" });
   });
 
-  it("reads the sticker word the way the sentence is written: any capitals, curly apostrophes", async () => {
-    const { ada, path } = await setUp();
-
-    const res = await put(path, ada, { frame: "violet", sticker: { word: " Crowd's ", sense: "hear" } });
-
-    expect(res.status).toBe(200);
-    expect(res.body.look.sticker).toEqual({ word: "crowd's", sense: "hear" });
-  });
-
-  it("only takes a word from the sentence, so nothing unreviewed reaches the gallery", async () => {
+  it("keeps only the frame, whatever else is sent", async () => {
     const { ada, path, sentence } = await setUp();
 
-    for (const word of ["rainbow", "buzz", "tickled my"]) {
-      const res = await put(path, ada, { frame: "violet", sticker: { word, sense: "see" } });
-      expect(res.status).toBe(400);
-    }
-    const res = await put(path, ada, { frame: "violet", sticker: { word: "rainbow", sense: "see" } });
-    expect(res.body.message).toBe(STICKER_NOT_IN_SENTENCE);
-    expect((await Sentence.findById(sentence._id))?.toObject().look).toBeUndefined();
+    await put(path, ada, { frame: "coral", sticker: { word: "rainbow", sense: "see" } });
+
+    expect((await Sentence.findById(sentence._id))?.toObject().look).toEqual({ frame: "coral" });
   });
 
   it.each([
-    ["an unknown frame", { frame: "gold", sticker: null }],
-    ["no frame", { sticker: null }],
-    ["an unknown sense", { frame: "teal", sticker: { word: "buzzed", sense: "think" } }],
-    ["a sticker that isn't text", { frame: "teal", sticker: { word: { $ne: "" }, sense: "hear" } }],
+    ["an unknown frame", { frame: "gold" }],
+    ["no frame", {}],
+    ["a frame that isn't text", { frame: { $ne: "" } }],
   ])("refuses %s", async (_, body) => {
     const { ada, path } = await setUp();
     expect((await put(path, ada, body)).status).toBe(400);
@@ -108,7 +93,7 @@ describe("PUT /MyPage/:id/look", () => {
     expect(mine.body[0].look).toEqual(look);
   });
 
-  it("is cleared when the student edits the sentence: the sticker was one of the old words", async () => {
+  it("is cleared when the student edits the sentence, which waits to be approved again", async () => {
     const { ada, path, sentence } = await setUp();
     await put(path, ada, look);
 

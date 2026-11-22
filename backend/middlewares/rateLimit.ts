@@ -134,8 +134,7 @@ const sentenceWritesPerDay = rateLimit({
 export const sentenceWritesRateLimit = [sentenceWritesPerMinute, sentenceWritesPerDay];
 
 // How many times one signed-in user may pick a sentence's look in the gallery
-// (PUT /MyPage/:id/look) in a minute. A student tries a few stickers and
-// frames, never dozens a minute. Kept apart from the sentence-save limits:
+// (PUT /MyPage/:id/look) in a minute. A student tries a few frames, never dozens a minute. Kept apart from the sentence-save limits:
 // a look isn't sent to the AI reviewer, so it mustn't use up a day's saves.
 export const LOOK_WRITES_PER_MINUTE = 30;
 export const lookRateLimitStore = new MemoryStore();
