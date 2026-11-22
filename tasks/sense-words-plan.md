@@ -71,9 +71,18 @@ Add the forms engine (-s, -es, -ed, -ing with a dropped "e" or a doubled
 letter, -ly, y to -ied or -ier) and change the list to base words. The list
 also takes Scribbles' sound words (`backend/reviewer/soundWords.ts`) for
 Hear.
-- [ ] Every word the list matches today still matches (a test pins them)
-- [ ] Made-up sentences that only tell still light up nothing
+- [x] Every word the list matches today still matches (a test pins them)
+- [x] Made-up sentences that only tell still light up nothing
 - [ ] QA Wolf: Write's sense flows pass
+
+Done as: `exact` words (irregular forms, and words whose family means
+something else: "feeling" is usually how someone feels inside, and
+"licked" a cheek isn't a taste), doing `words` (-s, -es, -ed, -ing) and
+`describing` words (-er, -est, -ly), so "singer" isn't a form of "sing".
+Of Scribbles' sound words, the ones that are always a sound are Hear
+words; a test lists why each other one isn't. On production's 113 approved
+sentences, sentences with no sense found went from 40 to 35, and Hear from 8
+to 13; every new match was checked by hand.
 
 ### S2: A made-up test set, and a score
 About 100 made-up sentences, each with the senses a teacher would see in

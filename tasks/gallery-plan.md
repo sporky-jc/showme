@@ -98,3 +98,6 @@ with 12 cards went from 6,700px tall to 4,440px.
 
 Scribbles' pick and "Show me another", the sense finder, and the phone
 layout. Activate after they pass on staging.
+
+- [x] Four flows active in Chi Sandbox, tagged CI and PR preview: Scribbles'
+  pick, the sense finder, Show more and the invite, and the phone layout
