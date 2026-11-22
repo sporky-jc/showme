@@ -339,6 +339,28 @@ describe("POST /MyPage: one sentence per student per day", () => {
     expect(gallery.body[0]).not.toHaveProperty("dayKey");
   });
 
+  it("clears a sentence's sense highlights when it's edited, and never sends them yet", async () => {
+    const ada = await createUser();
+    const created = await request(app)
+      .post("/MyPage")
+      .set("Cookie", sessionCookie(ada))
+      .send({ title: "day1", show: "The bell rang." });
+    // Approved, and tagged by the sense tagger (tagger/queue.ts)
+    await Sentence.updateOne(
+      { _id: created.body._id },
+      { approved: true, senseTags: [{ word: "rang", sense: "hear" }], taggedShow: "The bell rang.", taggedAt: new Date() }
+    );
+    const gallery = await request(app).get("/Collections");
+    expect(gallery.body[0]).not.toHaveProperty("senseTags");
+    expect(gallery.body[0]).not.toHaveProperty("taggedShow");
+
+    await request(app).patch("/MyPage").set("Cookie", sessionCookie(ada)).send({ title: "day1", show: "The bell clanged." });
+
+    const saved = await Sentence.findById(created.body._id, { senseTags: 1, taggedShow: 1, taggedAt: 1 }).lean();
+    expect(saved).not.toHaveProperty("senseTags");
+    expect(saved).not.toHaveProperty("taggedShow");
+  });
+
   it("refuses a second sentence for the same day (409) and stores nothing new", async () => {
     const ada = await createUser();
     const send = (show: string) =>

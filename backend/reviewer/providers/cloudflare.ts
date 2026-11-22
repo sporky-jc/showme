@@ -29,7 +29,7 @@ export const CLOUDFLARE_SAFETY_MODEL = "@cf/meta/llama-guard-3-8b";
 // with CLOUDFLARE_REVIEW_MODEL), so trying another reviewer never weakens it
 export const CLOUDFLARE_WELFARE_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
-const runUrl = (accountId: string, model: string) =>
+export const runUrl = (accountId: string, model: string) =>
   `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`;
 
 // Out of the day's free Neurons. Not checked against a live account (no
@@ -51,7 +51,7 @@ export const isOutOfNeurons = (body: unknown) => {
     (typeof error?.message === "string" && /daily free allocation/i.test(error.message))
   );
 };
-const statusOf = (errorBody: unknown, status: number) => (isOutOfNeurons(errorBody) ? 429 : status);
+export const statusOf = (errorBody: unknown, status: number) => (isOutOfNeurons(errorBody) ? 429 : status);
 
 // Workers AI wraps every answer: { success, result: { response } }
 const responseOf = (body: unknown): unknown => {

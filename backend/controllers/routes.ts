@@ -192,7 +192,8 @@ export const editUserSentence = async (req: Request, res: Response) => {
         // in line with the other new sentences, reviewer/queue.ts)
         // ... and when a teacher decided it: it's waiting again
         // ... and its look: it waits to be approved again
-        $unset: { tip: "", lastTriedAt: "", decidedAt: "", look: "" },
+        // ... and its sense highlights: found again once it's re-approved
+        $unset: { tip: "", lastTriedAt: "", decidedAt: "", look: "", senseTags: "", taggedShow: "" },
       },
       { new: true }
     );
@@ -625,7 +626,8 @@ export const undoDecision = async (req: Request, res: Response) => {
         // (marked below)
         show: { $eq: stored.show },
       },
-      { $set: { approved: false, toRedo: false }, $unset: { tip: "", decidedAt: "" } }
+      // (and its sense highlights: they're for approved sentences)
+      { $set: { approved: false, toRedo: false }, $unset: { tip: "", decidedAt: "", senseTags: "", taggedShow: "" } }
     );
     if (matchedCount === 0) {
       return res.status(409).json({ message: UNDO_STALE });

@@ -68,12 +68,27 @@ account. Each returns its sense words, each with a sense.
   trains on nothing; see S3c). The rule checks' worrying and unsafe
   sentences are never approved, so they're never tagged.
 
-- [ ] **A1: The tagger.**
-  - A pure function: two models' answers become the agreed words. It drops
-    words not in the sentence, blocked words and disagreements.
-  - The scheduled run, a Neuron cap, saving on the sentence, clearing on
-    edit.
-  - Tests with stand-in answers.
+- [x] **A1: The tagger** (`backend/tagger/`).
+  - **The rules** (`senseTags.ts`): a word lights up only if it's in the
+    kid's sentence, both models give it the same sense, and it isn't
+    blocked (`blocked.ts`, kept the same as the website's lists by
+    `client/src/taggerBlocked.test.ts`).
+  - **The requests** (`tagger.ts`): Llama with a JSON schema, Mistral asked
+    for JSON in its prompt. Neurons are counted from the token counts.
+  - **The queue** (`queue.ts`), run first in the 10-minute scheduled
+    function:
+    - approved sentences, newest first, never test accounts';
+    - 5 a run and 150 a day (about 4,500 Neurons);
+    - it stops when the Neurons run out;
+    - an unreadable answer is saved with no AI highlights, so it isn't
+      retried every run;
+    - it starts no new sentence after 45 seconds, and Scribbles gets the
+      rest.
+  - **Saved on the sentence:** `senseTags` and `taggedShow`. An edit, or a
+    taken-back approval, clears them. Not sent to the website until A2.
+  - **Switched on per environment** by the GitHub variables
+    `STAGING_SENSE_TAGGER` and `PRODUCTION_SENSE_TAGGER` set to `on`, at the
+    next deploy. It uses Scribbles' Cloudflare secrets.
 - [ ] **A2: The Gallery uses the saved tags** (S5): cards, Scribbles' pick and
   the sense finder light the agreed words, plus what the list finds. QA
   Wolf on the PR.
@@ -319,11 +334,11 @@ Tasks (each one small PR into `staging`):
     700 Neurons. Gate 3 on at most 15 words, one request per word per
     model, is about 500. The cap is 3,000 Neurons a run (30% of a day), on
     Sundays.
-  - [ ] **Still to confirm, once, by a person:** the Cloudflare account in
-    `CLOUDFLARE_ACCOUNT_ID` is on **Workers Free**, not Workers Paid. The
-    AI token can't read the plan, and the connected Cloudflare login can't
-    see the account. Look in the Cloudflare dashboard under Workers & Pages,
-    then Plans.
+  - [x] **Confirmed by the owner, 2026-11-22:** the Cloudflare account is
+    on **Workers Free** (the dashboard shows the free plan's 100,000 daily
+    requests and an "Upgrade" button). Going over the free Neurons fails
+    and is never billed. The owner checks that `CLOUDFLARE_ACCOUNT_ID` is
+    this account.
 
 - [ ] **S3d: The backend's gate 1 and gate 3**, behind a job key. Gate 3
   takes only words from its own gate 1 list. It's deployed to staging on
