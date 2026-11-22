@@ -1,0 +1,105 @@
+# Implementation Plan: Tell paths and refreshers
+
+## Overview
+
+Make Tell sentences safe to change and extend without moving any current
+student's sentences, then use that to show refresher pop-ups when a Tell
+asks for a technique. Later, give new students a path picked by a short
+placement quiz (Starter, Classic or Stretch).
+
+Today the 35 Tells are one list in `backend/public/tellList.ts`. A student's
+sentence stores its Tell's place as its title ("day7") and a copy of the
+Tell's words. The app uses that place in five spots:
+- the next Tell is "highest day + 1" (`client/src/days.ts`, used by Today,
+  Write and My sentences);
+- the gallery photo is `tellSentences[day - 1]` (`Cards.tsx`);
+- Write's Tell and photo for a day (`Write.tsx`);
+- an edit puts back the Tell for its title (`tellForTitle`, `routes.ts`);
+- one sentence per student per day (`dayKey` = student + title).
+
+## Architecture decisions
+
+- **Classic's titles are the permanent IDs.** "day1" to "day35" already sit
+  on every Classic sentence, so they become Tell IDs as they are: no
+  backfill, and no change to production data. Classic is frozen from now on:
+  its 35 entries never change order, words or meaning.
+- **New Tells get IDs that don't name a place** (for example
+  `t-snow-day`). A Tell is never edited or deleted once students may have
+  written for it, only retired from paths.
+- **A path is an ordered list of Tell IDs.** Classic is `day1`…`day35`.
+  Paths can share Tells. The student's next Tell is the first one on their
+  path they haven't written, so a path can change without moving anything
+  already written.
+- **Tags live on the Tell:** `technique` (senses, simile, metaphor,
+  personification, hyperbole, onomatopoeia, alliteration, allusion) and a
+  `level`. Refreshers are triggered by the tag, never by a day number.
+- **Content stays in code for now** (Tells, paths, refresher words), so
+  every change is a reviewed pull request that QA Wolf tests. Move it to the
+  database only when teachers need to write their own.
+- **"Seen this refresher" is saved on the student's profile, not in the
+  browser.** Students share school devices, so browser storage would show
+  one student's refresher as already seen to the next.
+
+## Task list
+
+The tasks with acceptance criteria are in `tasks/todo.md`.
+
+### Phase 1: Tell IDs and tags (nothing changes on screen)
+- [ ] Task 1: Backend Tell catalog with IDs and tags
+- [ ] Task 2: Website finds Tells by ID, not by position
+
+### Checkpoint: Foundation
+- [ ] Backend and client tests pass, `tsc` clean
+- [ ] QA Wolf: all flows pass on the preview
+- [ ] Gallery photos, Write and Today unchanged for an existing student
+
+### Phase 2: Refreshers
+- [ ] Task 3: Refresher content as data
+- [ ] Task 4: Refresher pop-up, opened from "What's a …?"
+- [ ] Task 5: Remember which refreshers a student has seen (backend)
+- [ ] Task 6: Open a refresher by itself the first time (senses on Day 1)
+
+### Checkpoint: Refreshers
+- [ ] A new student sees the senses refresher once on Day 1, then only from
+  its button, on any device
+- [ ] New QA Wolf flows for the refresher are added and pass
+- [ ] Review with a person before Phase 3
+
+### Phase 3: Paths and placement (later)
+- [ ] Task 7: Paths on the backend; every student on Classic
+- [ ] Task 8: Next Tell comes from the student's path
+- [ ] Task 9: Starter and Stretch paths (content)
+- [ ] Task 10: Placement quiz for new students
+- [ ] Task 11: Teacher can change a student's path
+
+### Checkpoint: Complete
+- [ ] A new student takes the quiz and gets the matching path
+- [ ] Existing students are still on Classic, with nothing moved
+
+## Risks and mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| A browser still holds the old Tell list (saved by redux-persist) without IDs | High | Task 2 treats a list without IDs as missing and fetches it again; test it |
+| Someone later edits a Classic Tell's words or order | High | A backend test pins all 35 Classic IDs to today's words |
+| QA Wolf flows depend on day numbers or Tell words | Med | Tasks 1–2 change no names or words on screen; run the full suite on each preview |
+| Older sentences with titles that aren't days | Low | They already have no day; keep them out of paths and next-Tell logic, as today |
+| Seen-refresher state lost on shared devices | Med | Stored on the profile (Task 5), not in the browser |
+| Day 35 asks for an allusion, which has no refresher | Low | Ask (below); until then Day 35 shows no refresher |
+
+## Open questions
+
+1. **Technique nudges on Classic.** Days 1–30 are senses Tells; Days 31–35
+   already ask for a simile, metaphor, personification, hyperbole and
+   allusion in their own words. Suggestion: don't add new nudges to Classic,
+   since it's frozen. Tag only what it already asks for, and save
+   onomatopoeia and alliteration for new paths. This means Days 32 and 34
+   need the metaphor and hyperbole refreshers too; their wording is already
+   on the content sheet.
+2. **"(Use a Simile)" in the Tell's words.** Keep it as is (simplest), or
+   show the Tell without it and use the "This Tell asks for a simile" badge
+   instead? The stored words on old sentences wouldn't change either way.
+3. **Allusion (Day 35).** Write a refresher for it, or leave Day 35 without
+   one?
+4. **Placement quiz:** how many questions, and should a teacher see the
+   result?
