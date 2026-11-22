@@ -1,6 +1,6 @@
 import * as api from "../api";
 import { isAxiosError } from "axios";
-import type { EditSentenceBody, NewSentenceBody, OwnSentence } from "../api/types";
+import type { EditSentenceBody, Frame, NewSentenceBody, OwnSentence } from "../api/types";
 import type { AppThunk } from "../reducers/types";
 
 // Retrieve user sentences. Answers whether they arrived, for pages that
@@ -58,6 +58,19 @@ export const editSentences =
   async (dispatch) => {
     try {
       const { data } = await api.editUserSentences(editedSentence);
+      dispatch({ type: "EDIT", payload: data });
+      return { kind: "saved", sentence: data };
+    } catch (error) {
+      return failureOf(error);
+    }
+  };
+
+// Pick the frame an approved sentence has in the gallery
+export const pickFrame =
+  (id: string, frame: Frame): AppThunk<Promise<SaveResult>> =>
+  async (dispatch) => {
+    try {
+      const { data } = await api.setSentenceLook(id, { frame });
       dispatch({ type: "EDIT", payload: data });
       return { kind: "saved", sentence: data };
     } catch (error) {

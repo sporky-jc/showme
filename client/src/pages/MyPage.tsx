@@ -139,13 +139,25 @@ function MyPage() {
                 )}
                 <div className="paper-mine__foot">
                   <p className="paper-mine__tell">{sentence.tell}</p>
-                  <Link
-                    to={`/Write/${sentence._id}`}
-                    className="paper-mine__edit"
-                    aria-label={`${sentence.toRedo ? "Try again" : "Edit"}: ${name}`}
-                  >
-                    {sentence.toRedo ? "Try again" : "Edit"}
-                  </Link>
+                  <div className="paper-mine__actions">
+                    {/* Once it's in the gallery, its picture's frame */}
+                    {sentence.approved && (
+                      <Link
+                        to={`/Frame/${sentence._id}`}
+                        className="paper-mine__edit"
+                        aria-label={`Pick a frame: ${name}`}
+                      >
+                        Pick a frame
+                      </Link>
+                    )}
+                    <Link
+                      to={`/Write/${sentence._id}`}
+                      className="paper-mine__edit"
+                      aria-label={`${sentence.toRedo ? "Try again" : "Edit"}: ${name}`}
+                    >
+                      {sentence.toRedo ? "Try again" : "Edit"}
+                    </Link>
+                  </div>
                 </div>
               </li>
             );

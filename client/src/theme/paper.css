@@ -39,6 +39,17 @@
   --paper-sense-smell: #6fe0d3;
   --paper-sense-taste: #ffb36b;
 
+  /* The frames a student can pick for their sentence's picture in the
+     gallery (see frames.ts). Decoration only: no text sits on them. */
+  --paper-frame-violet: #7a5cff;
+  --paper-frame-violet-shadow: #5a3fd6;
+  --paper-frame-coral: #ff6b5b;
+  --paper-frame-coral-shadow: #d94a3b;
+  --paper-frame-teal: #13b5a6;
+  --paper-frame-teal-shadow: #0d8a7e;
+  --paper-frame-sun: #ffc93c;
+  --paper-frame-sun-shadow: #d9a20f;
+
   /* Sentence status: done, your turn, try again (text 5.8–6:1 on its
      background) */
   --paper-done-bg: #d9f7e8;
@@ -1536,11 +1547,19 @@ h3,
   box-shadow: 6px 7px 0 var(--paper-edge);
 }
 
-/* The photo fills the top of the card, edge to edge. Its frame keeps it in
-   place when it grows under the mouse. */
+/* The photo fills the top of the card, in the colored frame its author
+   picked (--frame-color, see frames.ts). Its window keeps it in place when
+   it grows under the mouse. */
 .paper-gallery__frame {
   height: 230px;
+  padding: 8px;
+  background: var(--frame-color, var(--paper-frame-violet));
+}
+
+.paper-gallery__window {
+  height: 100%;
   overflow: hidden;
+  border-radius: 14px;
   background: var(--paper-sky);
 }
 
@@ -2337,6 +2356,15 @@ h3,
   font-weight: 700;
   font-size: 0.95rem;
   color: var(--paper-muted);
+}
+
+/* "Pick a frame" on an approved sentence (see pages/Frame.tsx) */
+.paper-mine__actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .paper-mine__edit {
@@ -3511,4 +3539,152 @@ h3,
 
 .paper-signin h2:focus {
   outline: none; /* it only holds the keyboard's starting point */
+}
+
+/* ---- Pick a frame (pages/Frame.tsx) ---- */
+
+.paper-frame {
+  min-height: 80vh;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 20px 20px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  text-align: left;
+}
+
+.paper-frame__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+}
+
+.paper-frame__top h1 {
+  margin: 8px 0 0;
+}
+
+.paper-frame__hint {
+  margin: 4px 0 0;
+  max-width: 40ch;
+  color: var(--paper-muted);
+  font-weight: 600;
+}
+
+.paper-frame__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 28px 40px;
+}
+
+.paper-frame__pick {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.paper-frame__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.paper-frame__colors legend {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 0;
+  font-family: var(--paper-font-display);
+  font-weight: 900;
+  font-size: 1.5rem;
+}
+
+/* A swatch and its name; the real radio button is hidden but still
+   reached with the keyboard, and its focus ring shows on the chip */
+.paper-frame__color {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 18px 6px 8px;
+  border: 3px solid var(--paper-edge);
+  border-radius: 999px;
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.paper-frame__color input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.paper-frame__color:has(input:checked) {
+  border-color: var(--paper-ink);
+  box-shadow: 0 4px 0 var(--frame-shadow);
+}
+
+.paper-frame__color:has(input:focus-visible) {
+  outline: 4px solid var(--paper-brand);
+  outline-offset: 3px;
+}
+
+.paper-frame__swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--frame-color);
+}
+
+.paper-frame__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.paper-frame__back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--paper-ink);
+  font-weight: 800;
+}
+
+.paper-frame__problem {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--paper-retry-bg);
+  color: var(--paper-retry-ink);
+  font-weight: 700;
+}
+
+.paper-frame__preview {
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 380px;
+}
+
+.paper-frame__preview h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--paper-muted);
+}
+
+/* The preview is one card, whatever the gallery's columns */
+.paper-frame__preview .paper-gallery__cards {
+  grid-template-columns: minmax(0, 1fr);
 }
