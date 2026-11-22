@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { AxiosError } from "axios";
 import * as api from "../api";
 import type { ReviewerStatus } from "../api/types";
@@ -41,7 +41,9 @@ function ReviewerSwitch({ onSaid }: { onSaid: (said: string) => void }) {
   // Where the keyboard goes after the next redraw: the confirm step's first
   // button when it opens, the switch's button when it closes or saves
   const focusNext = useRef<"confirm" | "switch" | null>(null);
-  useEffect(() => {
+  // A layout effect, so the keyboard moves as soon as the page is redrawn,
+  // before anything else can run (a plain effect may wait a moment)
+  useLayoutEffect(() => {
     const target = focusNext.current;
     if (!target || saving) return;
     focusNext.current = null;
