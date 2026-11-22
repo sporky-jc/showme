@@ -33,9 +33,9 @@ The Show sentence is the biggest text, the Tell is small and crossed out,
 the photo is smaller, and each card shows its picked frame and its sense
 words lit up in the sense colors, with a dot per sense.
 
-- [ ] Same sentences, order and names as today
-- [ ] Contrast passes (`contrast.test.ts`); 44px targets
-- [ ] QA Wolf: all flows pass on the preview
+- [x] Same sentences, order and names as today
+- [x] Contrast passes (`contrast.test.ts`); 44px targets
+- [x] QA Wolf: all flows pass on the preview
 
 Files: `client/src/components/Cards.tsx`, `client/src/theme/paper.css`
 
@@ -45,6 +45,11 @@ One approved sentence, big, above the wall: its Tell crossed out, its Show,
 the senses it uses, its framed photo, and Scribbles saying "Tell says it.
 Show lets you see it!" Buttons: "Show me another" and, for guests, "Try one
 yourself", which opens the About page.
+
+The pick comes from the sentences after the wall's 12, so the wall (and the
+flows that read it) stays as it was. With 12 or fewer, it's the first, and
+the wall shows the rest. Its classes are its own (`paper-pick__…`), since
+flows find cards by `.paper-gallery__card`. Signed-in users can like it.
 
 - [ ] The pick isn't repeated in the wall below
 - [ ] Focus stays on "Show me another"; the new sentence is announced

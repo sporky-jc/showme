@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Cards from "../components/Cards";
 import Scribbles from "../components/Scribbles";
+import GalleryPick from "../components/GalleryPick";
+import { anyOf, pickAndWall } from "./pickAndWall";
 import { useLikes } from "../components/useLikes";
 import LoadingOverlay from "react-loading-overlay-ts";
 import { fetchApprovedSentences } from "../actions/approvedsentences";
-import { DisplayCollectionSentences } from "../config";
 import type { GallerySentence } from "../api/types";
 import type { AppDispatch, RootState } from "../reducers/types";
 
@@ -25,6 +26,8 @@ function Collection() {
   const [sentences, setSentences] = useState<GallerySentence[]>([]);
   const [displaySentences, setDisplay] = useState<GallerySentence[]>([]);
   const [order, setOrder] = useState<"shuffle" | "newest">("shuffle");
+  // Scribbles' pick, once "Show me another" has chosen one (see pickAndWall)
+  const [pickId, setPickId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -67,17 +70,25 @@ function Collection() {
   const showShuffled = () => {
     setDisplay(shuffle(sentences));
     setOrder("shuffle");
+    setPickId(null);
   };
   const showNewest = () => {
     setDisplay(sentences);
     setOrder("newest");
+    setPickId(null);
+  };
+
+  const { pick, wall, others } = pickAndWall(displaySentences, pickId);
+  // A different one from the ones Scribbles could pick
+  const showAnother = () => {
+    const choices = others.filter((sentence) => sentence._id !== pick?._id);
+    setPickId(anyOf(choices)._id);
   };
 
   // Scribbles taped the cards up. He tells a signed-in student when one of
   // theirs is among the ones showing.
   const firstName = useSelector((state: RootState) => state.user.firstName);
-  const mineIsUp = displaySentences
-    .slice(0, DisplayCollectionSentences)
+  const mineIsUp = (pick ? [pick, ...wall] : wall)
     .some((sentence) => likes?.[sentence._id]?.mine);
 
   // The Show ME gallery: every approved sentence, from every student
@@ -117,13 +128,22 @@ function Collection() {
               </button>
             </div>
           </div>
+          {pick && (
+            <GalleryPick
+              sentence={pick}
+              signedIn={userId !== undefined}
+              onAnother={others.length > 1 ? showAnother : undefined}
+              likes={likes}
+              onToggleLike={toggle}
+            />
+          )}
           {!loading && sentences.length === 0 ? (
             <p className="page-message">
               No sentences have been approved yet.
             </p>
           ) : (
             <Cards
-              displaySentences={displaySentences}
+              displaySentences={wall}
               likes={likes}
               onToggleLike={toggle}
             />

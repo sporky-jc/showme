@@ -154,6 +154,64 @@ describe("Collection", () => {
     expect(screen.queryByRole("img", { name: "Scribbles the pencil" })).not.toBeInTheDocument();
   });
 
+  // Scribbles' pick, at the top: never one that's on the wall too
+  const pickRegion = () => screen.getByRole("region", { name: "Scribbles’ pick" });
+  const pickShows = () => pickRegion().querySelector(".paper-pick__show")?.textContent;
+  const wallShows = () =>
+    [...document.querySelectorAll(".paper-gallery__show")].map((show) => show.textContent);
+
+  it("picks one from the sentences after the wall's 12, leaving the wall as it was", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: fromServer(15) });
+    await screen.findByRole("region", { name: "Scribbles’ pick" });
+
+    await pickSort(user, "Newest");
+
+    expect(wallShows()).toEqual(fromServer(12).map((s) => s.show));
+    expect(pickShows()).toBe("Sentence 13");
+  });
+
+  it("with 12 or fewer, picks the first and shows the rest on the wall", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: fromServer(4) });
+    await screen.findByRole("region", { name: "Scribbles’ pick" });
+
+    await pickSort(user, "Newest");
+
+    expect(pickShows()).toBe("Sentence 1");
+    expect(wallShows()).toEqual(["Sentence 2", "Sentence 3", "Sentence 4"]);
+  });
+
+  it("Show me another picks a different one that isn't on the wall, keeping the keyboard on the button", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: fromServer(15) });
+    await screen.findByRole("region", { name: "Scribbles’ pick" });
+    await pickSort(user, "Newest");
+    const button = screen.getByRole("button", { name: "Show me another" });
+
+    await user.click(button);
+
+    expect(["Sentence 14", "Sentence 15"]).toContain(pickShows());
+    expect(wallShows()).toEqual(fromServer(12).map((s) => s.show));
+    expect(screen.getByRole("button", { name: "Show me another" })).toHaveFocus();
+    expect(within(pickRegion()).getByRole("status")).toHaveTextContent("Scribbles’ pick: Ada L.’s sentence.");
+  });
+
+  it("has no Show me another with only one to pick from", async () => {
+    renderCollection({ server: fromServer(1) });
+    await screen.findByRole("region", { name: "Scribbles’ pick" });
+
+    expect(pickShows()).toBe("Sentence 1");
+    expect(screen.queryByRole("button", { name: "Show me another" })).not.toBeInTheDocument();
+  });
+
+  it("has no pick without sentences", async () => {
+    renderCollection({ server: [] });
+    await screen.findByText(/No sentences have been approved yet/);
+
+    expect(screen.queryByRole("region", { name: "Scribbles’ pick" })).not.toBeInTheDocument();
+  });
+
   it("says when no sentences have been approved yet", async () => {
     renderCollection({ server: [] });
 

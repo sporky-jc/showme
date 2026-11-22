@@ -7,39 +7,11 @@ import type { GallerySentence } from "../api/types";
 import type { RootState } from "../reducers/types";
 import { frameStyle } from "../frames";
 import { tellById, withoutAsk } from "../tells";
-import { SENSE_KEYS, SENSE_NAMES, sensePieces } from "../senses";
-import type { SenseKey } from "../senses";
-
-// Each sense's classes, written out whole so the build keeps their styles
-// (it keeps only class names it finds in the code)
-const LIT: Record<SenseKey, string> = {
-  see: "paper-gallery__sense paper-gallery__sense--see",
-  hear: "paper-gallery__sense paper-gallery__sense--hear",
-  feel: "paper-gallery__sense paper-gallery__sense--feel",
-  smell: "paper-gallery__sense paper-gallery__sense--smell",
-  taste: "paper-gallery__sense paper-gallery__sense--taste",
-};
-const DOT: Record<SenseKey, string> = {
-  see: "paper-gallery__dot paper-gallery__dot--see",
-  hear: "paper-gallery__dot paper-gallery__dot--hear",
-  feel: "paper-gallery__dot paper-gallery__dot--feel",
-  smell: "paper-gallery__dot paper-gallery__dot--smell",
-  taste: "paper-gallery__dot paper-gallery__dot--taste",
-};
+import { SENSE_KEYS, sensePieces } from "../senses";
+import { DOT, LIT, authorName, usesLabel } from "./galleryWords";
 
 // Nothing to do when there are no likes to press
 const noLikes = () => {};
-
-// First name and last initial. The server sends only the initial as lastName
-// (see GalleryAuthor in the contract), but older servers sent the whole
-// surname, so this still takes its first letter either way. Some accounts
-// have no last name (the database doesn't require one).
-const authorName = ({ firstName, lastName }: GallerySentence["author"]) =>
-  lastName ? `${firstName} ${Array.from(lastName)[0]}.` : firstName;
-
-// "hear and feel", "see, feel and taste"
-const listOf = (names: string[]) =>
-  names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
 // The gallery's cards: each approved sentence, the star of its card, with
 // its words that use a sense lit up in that sense's color (see senses.ts),
@@ -99,7 +71,7 @@ function Cards(props: {
                   <span
                     className="paper-gallery__senses"
                     role="img"
-                    aria-label={`Uses ${listOf(senses.map((sense) => SENSE_NAMES[sense].toLowerCase()))}`}
+                    aria-label={usesLabel(senses)}
                   >
                     {senses.map((sense) => (
                       <span key={sense} className={DOT[sense]} />
