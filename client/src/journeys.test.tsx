@@ -69,6 +69,8 @@ const where = () => window.location.pathname;
 
 const tells: TellSentence[] = Array.from({ length: 12 }, (_, i) => ({
   key: i + 1,
+  id: `day${i + 1}`,
+  technique: "senses",
   title: `Day ${i + 1}`,
   tell: `Tell ${i + 1}`,
   image: `/day${i + 1}.jpg`,

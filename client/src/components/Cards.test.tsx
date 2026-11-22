@@ -8,8 +8,8 @@ import type { GallerySentence } from "../api/types";
 // photo.
 
 const tellsentences = [
-  { key: 1, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" },
-  { key: 2, title: "Day 2", tell: "It is hot outside.", image: "/hot.jpg" },
+  { key: 1, id: "day1", technique: "senses" as const, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" },
+  { key: 2, id: "day2", technique: "senses" as const, title: "Day 2", tell: "It is hot outside.", image: "/hot.jpg" },
 ];
 
 const approved = (n: number, prefix = "Show"): GallerySentence[] =>

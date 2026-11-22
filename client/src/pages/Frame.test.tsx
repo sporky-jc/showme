@@ -15,6 +15,8 @@ const ada = { id: "g-ada", firstName: "Ada", lastName: "Lovelace" };
 
 const tells: TellSentence[] = [1, 2].map((day) => ({
   key: day,
+  id: `day${day}`,
+  technique: "senses",
   title: `Day ${day}`,
   tell: `Tell ${day}`,
   image: `/day${day}.jpg`,

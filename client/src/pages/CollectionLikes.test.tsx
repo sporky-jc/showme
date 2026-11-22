@@ -10,7 +10,7 @@ import type { SentenceLikes, SentenceWithAuthor, User } from "../api/types";
 
 // Likes on the Collections page: only signed-in users see or give them.
 
-const tellsentences = [{ key: 1, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" }];
+const tellsentences = [{ key: 1, id: "day1", technique: "senses" as const, title: "Day 1", tell: "It is cold outside.", image: "/cold.jpg" }];
 
 const sentence = (n: number): SentenceWithAuthor => ({
   _id: `id-${n}`,
