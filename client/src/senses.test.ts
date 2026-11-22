@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { repeatedTellWord, senseWords, wordsOf } from "./senses";
+import { repeatedTellWord, senseCounts, senseWords, wordsOf } from "./senses";
 
 describe("senseWords", () => {
   it("finds the word that uses each sense", () => {
@@ -31,6 +31,12 @@ describe("senseWords", () => {
     expect(found.smell).toBe("sniffly");
   });
 
+  it("hears crunching boots, and tastes crunchy food", () => {
+    expect(senseWords("Snow crunched under my boots").hear).toBe("crunched");
+    expect(senseWords("Snow crunched under my boots").taste).toBeNull();
+    expect(senseWords("The crunchy toast").taste).toBe("crunchy");
+  });
+
   it("ignores capitals and curly apostrophes", () => {
     expect(senseWords("BRIGHT lights! I couldn’t hear a thing").see).toBe("bright");
     expect(wordsOf("couldn’t")).toEqual(["couldn't"]);
@@ -58,5 +64,21 @@ describe("repeatedTellWord", () => {
 
   it("ignores the Tell's ordinary words", () => {
     expect(repeatedTellWord("The dog ran", "The dog was happy.")).toBeNull();
+  });
+});
+
+describe("senseCounts", () => {
+  it("counts the sentences that use each sense, once per sentence", () => {
+    expect(
+      senseCounts([
+        "His tail thumped and thumped like a drum",
+        "Bright snow crunched and squeaked under my boots",
+        "The dog was happy",
+      ])
+    ).toEqual({ see: 1, hear: 2, feel: 0, smell: 0, taste: 0 });
+  });
+
+  it("is all zeros with no sentences", () => {
+    expect(senseCounts([])).toEqual({ see: 0, hear: 0, feel: 0, smell: 0, taste: 0 });
   });
 });

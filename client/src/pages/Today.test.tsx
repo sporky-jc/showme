@@ -262,6 +262,35 @@ describe("Today", () => {
     expect(screen.getByRole("img", { name: "Scribbles the pencil" })).toHaveClass("scribbles--idle");
   });
 
+  it("fills the sticker book from the senses in sentences that made it into the gallery", async () => {
+    const mine = shows(4);
+    mine[0] = { ...mine[0], approved: true, show: "His tail thumped like a drum and he licked my salty cheek." };
+    mine[1] = { ...mine[1], approved: true, show: "Rain drummed on the roof and the bright window fogged up." };
+    mine[2] = { ...mine[2], approved: true, show: "The dog was happy." };
+    // Not in the gallery yet, so its smell doesn't count
+    mine[3] = { ...mine[3], approved: false, show: "Smoky air stung my nose." };
+    renderToday({ mine });
+
+    const book = await screen.findByRole("region", { name: "Sticker book" });
+    const slots = within(book).getAllByRole("listitem");
+    expect(slots.map((slot) => slot.textContent)).toEqual([
+      "SEE!See: Used in 1 sentence",
+      "HEAR!Hear: Used in 2 sentences",
+      "FEEL!Feel: Used in 1 sentence",
+      "Smell?Smell: Not yet. Try it today!",
+      "TASTE!Taste: Used in 1 sentence",
+    ]);
+    // The stickers themselves are decoration: each slot says it in words
+    expect(within(slots[1]).getByText("HEAR!").closest(".paper-sticker")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("shows an empty sticker book that invites a first try", async () => {
+    renderToday();
+    const book = await screen.findByRole("region", { name: "Sticker book" });
+    expect(within(book).getAllByText("Not yet. Try it today!")).toHaveLength(5);
+    expect(book.querySelectorAll(".paper-sticker")).toHaveLength(0);
+  });
+
   it("brings Scribbles along", async () => {
     renderToday();
 

@@ -1330,7 +1330,72 @@ h3,
   color: var(--paper-retry-ink);
 }
 
+/* The sticker book: one slot per sense, a comic sticker once it's earned
+   (SenseSticker.tsx) and a dashed outline until then */
+.paper-book {
+  padding: 18px 18px 22px;
+}
+
+.paper-book h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.paper-book__hint {
+  margin: 4px 0 16px;
+  font-weight: 700;
+  color: var(--paper-muted);
+}
+
+.paper-book__stickers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 10px;
+}
+
+.paper-book__slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.paper-book__slot .paper-sticker__word {
+  font-size: 1.1rem;
+}
+
+.paper-book__empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 3px dashed var(--paper-control-edge);
+  border-radius: 999px;
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  color: var(--paper-muted);
+}
+
+.paper-book__count {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
 @media (min-width: 768px) {
+  .paper-book {
+    padding: 26px 30px 30px;
+  }
+
+  .paper-book__stickers {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .paper-today__card {
     padding: 34px 36px;
     display: grid;

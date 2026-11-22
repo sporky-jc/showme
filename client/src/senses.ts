@@ -31,6 +31,8 @@ const SENSE_WORDS: Record<SenseKey, { words: readonly string[]; starts: readonly
       "whine", "whined", "pant", "panted", "panting", "splash", "splashed", "hum", "hummed",
       "sang", "sing", "song", "shout", "shouted", "scream", "screamed", "yell", "yelled",
       "cheer", "cheered", "roar", "roared", "thunder", "beep", "beeped", "tick", "ticked",
+      // Crunching under boots is a sound; "crunchy" food is a taste
+      "crunch", "crunched", "crunching",
     ],
     starts: ["whisper", "squeak", "rumbl", "crackl", "sizzl", "giggl", "creak", "chirp", "rattl", "jingl"],
   },
@@ -55,9 +57,9 @@ const SENSE_WORDS: Record<SenseKey, { words: readonly string[]; starts: readonly
     words: [
       "taste", "tasted", "tastes", "tasty", "salty", "sour", "sweet", "bitter", "spicy", "juicy",
       "yum", "yummy", "chew", "chewed", "chewy", "bite", "bit", "sip", "sipped", "lick",
-      "sugary", "minty", "tangy", "crispy",
+      "sugary", "minty", "tangy", "crispy", "crunchy",
     ],
-    starts: ["crunch", "munch", "slurp", "gulp"],
+    starts: ["munch", "slurp", "gulp"],
   },
 };
 
@@ -94,4 +96,24 @@ export function repeatedTellWord(show: string, tell: string): string | null {
   const telling = new Set(wordsOf(tell).filter((word) => TELL_WORDS.has(word)));
   if (telling.size === 0) return null;
   return wordsOf(show).find((word) => telling.has(word)) ?? null;
+}
+
+// What each sense is called on the page
+export const SENSE_NAMES: Record<SenseKey, string> = {
+  see: "See",
+  hear: "Hear",
+  feel: "Feel",
+  smell: "Smell",
+  taste: "Taste",
+};
+
+// For each sense, how many of these sentences use it (a sentence counts once
+// per sense, however many of its words use that sense)
+export function senseCounts(sentences: readonly string[]): Record<SenseKey, number> {
+  const counts = { see: 0, hear: 0, feel: 0, smell: 0, taste: 0 };
+  for (const sentence of sentences) {
+    const found = senseWords(sentence);
+    for (const sense of SENSE_KEYS) if (found[sense]) counts[sense] += 1;
+  }
+  return counts;
 }
