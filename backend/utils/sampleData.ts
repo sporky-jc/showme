@@ -58,6 +58,21 @@ export const SAMPLE_SENTENCES: SampleSentence[] = [
   ["seed-zoe", 9, "My eyelids felt like heavy curtains, and I yawned until my jaw cracked.", { approved: true }],
   ["seed-omar", 10, "I flipped my pillow to the cool side for the hundredth time and stared at the ceiling.", { approved: true }],
   ["seed-omar", 11, "Gold coins spilled from his pockets, and his crown sparkled with rubies.", { approved: true }],
+  // Smell, taste and hear too, so the Gallery's sense finder has some of
+  // every sense to show
+  ["seed-leo", 20, "The spicy noodles made my tongue tingle, and I slurped up every last drop.", { approved: true }],
+  ["seed-ava", 20, "Garlic bread smelled so good that my stomach growled before Mom set the table.", { approved: true }],
+  ["seed-noah", 21, "The milk tasted sour, and the soggy carrots smelled like an old gym bag.", { approved: true }],
+  ["seed-sofia", 22, "I could only see the glow of one streetlight, and the air felt damp on my cheeks.", { approved: true }],
+  ["seed-eli", 23, "Purple and yellow flowers lined the path, and the air smelled sweet like honey.", { approved: true }],
+  ["seed-zoe", 25, "The hallway was so dark that every creak of the floor made me jump.", { approved: true }],
+  ["seed-omar", 29, "Fireworks boomed over the lake while the smoky smell of hot dogs drifted past.", { approved: true }],
+  ["seed-mia", 30, "I hum my favorite song while I paint, and the fresh smell of the paint makes me smile.", { approved: true }],
+  ["seed-leo", 27, "My puppy's fluffy ears flop when she sniffs my shoes and licks my salty fingers.", { approved: true }],
+  ["seed-ava", 26, "My pencil squeaked as I erased my answer again, and my palms were sweaty.", { approved: true }],
+  ["seed-noah", 19, "Thunder cracked on the screen, and I hid behind a pillow that smelled like popcorn.", { approved: true }],
+  ["seed-sofia", 32, "The soup was lava, and my tongue sizzled like bacon in a pan.", { approved: true }],
+  ["seed-eli", 24, "Every step felt like a sharp pin poking my knee, and I bit my lip so I wouldn't cry.", { approved: true }],
 
   // Sent back by the teacher, each with a tip (or none), for My sentences
   ["seed-leo", 3, "His room is very messy.", { redo: "showNotTell" }],
