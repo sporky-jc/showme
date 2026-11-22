@@ -8,11 +8,11 @@
 // The website only ever imports *types* from here (`import type`), and types
 // disappear when it's built: neither this code nor zod is sent to browsers.
 // So this file imports nothing but zod, the reviewer's fixed lists (its
-// tips, verdicts, reasons and longest sentence) and the list of Tell
+// tips, verdicts, reasons, modes and longest sentence) and the list of Tell
 // sentences, none of which import anything but zod and types.
 import { z } from "zod";
 import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
-import { MAX_CHARACTERS, REASONS, VERDICTS } from "../reviewer/contract.js";
+import { MAX_CHARACTERS, REASONS, REVIEWER_MODES, VERDICTS } from "../reviewer/contract.js";
 import { MECHANICS } from "../reviewer/mechanics.js";
 import { tellForTitle } from "../public/tellList.js";
 
@@ -121,6 +121,14 @@ export const UndoBody = z.object({
   status: z.enum(["approve", "redo"], {
     error: "The status must be approve or redo",
   }),
+});
+
+// PATCH /Admin/reviewer: pause Scribbles, the scheduled reviewer, or turn
+// him back on, from the Teacher page (models/reviewerSwitch.ts). Only ever
+// true or false: the switch can pause him, never switch on a mode the
+// deploy didn't (REVIEWER_MODE).
+export const ReviewerSwitchBody = z.object({
+  paused: z.boolean({ error: "paused must be true or false" }),
 });
 
 // PUT and DELETE /Collections/:id/like: the sentence to like or unlike, from
@@ -280,6 +288,15 @@ export const ReviewCounts = z.object({
   waiting: z.number().int().nonnegative(),
 });
 
+// GET and PATCH /Admin/reviewer: Scribbles' mode as the deploy set it
+// ("off": he never runs, and the switch can't change that), and whether a
+// teacher has paused him, since when
+export const ReviewerStatus = z.object({
+  mode: z.enum(REVIEWER_MODES),
+  paused: z.boolean(),
+  pausedAt: z.iso.datetime().optional(),
+});
+
 // An approved sentence's likes, as a signed-in student sees them: GET
 // /Collections/likes lists every approved sentence's, and PUT and DELETE
 // /Collections/:id/like send back the one changed. Likes are for signed-in
@@ -320,5 +337,7 @@ export type GallerySentence = z.infer<typeof GallerySentence>;
 export type UndoBody = z.infer<typeof UndoBody>;
 export type UndoAnswer = z.infer<typeof UndoAnswer>;
 export type ReviewCounts = z.infer<typeof ReviewCounts>;
+export type ReviewerSwitchBody = z.infer<typeof ReviewerSwitchBody>;
+export type ReviewerStatus = z.infer<typeof ReviewerStatus>;
 export type SentenceLikes = z.infer<typeof SentenceLikes>;
 export type ErrorAnswer = z.infer<typeof ErrorAnswer>;

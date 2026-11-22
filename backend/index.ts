@@ -43,7 +43,8 @@ export const apiv2 = onRequest(
 
 // Scribbles the reviewer: every 10 minutes, suggestions for the sentences
 // waiting for the teacher (reviewer/queue.ts). It does nothing unless
-// REVIEWER_MODE is "suggest" and a provider is set up, and nothing it does
+// REVIEWER_MODE is "suggest" and a provider is set up, and nothing while a
+// teacher has paused it from the Teacher page; and nothing it does
 // changes what students or the gallery see. Google's Cloud Scheduler runs
 // it (free for up to 3 schedules per billing account).
 export const reviewer = onSchedule(
@@ -63,6 +64,9 @@ export const reviewer = onSchedule(
     // No new review starts after 240 seconds (RUN_DEADLINE_MS), well inside
     // the 300 above
     const { reviewed, stopped } = await reviewWaitingSentences(setup);
+    // Paused from the Teacher page before anything was saved: the reviewer
+    // has already said so, in one line
+    if (stopped === "paused" && reviewed === 0) return;
     logger.info(`Reviewer saved ${reviewed} suggestion(s)${stopped ? `, stopped early: ${stopped}` : ""}`);
   }
 );

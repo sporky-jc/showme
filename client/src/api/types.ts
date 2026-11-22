@@ -16,6 +16,7 @@ export type {
   LoginBody,
   NewSentenceBody,
   ReviewBody,
+  ReviewerSwitchBody,
   UndoBody,
   // what it reads back
   Author,
@@ -24,6 +25,7 @@ export type {
   OwnSentence,
   QueueSentence,
   ReviewCounts,
+  ReviewerStatus,
   ReviewTip,
   ScribblesSuggestion,
   Sentence,

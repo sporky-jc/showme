@@ -15,6 +15,7 @@ import {
   logoutUser,
 } from "../controllers/routes.js";
 import { googleAuth } from "../controllers/auth.js";
+import { getReviewerStatus, updateReviewerSwitch } from "../controllers/reviewerSwitch.js";
 import { testLogin } from "../controllers/testLogin.js";
 import {
   getLikes,
@@ -27,6 +28,7 @@ import {
   decisionsRateLimit,
   likesRateLimit,
   reviewCountRateLimit,
+  reviewerSwitchRateLimit,
   reviewTipsRateLimit,
   sentenceWritesRateLimit,
   testLoginRateLimit,
@@ -80,6 +82,13 @@ router.get("/Admin/tips", reviewTipsRateLimit, auth, admin, getReviewTips);
 // limited per user (see middlewares/rateLimit.ts): every teacher's open tab
 // asks every few minutes.
 router.get("/Admin/count", reviewCountRateLimit, auth, admin, getReviewCounts);
+// Scribbles' off switch: whether he's on, paused or off (set by the deploy),
+// and pausing him or turning him back on, at once and with no deploy (see
+// models/reviewerSwitch.ts). Protected like the queue, and limited per user
+// (see middlewares/rateLimit.ts). A test account may read it but not flip
+// it (controllers/reviewerSwitch.ts).
+router.get("/Admin/reviewer", reviewerSwitchRateLimit, auth, admin, getReviewerStatus);
+router.patch("/Admin/reviewer", reviewerSwitchRateLimit, auth, admin, updateReviewerSwitch);
 
 // Route for getting approved sentences
 router.get("/Collections", fetchApprovedSentences);

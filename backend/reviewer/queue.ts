@@ -22,6 +22,7 @@ import { ReviewSuggestion } from "../models/reviewSuggestions.js";
 import { reviewSentence, type ProviderAttempt } from "./reviewer.js";
 import type { ReviewerSetup } from "./settings.js";
 import { messageOf } from "../utils/errors.js";
+import { readReviewerSwitch } from "../models/reviewerSwitch.js";
 import { TEST_SENTENCES } from "../config/testAccounts.js";
 
 // At most this many sentences per run, so one run stays well inside the free
@@ -41,8 +42,9 @@ const DAY = 24 * 60 * 60 * 1000;
 // Why a run stopped early: a provider is out of free requests (HTTP 429) or
 // its key is refused (401, 403), so every other request would fail too; a
 // provider refused two sentences' requests (HTTP 400, 422...), which looks
-// like our setup, not the sentences; or the run's time is up
-export type StoppedBecause = "rate-limited" | "credentials" | "configuration" | "deadline";
+// like our setup, not the sentences; the run's time is up; or a teacher
+// paused Scribbles from the Teacher page (see pausedNow below)
+export type StoppedBecause = "rate-limited" | "credentials" | "configuration" | "deadline" | "paused";
 
 type Waiting = {
   _id: Types.ObjectId;
@@ -111,6 +113,8 @@ export const reviewWaitingSentences = async (
     logger.warn("Reviewer is on but has no safety check, welfare check or AI provider set up");
     return { reviewed: 0 };
   }
+  // Paused from the Teacher page: nothing this run (see pausedNow)
+  if (await pausedNow()) return { reviewed: 0, stopped: "paused" };
 
   const started = now();
   const since = new Date(started - MAX_AGE_DAYS * DAY);
@@ -166,6 +170,13 @@ export const reviewWaitingSentences = async (
       seen.push(sentence._id);
       if (now() - started >= deadlineMs) {
         stopped = "deadline";
+        break run;
+      }
+      // Paused while this run was going: no more sentences go to the AI.
+      // What this run has already been told is still saved below (they're
+      // only suggestions: the teacher decides).
+      if (await pausedNow()) {
+        stopped = "paused";
         break run;
       }
       const id = String(sentence._id);
@@ -302,6 +313,23 @@ export const reviewWaitingSentences = async (
 
   if (stopped === "deadline") logger.warn("Reviewer stopped this run: out of time", { reviewed: count });
   return stopped ? { reviewed: count, stopped } : { reviewed: count };
+};
+
+// Whether a teacher has paused Scribbles from the Teacher page
+// (models/reviewerSwitch.ts), read at the start of every run and again
+// before each sentence, so pausing takes effect from the next sentence with
+// no deploy. Logs one line when it is. If the switch can't be read, the run
+// does nothing: an off switch that might be on has to count as on, and the
+// next run tries again.
+const pausedNow = async () => {
+  try {
+    const { paused } = await readReviewerSwitch();
+    if (paused) logger.info("Scribbles is paused from the Teacher page");
+    return paused;
+  } catch (error) {
+    logger.warn(`Reviewer could not read the Teacher page's pause switch, so it stops this run: ${messageOf(error)}`);
+    return true;
+  }
 };
 
 // The sentence's current words have a suggestion. Only if they're still its

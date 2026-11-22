@@ -6,6 +6,7 @@ import {
   decisionsRateLimitStore,
   likesRateLimitStore,
   reviewCountRateLimitStore,
+  reviewerSwitchRateLimitStore,
   reviewTipsRateLimitStore,
   sentenceWritesPerDayStore,
   sentenceWritesPerMinuteStore,
@@ -39,6 +40,7 @@ afterEach(async () => {
   await reviewTipsRateLimitStore.resetAll();
   await decisionsRateLimitStore.resetAll();
   await reviewCountRateLimitStore.resetAll();
+  await reviewerSwitchRateLimitStore.resetAll();
   await testLoginRateLimitStore.resetAll();
 });
 

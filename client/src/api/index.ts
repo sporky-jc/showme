@@ -9,6 +9,8 @@ import type {
   ReviewBody,
   ReviewCounts,
   ReviewDecision,
+  ReviewerStatus,
+  ReviewerSwitchBody,
   ReviewTip,
   ReviewTipId,
   SentenceLikes,
@@ -70,6 +72,13 @@ export const fetchReviewTips = () => API.get<ReviewTip[]>("/Admin/tips");
 // How many sentences wait for the signed-in teacher, and how many to check
 // in on: the badge on the Teacher link (components/useReviewCount.ts)
 export const fetchReviewCounts = () => API.get<ReviewCounts>("/Admin/count");
+
+// Scribbles' off switch on the Teacher page (components/ReviewerSwitch.tsx):
+// whether he's on, paused or off (set by the deploy), and pausing him or
+// turning him back on. Both answer with how he is now.
+export const fetchReviewerStatus = () => API.get<ReviewerStatus>("/Admin/reviewer");
+export const setReviewerPaused = (paused: boolean) =>
+  API.patch<ReviewerStatus>("/Admin/reviewer", { paused } satisfies ReviewerSwitchBody);
 
 // The sentences approved or sent back most recently, and taking one of those
 // decisions back so it waits for review again. `status` is the decision
