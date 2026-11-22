@@ -182,6 +182,77 @@ describe("Write", () => {
     expect(screen.getByRole("button", { name: "Smell" })).toHaveAttribute("type", "button");
   });
 
+  it("lights up the senses the sentence uses, with a sticker each, and keeps their names", async () => {
+    const user = userEvent.setup();
+    renderWrite();
+    await user.type(await box(), "His tail thumped the floor like a drum and he licked my salty cheek.");
+
+    const hear = screen.getByRole("button", { name: "Hear" });
+    expect(hear).toHaveAccessibleDescription("Used: thumped");
+    expect(screen.getByRole("button", { name: "Feel" })).toHaveAccessibleDescription("Used: licked");
+    expect(screen.getByRole("button", { name: "Taste" })).toHaveAccessibleDescription("Used: salty");
+    expect(screen.getByRole("button", { name: "See" })).not.toHaveAccessibleDescription();
+    // Using a sense isn't pressing it: pressed is the one Scribbles asks about
+    expect(hear).toHaveAttribute("aria-pressed", "false");
+
+    const stickers = document.querySelectorAll(".paper-write__stickers .paper-sticker");
+    expect(Array.from(stickers, (sticker) => sticker.textContent)).toEqual(["THUMPED!", "LICKED!", "SALTY!"]);
+    expect(bubble()).toHaveTextContent("I can picture it! You used 3 senses.");
+  });
+
+  it("doesn't praise a sentence that only tells, even when sense words hide inside other words", async () => {
+    const user = userEvent.setup();
+    renderWrite();
+    await user.type(await box(), "He was tired and bored and seemed furious today");
+
+    expect(document.querySelectorAll(".paper-sticker")).toHaveLength(0);
+    for (const name of ["See", "Hear", "Feel", "Smell", "Taste"]) {
+      expect(screen.getByRole("button", { name })).not.toHaveAccessibleDescription();
+    }
+    expect(bubble()).toHaveTextContent("I see shapes, but no details yet. What would you see or hear?");
+  });
+
+  it("asks for a second sense, and says when the Tell word is back", async () => {
+    const user = userEvent.setup();
+    const mine = shows(2);
+    mine[0].tell = "The dog was happy.";
+    renderWrite({ route: "/Write/s1", mine });
+    const input = await box();
+
+    await user.clear(input);
+    await user.type(input, "His tail thumped the floor again and again and again");
+    expect(bubble()).toHaveTextContent("Ooh, getting there! Can you add a second sense?");
+
+    await user.type(input, " because he was happy");
+    expect(bubble()).toHaveTextContent("“happy” is the Tell word. Can you show it instead?");
+  });
+
+  it("brings back Scribbles' thoughts on the sentence once the student types after asking", async () => {
+    const user = userEvent.setup();
+    renderWrite();
+    const input = await box();
+    await user.click(screen.getByRole("button", { name: "Smell" }));
+    expect(bubble()).toHaveTextContent(/sniff/);
+
+    await user.type(input, "Smoke");
+    expect(bubble()).toHaveTextContent("It's getting clearer! Add a detail.");
+    // The sense stays pressed, so pressing it again asks its next question
+    expect(screen.getByRole("button", { name: "Smell" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows the day's photo, foggy and gray until the sentence paints it", async () => {
+    const user = userEvent.setup();
+    renderWrite();
+    await box();
+    const photo = document.querySelector<HTMLImageElement>(".paper-write__photo")!;
+    expect(photo).toHaveAttribute("src", "/day3.jpg");
+    expect(photo).toHaveAttribute("alt", "");
+    expect(photo.style.filter).toBe("blur(9.6px) grayscale(1)");
+
+    await user.type(await box(), "Bright snow crunched under my boots and stung my cold cheeks");
+    expect(photo.style.filter).toBe("blur(0px) grayscale(0)");
+  });
+
   it("sending saves the sentence for the right day, then says Scribbles is checking", async () => {
     const user = userEvent.setup();
     const { saves } = renderWrite({ mine: shows(2) });
