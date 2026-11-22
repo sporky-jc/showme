@@ -31,6 +31,14 @@
   --paper-brand-shadow: #5a3fd6;
   --paper-brand-ink: #ffffff;
 
+  /* One color per sense, for its button and its stickers. Always with ink
+     text on top (8:1 or more). */
+  --paper-sense-see: #ffc93c;
+  --paper-sense-hear: #7fd3ff;
+  --paper-sense-feel: #ff9fb0;
+  --paper-sense-smell: #6fe0d3;
+  --paper-sense-taste: #ffb36b;
+
   /* Sentence status: done, your turn, try again (text 5.8–6:1 on its
      background) */
   --paper-done-bg: #d9f7e8;
@@ -1701,17 +1709,40 @@ h3,
   color: var(--paper-action-ink);
 }
 
-.paper-write__desk {
-  display: flex;
-  flex-direction: column;
-  gap: 26px;
-}
-
+/* The card holds, in order: the Tell, the box, Scribbles' picture and what
+   he says, the senses, and the button. On a phone that's one column, so
+   the box comes first and his answer sits right under it. On a wide screen
+   his picture moves to a column of its own beside the rest. */
 .paper-write__card {
   padding: 18px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "writing" "coach" "ideas" "foot";
+  gap: 18px;
+}
+
+.paper-write__head {
+  grid-area: head;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+}
+
+.paper-write__writing {
+  grid-area: writing;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paper-write__ideas {
+  grid-area: ideas;
+}
+
+.paper-write__hint {
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: var(--paper-muted);
 }
 
 .paper-write__tell {
@@ -1738,29 +1769,50 @@ h3,
   font-weight: 700;
 }
 
-/* Five buttons; the pressed one is the sense Scribbles is asking about */
+/* Five buttons. One the sentence uses is filled with its sense's color and
+   says the word; the pressed one is the sense Scribbles is asking about. */
 .paper-write__senses {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.paper-write__senses button {
-  min-height: 44px;
-  padding: 0 16px;
-  border: 2px solid var(--paper-control-edge);
+.paper-write__sense {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 88px;
+  padding: 4px 16px;
+  border: 3px dashed var(--paper-control-edge);
   border-radius: 999px;
   background: var(--paper-white);
   color: var(--paper-ink);
+  font-family: var(--paper-font-display);
   font-weight: 800;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  line-height: 1.1;
   transition: transform 0.15s ease;
 }
 
-.paper-write__senses button[aria-pressed="true"] {
-  border-color: var(--paper-action-shadow);
-  background: var(--paper-action);
-  color: var(--paper-action-ink);
+.paper-write__sense--used {
+  border-style: solid;
+  border-color: var(--sense-color);
+  background: var(--sense-color);
+  box-shadow: 0 4px 0 var(--paper-edge);
+}
+
+.paper-write__sense-word {
+  font-family: var(--paper-font-body);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+/* The sense Scribbles is asking about: a solid ink edge */
+.paper-write__sense[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--paper-ink);
 }
 
 .paper-write__label {
@@ -1802,6 +1854,7 @@ h3,
 }
 
 .paper-write__foot {
+  grid-area: foot;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1837,24 +1890,128 @@ h3,
   font-weight: 800;
 }
 
-/* Scribbles and what he asks */
+/* Scribbles' picture of the sentence, and what he says about it */
 .paper-write__coach {
+  grid-area: coach;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The Tell's photo in a violet frame: foggy and gray until the sentence
+   paints it (the filter is set on the photo by Write.tsx) */
+.paper-write__frame {
+  position: relative;
+  padding: 10px;
+  border-radius: 26px;
+  background: var(--paper-brand);
+  box-shadow: 0 8px 0 var(--paper-brand-shadow);
+}
+
+/* Keeps the blur inside the frame */
+.paper-write__window {
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+  background: var(--paper-white);
+}
+
+.paper-write__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter 0.5s ease-out;
+}
+
+/* A sticker per sense the sentence uses, on the frame's corners */
+.paper-write__stickers .paper-sticker {
+  position: absolute;
+  z-index: 1;
+}
+
+.paper-write__stickers .paper-sticker:nth-child(1) {
+  top: -18px;
+  left: -8px;
+}
+
+.paper-write__stickers .paper-sticker:nth-child(2) {
+  top: -18px;
+  right: -8px;
+}
+
+.paper-write__stickers .paper-sticker:nth-child(3) {
+  bottom: 6px;
+  right: -10px;
+}
+
+.paper-write__stickers .paper-sticker:nth-child(4) {
+  bottom: 6px;
+  left: -10px;
+}
+
+.paper-write__stickers .paper-sticker:nth-child(5) {
+  top: 40%;
+  right: -12px;
+}
+
+.paper-write__talk {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-.paper-write__coach .scribbles {
+.paper-write__talk .scribbles {
   flex: none;
   width: 92px;
   height: auto;
 }
 
-.paper-write__coach .paper-bubble {
-  max-width: 260px;
+.paper-write__talk .paper-bubble {
+  flex: 1 1 auto;
   min-height: 3.6em;
   display: flex;
   align-items: center;
+}
+
+/* A comic sound-effect sticker (SenseSticker.tsx): a starburst in its
+   sense's color with a white die-cut edge, slapped on at a tilt */
+.paper-sticker {
+  display: inline-block;
+  padding: 5px;
+  background: var(--paper-white);
+  clip-path: polygon(50% 0, 61% 20%, 84% 8%, 80% 32%, 100% 40%, 82% 56%, 94% 82%, 66% 76%, 52% 100%, 38% 78%, 12% 90%, 20% 62%, 0 46%, 20% 34%, 12% 10%, 38% 20%);
+  transform: rotate(var(--sticker-tilt));
+  filter: drop-shadow(0 4px 0 rgba(32, 48, 74, 0.2));
+  animation: paper-sticker-slap 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+  pointer-events: none;
+}
+
+.paper-sticker__word {
+  display: inline-block;
+  padding: 13px 26px;
+  background: var(--sticker-color);
+  clip-path: inherit;
+  color: var(--paper-ink);
+  font-family: var(--paper-font-display);
+  font-weight: 900;
+  font-size: 1rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@keyframes paper-sticker-slap {
+  0% {
+    opacity: 0;
+    transform: scale(1.8) rotate(var(--sticker-tilt));
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.92) rotate(var(--sticker-tilt));
+  }
+  100% {
+    transform: scale(1) rotate(var(--sticker-tilt));
+  }
 }
 
 /* After sending: Scribbles is checking */
@@ -1923,21 +2080,19 @@ h3,
 }
 
 @media (hover: hover) {
-  .paper-write__senses button:hover {
+  .paper-write__sense:hover {
     transform: translateY(-2px) rotate(-2deg);
   }
 }
 
 @media (min-width: 900px) {
-  .paper-write__desk {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 250px;
-    gap: 30px;
-    align-items: center;
-  }
-
   .paper-write__card {
     padding: 28px 32px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+    grid-template-areas: "head coach" "writing coach" "ideas coach" "foot coach";
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: 36px;
+    align-items: start;
   }
 
   .paper-write__foot {
@@ -1947,21 +2102,12 @@ h3,
   }
 
   .paper-write__coach {
-    flex-direction: column-reverse;
-    align-items: center;
-    gap: 18px;
+    position: sticky;
+    top: 16px;
   }
 
-  .paper-write__coach .scribbles {
-    width: 150px;
-  }
-
-  /* The bubble's tail points down at him */
-  .paper-write__coach .paper-bubble::before {
-    left: 50%;
-    top: auto;
-    bottom: -8px;
-    margin: 0 0 0 -9px;
+  .paper-write__talk .scribbles {
+    width: 120px;
   }
 
   .paper-write__checking .scribbles {
@@ -2151,6 +2297,16 @@ h3,
   .paper-mine__edit:hover {
     transition: none;
     transform: none;
+  }
+
+  /* Stickers appear without the slap, at their tilt, and the photo clears
+     without fading */
+  .paper-sticker {
+    animation: none;
+  }
+
+  .paper-write__photo {
+    transition: none;
   }
 }
 

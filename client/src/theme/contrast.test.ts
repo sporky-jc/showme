@@ -42,6 +42,11 @@ describe("theme colors", () => {
     expect(contrast(token(text), token(background))).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Sense buttons and stickers: ink on each sense's color
+  it.each(["see", "hear", "feel", "smell", "taste"])("ink on the %s color is easy to read", (sense) => {
+    expect(contrast(token("ink"), token(`sense-${sense}`))).toBeGreaterThanOrEqual(4.5);
+  });
+
   // Big, bold text only (the logo's "ME"): at least 3:1
   it("brand-ink on brand is readable as big text", () => {
     expect(contrast(token("brand-ink"), token("brand"))).toBeGreaterThanOrEqual(3);

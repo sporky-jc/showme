@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import Scribbles from "../components/Scribbles";
+import SenseSticker from "../components/SenseSticker";
 import PageLoading from "../components/PageLoading";
 import SignInPrompt from "../components/SignInPrompt";
 import { useStudentData } from "../components/useStudentData";
@@ -10,14 +11,16 @@ import { fetchUser } from "../actions/user";
 import type { AppDispatch, RootState } from "../reducers/types";
 import { dayOf, nextDay } from "../days";
 import { standing } from "../components/standing";
+import { repeatedTellWord, senseWords, type SenseKey } from "../senses";
 import type { OwnSentence } from "../api/types";
 import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 
 // The five senses, each with questions Scribbles asks to get a writer going.
 // They are general on purpose: they work for any Tell sentence. Pressing a
 // sense again asks its next question.
-const SENSES = [
+const SENSES: readonly { key: SenseKey; name: string; tips: readonly string[] }[] = [
   {
+    key: "see",
     name: "See",
     tips: [
       "What would a camera catch? Colors, shapes, tiny details!",
@@ -26,6 +29,7 @@ const SENSES = [
     ],
   },
   {
+    key: "hear",
     name: "Hear",
     tips: [
       "Close your eyes. What sounds are there?",
@@ -34,6 +38,7 @@ const SENSES = [
     ],
   },
   {
+    key: "feel",
     name: "Feel",
     tips: [
       "What does it feel like on your skin?",
@@ -42,6 +47,7 @@ const SENSES = [
     ],
   },
   {
+    key: "smell",
     name: "Smell",
     tips: [
       "Take a big sniff. What is in the air?",
@@ -50,6 +56,7 @@ const SENSES = [
     ],
   },
   {
+    key: "taste",
     name: "Taste",
     tips: [
       "Is there anything to taste? Sweet, salty, sour?",
@@ -57,7 +64,11 @@ const SENSES = [
       "Does the air leave a taste on your tongue?",
     ],
   },
-] as const;
+];
+
+// Where each sense's sticker lands on the picture frame, and its tilt, in the
+// order the student's senses come (see .paper-write__stickers)
+const STICKER_TILTS = [-8, 7, -5, 6, -10];
 
 // A sentence this long has room for a detail
 const WORD_GOAL = 8;
@@ -139,6 +150,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
   // sentence it has (again: it already had one for this day).
   const [typed, setTyped] = useState<string | null>(null);
   const [sense, setSense] = useState<{ index: number; turn: number } | null>(null);
+  // Whether Scribbles' bubble still shows that sense's question: typing
+  // after asking brings back what he thinks of the sentence
+  const [asking, setAsking] = useState(false);
   const [saving, setSaving] = useState(false);
   // (A problem may come with the student's sentence to open: the one the
   // server already has for this day.)
@@ -266,14 +280,43 @@ function WriteSentence({ id }: { id: string | undefined }) {
       : words < WORD_GOAL
       ? "Keep going, add a detail!"
       : "Nice and vivid!";
-  const tip = sense
-    ? SENSES[sense.index].tips[sense.turn % SENSES[sense.index].tips.length]
-    : editing?.toRedo
-    ? "Let's make it even better. Tap a sense for an idea!"
-    : "Tap a sense and I'll help you think!";
+  // Which senses the sentence uses (a hint, see senses.ts), and whether it
+  // repeats the Tell's telling word
+  const found = senseWords(text);
+  const used = SENSES.filter(({ key }) => found[key]);
+  const tellWord = repeatedTellWord(text, tell);
+  const clear = words >= WORD_GOAL && used.length >= 2 && !tellWord;
 
-  const askAbout = (index: number) =>
+  // What Scribbles says. It changes when the sentence reaches a new stage,
+  // not with every letter, so a screen reader isn't talked over.
+  const coach =
+    sense && asking
+      ? SENSES[sense.index].tips[sense.turn % SENSES[sense.index].tips.length]
+      : editing?.toRedo && typed === null
+      ? // A sentence sent back for another try, before any change
+        "Let's make it even better. Tap a sense for an idea!"
+      : tellWord
+      ? `“${tellWord}” is the Tell word. Can you show it instead?`
+      : words === 0
+      ? "Tap a sense and I'll help you think!"
+      : words < WORD_GOAL
+      ? "It's getting clearer! Add a detail."
+      : used.length === 0
+      ? "I see shapes, but no details yet. What would you see or hear?"
+      : used.length === 1
+      ? "Ooh, getting there! Can you add a second sense?"
+      : `I can picture it! You used ${used.length} senses.`;
+
+  // Scribbles' picture of the sentence: the Tell's photo, foggy and gray
+  // until the sentence has enough words and senses to see it clearly
+  const image = day === undefined ? undefined : tellSentences[day - 1]?.image;
+  const blur = tellWord ? 6 : Math.max(0, WORD_GOAL - words) * 1.2;
+  const gray = found.see || used.length >= 2 ? 0 : used.length === 1 ? 0.5 : 1;
+
+  const askAbout = (index: number) => {
     setSense((now) => ({ index, turn: now?.index === index ? now.turn + 1 : 0 }));
+    setAsking(true);
+  };
 
   // Send the sentence to the server. The words stay in the box until it
   // answers, so nothing is lost if it can't be reached; the button is off
@@ -328,9 +371,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
         </ol>
       </div>
 
-      <div className="paper-write__desk">
-        <div className="paper-stack">
-          <form className="paper-stack__card paper-write__card" onSubmit={send}>
+      <div className="paper-stack">
+        <form className="paper-stack__card paper-write__card" onSubmit={send}>
+          <div className="paper-write__head">
             <h1 className="paper-write__tell">
               <span className="paper-status paper-status--retry">
                 {editing ? (day ? `Sentence ${day} · Tell` : "Sentence · Tell") : "Your next Tell"}
@@ -344,54 +387,109 @@ function WriteSentence({ id }: { id: string | undefined }) {
                 checks it again first.
               </p>
             )}
+          </div>
 
-            <div className="paper-write__senses" role="group" aria-label="Senses">
-              {SENSES.map(({ name }, index) => (
-                <button
-                  type="button"
-                  key={name}
-                  aria-pressed={sense?.index === index}
-                  onClick={() => askAbout(index)}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-
+          <div className="paper-write__writing">
             <label className="paper-write__label" htmlFor="show-sentence">
               Now show it
             </label>
             <textarea
               id="show-sentence"
               className="paper-write__box"
-              rows={5}
+              rows={4}
               value={text}
               placeholder="Don't just tell me, instead SHOW ME!"
               aria-describedby="show-count"
               maxLength={MAX_LENGTH}
-              onChange={(event) => setTyped(event.target.value)}
+              onChange={(event) => {
+                setTyped(event.target.value);
+                setAsking(false);
+              }}
             />
+            <p id="show-count" className="paper-write__count">
+              <strong>
+                {words} {words === 1 ? "word" : "words"}
+              </strong>{" "}
+              · {cheer}
+              {charactersLeft <= LENGTH_WARNING &&
+                (charactersLeft >= 0
+                  ? ` · ${charactersLeft} ${charactersLeft === 1 ? "character" : "characters"} left`
+                  : ` · ${-charactersLeft} too many characters`)}
+            </p>
+          </div>
 
-            <div className="paper-write__foot">
-              <p id="show-count" className="paper-write__count">
-                <strong>
-                  {words} {words === 1 ? "word" : "words"}
-                </strong>{" "}
-                · {cheer}
-                {charactersLeft <= LENGTH_WARNING &&
-                  (charactersLeft >= 0
-                    ? ` · ${charactersLeft} ${charactersLeft === 1 ? "character" : "characters"} left`
-                    : ` · ${-charactersLeft} too many characters`)}
-              </p>
-              <button
-                type="submit"
-                className="paper-btn paper-btn--action paper-write__send"
-                disabled={saving || text.trim() === ""}
-              >
-                {saving ? "Sending…" : "Ask Scribbles"}
-              </button>
+          {/* Scribbles' picture of the sentence, with a sticker for each
+              sense it uses, and what he thinks of it */}
+          <div className="paper-write__coach">
+            <div className="paper-write__frame">
+              <div className="paper-write__window">
+                {image && (
+                  <img
+                    className="paper-write__photo"
+                    src={image}
+                    alt=""
+                    width={800}
+                    height={500}
+                    style={{ filter: `blur(${blur.toFixed(1)}px) grayscale(${gray})` }}
+                  />
+                )}
+              </div>
+              <div className="paper-write__stickers" aria-hidden>
+                {used.map(({ key }, place) => (
+                  <SenseSticker key={key} word={found[key]!} sense={key} tilt={STICKER_TILTS[place]} />
+                ))}
+              </div>
             </div>
+            <div className="paper-write__talk">
+              <Scribbles
+                mood={tellWord ? "worried" : clear ? "happy" : sense && asking ? "thinking" : "idle"}
+                prop={clear ? "none" : "note"}
+                size={110}
+                decorative
+              />
+              <p className="paper-bubble" aria-live="polite">
+                {coach}
+              </p>
+            </div>
+          </div>
 
+          <div className="paper-write__ideas">
+            <p className="paper-write__hint" id="senses-hint">
+              Tap a sense for an idea. It lights up when your sentence uses it.
+            </p>
+            <div className="paper-write__senses" role="group" aria-label="Senses">
+              {SENSES.map(({ key, name }, index) => {
+                const word = found[key];
+                return (
+                  <button
+                    type="button"
+                    key={key}
+                    className={word ? "paper-write__sense paper-write__sense--used" : "paper-write__sense"}
+                    style={{ "--sense-color": `var(--paper-sense-${key})` } as React.CSSProperties}
+                    aria-pressed={sense?.index === index}
+                    aria-describedby={word ? `sense-${key}-word` : undefined}
+                    onClick={() => askAbout(index)}
+                  >
+                    {name}
+                    {word && (
+                      <span className="paper-write__sense-word" id={`sense-${key}-word`} aria-hidden>
+                        Used: {word}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="paper-write__foot">
+            <button
+              type="submit"
+              className="paper-btn paper-btn--action paper-write__send"
+              disabled={saving || text.trim() === ""}
+            >
+              {saving ? "Sending…" : "Ask Scribbles"}
+            </button>
             {problem && (
               <p className="paper-write__failed" role="alert">
                 {problem.message}
@@ -403,16 +501,8 @@ function WriteSentence({ id }: { id: string | undefined }) {
                 )}
               </p>
             )}
-          </form>
-        </div>
-
-        <div className="paper-write__coach">
-          {/* He cheers once the sentence has room for a detail */}
-          <Scribbles mood={words >= WORD_GOAL ? "happy" : "idle"} prop="note" size={130} decorative />
-          <p className="paper-bubble" aria-live="polite">
-            {tip}
-          </p>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );
