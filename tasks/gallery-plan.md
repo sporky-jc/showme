@@ -15,6 +15,8 @@ looks the same, and the page stops after 12 cards with nothing to do next.
 
 - Design A: Scribbles' pick at the top, then a wall of sentence-first cards.
 - Guests see no like counts (as today). Signed-in students keep likes.
+- "Try one yourself" opens the About page for now. A try-it on the Gallery
+  itself could come later.
 - Names stay: the "Show ME gallery" heading (still a heading for screen
   readers), Shuffle, Newest, the like buttons, first name and last initial.
 - The sense words come from `client/src/senses.ts`, the same list Write uses.
@@ -40,7 +42,7 @@ Files: `client/src/components/Cards.tsx`, `client/src/theme/paper.css`
 One approved sentence, big, above the wall: its Tell crossed out, its Show,
 the senses it uses, its framed photo, and Scribbles saying "Tell says it.
 Show lets you see it!" Buttons: "Show me another" and, for guests, "Try one
-yourself" (see Open questions).
+yourself", which opens the About page.
 
 - [ ] The pick isn't repeated in the wall below
 - [ ] Focus stays on "Show me another"; the new sentence is announced
@@ -78,9 +80,6 @@ layout. Activate after they pass on staging.
 
 ## Open questions
 
-- Where does "Try one yourself" go? The About page explains Show ME but has
-  nothing to try. Options: sign in, the About page, or a small try-it on the
-  Gallery itself (a later task). (G2)
 
 - Should "Show more" load more from the server, or show the rest of what
   the Gallery already has? (G4)
