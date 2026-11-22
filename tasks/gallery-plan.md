@@ -87,12 +87,14 @@ menu's in flows that find "Sign in" by name.
 Short cards (photo thumbnail beside the words) and the pick stacked above
 its photo; the sense buttons scroll sideways.
 
-- [ ] No sideways page scroll at 375px
+- [x] No sideways page scroll at 375px or 320px
+- [x] The pick's photo is at most 300px wide, under its words
+
+Cards under 576px are a grid: an 84px photo beside the Tell and the
+sentence, the name, dots and like button across the bottom. The 375px page
+with 12 cards went from 6,700px tall to 4,440px.
 
 ### G6: QA Wolf flows (Chi Sandbox)
 
 Scribbles' pick and "Show me another", the sense finder, and the phone
 layout. Activate after they pass on staging.
-
-## Open questions
-

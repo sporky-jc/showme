@@ -1689,6 +1689,68 @@ h3,
   }
 }
 
+/* On a phone, short cards: the photo is a small picture beside the Tell and
+   the sentence, so more of the wall fits on the screen */
+@media (max-width: 575.98px) {
+  .paper-gallery__cards {
+    gap: 18px;
+  }
+
+  .paper-gallery__card {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    grid-template-areas:
+      "photo tell"
+      "photo show"
+      "foot foot";
+    grid-template-rows: auto 1fr auto;
+    gap: 6px 12px;
+    padding: 12px 10px 2px 12px;
+    border-radius: 20px;
+  }
+
+  .paper-gallery__frame {
+    grid-area: photo;
+    width: 84px;
+    height: 84px;
+  }
+
+  .paper-gallery__window {
+    border-radius: 12px;
+  }
+
+  .paper-gallery__tell {
+    grid-area: tell;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .paper-gallery__show {
+    grid-area: show;
+    margin: 0;
+    font-size: 1.1rem;
+    line-height: 1.4;
+  }
+
+  .paper-gallery__foot {
+    grid-area: foot;
+    margin: 0;
+  }
+
+  /* The pick's photo under its words, small enough that the wall starts
+     soon after it */
+  .paper-pick {
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .paper-pick__picture {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+}
+
 /* ---- Scribbles' pick: one sentence, big, at the top of the gallery ---- */
 
 /* The words on the left, the framed photo and Scribbles on the right; one
