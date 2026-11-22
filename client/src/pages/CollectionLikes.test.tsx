@@ -115,6 +115,13 @@ describe("Collections likes, signed in", () => {
     expect(within(second).getByRole("button", { name: "Like" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("doesn't invite a signed-in student to write one", async () => {
+    renderCollection({ user: alan });
+    await card("Sentence 1");
+
+    expect(screen.queryByRole("region", { name: "I tape up the best ones" })).not.toBeInTheDocument();
+  });
+
   it("shows the count on the user's own sentence, with nothing to press", async () => {
     renderCollection({ user: alan });
 
