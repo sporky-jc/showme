@@ -1525,41 +1525,57 @@ h3,
   gap: 22px;
 }
 
-/* Cards in a row are as tall as the tallest, so the rows line up */
+/* Cards in a row are as tall as the tallest, so the rows line up. Each one
+   is taped up a little crooked, odd cards one way and even the other. */
 .paper-gallery__cards > li {
   display: flex;
+  padding-top: 12px;
 }
 
-/* A white card on a sheet of colored paper: coral and blue take turns */
+/* A white card in the frame its author picked (--frame-color and
+   --frame-shadow, see frames.ts), with a strip of tape at the top */
 .paper-gallery__card {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  overflow: hidden;
+  gap: 8px;
+  padding: 12px 12px 4px;
   background: var(--paper-white);
-  border-radius: 22px;
-  box-shadow: 6px 7px 0 #ffd9d3;
+  border: 4px solid var(--frame-color, var(--paper-frame-violet));
+  border-radius: 24px;
+  box-shadow: 0 7px 0 var(--frame-shadow, var(--paper-frame-violet-shadow));
+  transform: rotate(-0.6deg);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .paper-gallery__cards > li:nth-child(even) .paper-gallery__card {
-  box-shadow: 6px 7px 0 var(--paper-edge);
+  transform: rotate(0.6deg);
 }
 
-/* The photo fills the top of the card, in the colored frame its author
-   picked (--frame-color, see frames.ts). Its window keeps it in place when
-   it grows under the mouse. */
+.paper-gallery__card::before {
+  content: "";
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  width: 84px;
+  height: 24px;
+  margin-left: -42px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--paper-sense-see) 70%, transparent);
+  transform: rotate(-3deg);
+}
+
+/* The Tell's photo: scenery for the sentence, so it stays small. Its
+   window keeps it in place when it grows under the mouse. */
 .paper-gallery__frame {
-  height: 230px;
-  padding: 8px;
-  background: var(--frame-color, var(--paper-frame-violet));
+  height: 160px;
 }
 
 .paper-gallery__window {
   height: 100%;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--paper-sky);
 }
 
@@ -1571,53 +1587,101 @@ h3,
   transition: transform 0.5s ease;
 }
 
+/* The Tell, crossed out: the sentence under it shows it instead */
 .paper-gallery__tell {
-  margin: 12px 16px 0;
-  font-weight: 800;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #a83224; /* 6.7:1 on white */
+  margin: 4px 6px 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--paper-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--paper-action);
+  text-decoration-thickness: 2px;
 }
 
+/* The student's sentence: the biggest thing on the card */
 .paper-gallery__show {
-  margin: 0 16px;
+  margin: 0 6px;
+  font-family: var(--paper-font-display);
   font-weight: 700;
-  font-size: 1.05rem;
-  line-height: 1.4;
+  font-size: 1.3rem;
+  line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+/* A word that uses a sense, lit up in that sense's color (ink on every
+   sense color reads at 8:1 or more) */
+.paper-gallery__sense {
+  padding: 0 4px;
+  border-radius: 7px;
+  color: var(--paper-ink);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* A dot per sense the sentence uses, in the card's foot */
+.paper-gallery__senses {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.paper-gallery__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--paper-ink);
+}
+
+.paper-gallery__sense--see,
+.paper-gallery__dot--see {
+  background: var(--paper-sense-see);
+}
+
+.paper-gallery__sense--hear,
+.paper-gallery__dot--hear {
+  background: var(--paper-sense-hear);
+}
+
+.paper-gallery__sense--feel,
+.paper-gallery__dot--feel {
+  background: var(--paper-sense-feel);
+}
+
+.paper-gallery__sense--smell,
+.paper-gallery__dot--smell {
+  background: var(--paper-sense-smell);
+}
+
+.paper-gallery__sense--taste,
+.paper-gallery__dot--taste {
+  background: var(--paper-sense-taste);
 }
 
 /* At the bottom of the card, however long the sentence */
 .paper-gallery__foot {
-  margin: auto 16px 0;
+  margin: auto 6px 0;
   padding: 4px 0 6px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 2px 8px;
+  gap: 2px 10px;
   min-height: 44px;
 }
 
+/* Pushes the dots and the like button to the right */
 .paper-gallery__author {
+  margin-right: auto;
   font-weight: 800;
-  font-size: 0.9rem;
-  color: var(--paper-muted);
+  font-size: 0.95rem;
 }
 
-/* Under a mouse, a card is picked up off the board: it lifts and tips a
-   little (odd cards one way, even the other), its paper shows more, and its
-   photo grows. Touch screens have no mouse to be under. */
+/* Under a mouse, a card is picked up off the board: it lifts and
+   straightens, its frame's shadow grows, and its photo grows. Touch screens
+   have no mouse to be under. */
 @media (hover: hover) {
-  .paper-gallery__card:hover {
-    transform: translateY(-6px) rotate(-0.8deg);
-    box-shadow: 10px 13px 0 #ffd9d3;
-  }
-
+  .paper-gallery__card:hover,
   .paper-gallery__cards > li:nth-child(even) .paper-gallery__card:hover {
-    transform: translateY(-6px) rotate(0.8deg);
-    box-shadow: 10px 13px 0 var(--paper-edge);
+    transform: translateY(-6px) rotate(0deg);
+    box-shadow: 0 13px 0 var(--frame-shadow, var(--paper-frame-violet-shadow));
   }
 
   .paper-gallery__card:hover .paper-gallery__photo {

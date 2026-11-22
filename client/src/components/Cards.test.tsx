@@ -58,15 +58,55 @@ describe("Cards", () => {
     expect(screen.getByText("The gale blew the flowers back and forth.")).toBeInTheDocument();
   });
 
-  it("puts each picture in the frame its author picked, and Grape when they haven't", () => {
+  it("frames each card in the color its author picked, and Grape when they haven't", () => {
     const [picked, none] = approved(2);
     renderCards([{ ...picked, look: { frame: "teal" } }, none]);
 
-    const frames = [...document.querySelectorAll<HTMLElement>(".paper-gallery__frame")];
+    const frames = [...document.querySelectorAll<HTMLElement>(".paper-gallery__card")];
     expect(frames.map((frame) => frame.style.getPropertyValue("--frame-color"))).toEqual([
       "var(--paper-frame-teal)",
       "var(--paper-frame-violet)",
     ]);
+  });
+
+  // The Show sentence is the star: the words that use a sense light up in
+  // that sense's color, and the card says which senses it uses
+  it("lights up the words that use a sense", () => {
+    const [one] = approved(1);
+    renderCards([{ ...one, show: "Frost crunched under my boots, and my ears were cold." }]);
+
+    const lit = [...document.querySelectorAll("mark")];
+    expect(lit.map((mark) => mark.textContent)).toEqual(["crunched", "cold"]);
+    expect(lit.map((mark) => mark.className)).toEqual([
+      "paper-gallery__sense paper-gallery__sense--hear",
+      "paper-gallery__sense paper-gallery__sense--feel",
+    ]);
+    // Still one sentence, word for word
+    expect(document.querySelector(".paper-gallery__show")).toHaveTextContent(
+      "Frost crunched under my boots, and my ears were cold."
+    );
+    expect(screen.getByRole("img", { name: "Uses hear and feel" })).toBeInTheDocument();
+  });
+
+  it("names three or more senses in a list", () => {
+    const [one] = approved(1);
+    renderCards([{ ...one, show: "The bright soup smelled sweet and hot." }]);
+
+    expect(screen.getByRole("img", { name: "Uses see, feel, smell and taste" })).toBeInTheDocument();
+  });
+
+  it("has no senses to name for a sentence that uses none", () => {
+    renderCards(approved(1));
+
+    expect(document.querySelector("mark")).toBeNull();
+    expect(screen.queryByRole("img", { name: /^Uses/ })).not.toBeInTheDocument();
+  });
+
+  // Crossed out on screen; its text is the Tell's alone, as before
+  it("keeps the Tell's text exactly the Tell", () => {
+    renderCards(approved(1));
+
+    expect(document.querySelector(".paper-gallery__tell")?.textContent).toBe("It is cold outside.");
   });
 
   it("shows at most 12 cards", () => {

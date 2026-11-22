@@ -73,7 +73,7 @@ const renderFrame = ({
 
 const colors = () => screen.findByRole("group", { name: "Frame color" });
 const preview = () => screen.getByRole("region", { name: "How it looks in the gallery" });
-const previewFrame = () => preview().querySelector(".paper-gallery__frame") as HTMLElement;
+const previewFrame = () => preview().querySelector(".paper-gallery__card") as HTMLElement;
 
 describe("Pick a frame", () => {
   it("offers the four frames, starting on Grape for a sentence with none", async () => {
@@ -102,7 +102,8 @@ describe("Pick a frame", () => {
     renderFrame();
     await colors();
 
-    expect(within(preview()).getByText("Rain drummed on the roof.")).toBeInTheDocument();
+    // Its sense words lit up, as in the gallery
+    expect(preview().querySelector(".paper-gallery__show")).toHaveTextContent("Rain drummed on the roof.");
     // First name and last initial, as in the gallery
     expect(within(preview()).getByText("Ada L.")).toBeInTheDocument();
     expect(previewFrame().style.getPropertyValue("--frame-color")).toBe("var(--paper-frame-violet)");

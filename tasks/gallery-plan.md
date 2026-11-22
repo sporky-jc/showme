@@ -17,6 +17,8 @@ looks the same, and the page stops after 12 cards with nothing to do next.
 - Guests see no like counts (as today). Signed-in students keep likes.
 - "Try one yourself" opens the About page for now. A try-it on the Gallery
   itself could come later.
+- QA Wolf flows compare the Tell's text (`.paper-gallery__tell`) exactly:
+  put nothing else inside it, not even hidden text.
 - Names stay: the "Show ME gallery" heading (still a heading for screen
   readers), Shuffle, Newest, the like buttons, first name and last initial.
 - The sense words come from `client/src/senses.ts`, the same list Write uses.

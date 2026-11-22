@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { SENSE_KEYS, SENSE_TIPS, leastUsedSense, repeatedTellWord, senseCounts, senseWords, wordsOf } from "./senses";
+import {
+  SENSE_KEYS,
+  SENSE_TIPS,
+  leastUsedSense,
+  repeatedTellWord,
+  senseCounts,
+  sensePieces,
+  senseWords,
+  wordsOf,
+} from "./senses";
 
 describe("senseWords", () => {
   it("finds the word that uses each sense", () => {
@@ -97,5 +106,30 @@ describe("leastUsedSense", () => {
 describe("SENSE_TIPS", () => {
   it("has questions for every sense", () => {
     for (const sense of SENSE_KEYS) expect(SENSE_TIPS[sense].length).toBeGreaterThan(0);
+  });
+});
+
+describe("sensePieces", () => {
+  it("splits a sentence into its words, marking each one that uses a sense", () => {
+    expect(sensePieces("Frost crunched under my boots, and my ears were cold.")).toEqual([
+      { text: "Frost ", sense: null },
+      { text: "crunched", sense: "hear" },
+      { text: " under my boots, and my ears were ", sense: null },
+      { text: "cold", sense: "feel" },
+      { text: ".", sense: null },
+    ]);
+  });
+
+  it("keeps every character, so the pieces read as the whole sentence", () => {
+    const sentence = "The kitchen’s garlic smell made my mouth water!";
+    expect(sensePieces(sentence).map((piece) => piece.text).join("")).toBe(sentence);
+  });
+
+  it("is one plain piece when no word uses a sense", () => {
+    expect(sensePieces("Show 1")).toEqual([{ text: "Show 1", sense: null }]);
+  });
+
+  it("is nothing for an empty sentence", () => {
+    expect(sensePieces("")).toEqual([]);
   });
 });
