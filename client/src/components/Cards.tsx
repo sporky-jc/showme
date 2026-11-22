@@ -80,10 +80,8 @@ function Cards(props: {
                   />
                 </div>
               </div>
-              <p className="paper-gallery__tell">
-                <span className="visually-hidden">Tell: </span>
-                {withoutAsk(sentence.tell)}
-              </p>
+              {/* Its text stays exactly the Tell: QA Wolf flows read it */}
+              <p className="paper-gallery__tell">{withoutAsk(sentence.tell)}</p>
               <p className="paper-gallery__show">
                 {pieces.map((piece, place) =>
                   piece.sense ? (

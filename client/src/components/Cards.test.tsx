@@ -102,11 +102,11 @@ describe("Cards", () => {
     expect(screen.queryByRole("img", { name: /^Uses/ })).not.toBeInTheDocument();
   });
 
-  // The Tell is crossed out on screen, and named for screen readers
-  it("says which sentence is the Tell", () => {
+  // Crossed out on screen; its text is the Tell's alone, as before
+  it("keeps the Tell's text exactly the Tell", () => {
     renderCards(approved(1));
 
-    expect(screen.getByText("It is cold outside.").closest("p")).toHaveTextContent("Tell: It is cold outside.");
+    expect(document.querySelector(".paper-gallery__tell")?.textContent).toBe("It is cold outside.");
   });
 
   it("shows at most 12 cards", () => {
