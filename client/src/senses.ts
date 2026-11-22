@@ -1,67 +1,148 @@
 // Which senses a Show sentence uses, from a short word list per sense. It's a
-// hint for the Write page (stickers, lit-up sense buttons, Scribbles' picture),
-// not a grade: it will miss some words, and Scribbles' review decides.
+// hint for the Write page (stickers, lit-up sense buttons, Scribbles' picture)
+// and the gallery, not a grade: it will miss some words, and Scribbles'
+// review decides.
 //
-// Matching is by whole word, so "red" doesn't hide in "tired" or "bored" and
-// "fur" doesn't hide in "furious". A few word starts cover a family of forms
-// ("sparkl" for sparkle, sparkled, sparkling, sparkly).
+// The list keeps base words only, and works out their family itself (see
+// baseForms below): "scream" also finds screams, screamed and screaming, and
+// "loud" also finds louder, loudest and loudly. A few word starts cover a
+// family the rules can't ("sparkl" for sparkle, sparkled, sparkling,
+// sparkly). Matching is by whole word, so "red" doesn't hide in "tired" and
+// "fur" doesn't hide in "furious".
 
 export type SenseKey = "see" | "hear" | "feel" | "smell" | "taste";
 
 export const SENSE_KEYS: readonly SenseKey[] = ["see", "hear", "feel", "smell", "taste"];
 
-const SENSE_WORDS: Record<SenseKey, { words: readonly string[]; starts: readonly string[] }> = {
+type SenseList = {
+  // Words found only as they are: irregular forms, and words whose family
+  // means something else ("licked" a cheek is a feeling, not a taste)
+  exact: readonly string[];
+  // Doing and naming words, also found with -s, -es, -ed and -ing
+  words: readonly string[];
+  // Describing words, also found with -er, -est and -ly
+  describing: readonly string[];
+  // Word starts: any word that starts with one of these
+  starts: readonly string[];
+};
+
+const SENSE_WORDS: Record<SenseKey, SenseList> = {
   see: {
-    words: [
-    "see", "saw", "seen", "look", "looked", "looks", "watch", "watched", "stare", "stared",
-    "bright", "shiny", "shine", "shined", "shone", "glow", "glowed", "glowing", "glowy",
-    "flash", "flashed", "flashing", "dim", "dark", "shadow", "shadows", "blurry",
-    "red", "orange", "yellow", "green", "blue", "purple", "pink", "brown", "black", "white",
-    "gray", "gold", "golden", "silver", "rainbow", "colorful", "spotted", "striped", "pale",
+    exact: ["saw", "seen", "shone"],
+    words: ["see", "look", "watch", "stare", "shine", "glow", "flash", "dim", "shadow"],
+    describing: [
+      "bright", "shiny", "glowy", "dim", "dark", "blurry", "pale", "colorful", "spotted",
+      "striped", "red", "orange", "yellow", "green", "blue", "purple", "pink", "brown",
+      "black", "white", "gray", "gold", "golden", "silver", "rainbow",
     ],
     starts: ["sparkl", "glitter", "shimmer", "twinkl", "gleam", "glisten"],
   },
   hear: {
+    exact: ["heard", "rang", "sang"],
     words: [
-    "hear", "heard", "listen", "listened", "sound", "sounds", "noise", "noisy",
-    "bark", "barked", "barking", "thump", "thumped", "thumping", "drum", "drummed", "drumming",
-    "buzz", "buzzed", "buzzing", "crash", "crashed", "bang", "banged", "boom", "boomed",
-    "pop", "popped", "snap", "snapped", "crack", "cracked", "click", "clicked", "ring", "rang",
-    "loud", "quiet", "silent", "yap", "yapped", "howl", "howled", "growl", "growled",
-    "whine", "whined", "pant", "panted", "panting", "splash", "splashed", "hum", "hummed",
-    "sang", "sing", "song", "shout", "shouted", "scream", "screamed", "yell", "yelled",
-    "cheer", "cheered", "roar", "roared", "thunder", "beep", "beeped", "tick", "ticked",
+      "hear", "listen", "sound", "noise", "bark", "thump", "drum", "buzz", "crash", "bang",
+      "boom", "pop", "snap", "crack", "click", "ring", "yap", "howl", "growl", "whine",
+      "pant", "splash", "hum", "sing", "song", "shout", "scream", "yell",
+      "cheer", "roar", "thunder", "beep", "tick",
       // Crunching under boots is a sound; "crunchy" food is a taste
-    "crunch", "crunched", "crunching",
+      "crunch",
+      // Scribbles' sound words (backend/reviewer/soundWords.ts) that are
+      // always a sound. senses.test.ts says which of the others aren't.
+      "achoo", "ahem", "burp", "gasp", "ha", "haha", "hah", "hee", "hehe", "hic", "hiccup",
+      "huff", "hush", "psst", "shh", "shush", "sigh", "snore", "sob", "zz",
+      "bam", "biff", "bonk", "bop", "clang", "clank", "clatter", "clonk", "kaboom", "kapow",
+      "kerplunk", "knock", "pow", "smack", "smash", "splat", "thud", "thunk", "thwack",
+      "wallop", "wham", "whack", "whomp", "gurgle", "patter", "pitter", "plink", "plip",
+      "plonk", "plop", "splish", "splosh", "sploosh", "squelch", "swish", "whoosh", "swoosh",
+      "rumble", "crackle", "sizzle", "hiss", "fizz", "boing", "clack", "clickety",
+      "clink", "ding", "dong", "honk", "ping", "tock", "toot", "vroom", "whee", "whir",
+      "whirr", "whiz", "whizz", "baa", "cluck", "cockadoodledoo", "grr", "hoot", "meow",
+      "miaow", "moo", "neigh", "oink", "purr", "quack", "ribbit", "squawk", "tweet", "woof",
     ],
+    describing: ["loud", "quiet", "silent", "noisy"],
     starts: ["whisper", "squeak", "rumbl", "crackl", "sizzl", "giggl", "creak", "chirp", "rattl", "jingl"],
   },
   feel: {
+    // "feeling" and "feels" are mostly about how someone feels inside
+    exact: ["feel", "felt", "stung"],
     words: [
-    "feel", "felt", "touch", "touched", "warm", "cold", "hot", "cool", "icy", "freezing",
-    "soft", "rough", "smooth", "bumpy", "sharp", "wet", "damp", "dry", "sticky", "slimy",
-    "fur", "furry", "fuzzy", "fluffy", "prickly", "itchy", "lick", "licked", "licking",
-    "hug", "hugged", "squeeze", "squeezed", "burn", "burned", "burning", "sting", "stung",
-    "ache", "ached", "sweat", "sweaty", "heavy",
+      "touch", "fur", "lick", "hug", "squeeze", "burn", "sting", "ache", "sweat",
+      "tremble",
+    ],
+    describing: [
+      "warm", "cold", "hot", "cool", "icy", "freezing", "soft", "rough", "smooth", "bumpy",
+      "sharp", "wet", "damp", "dry", "sticky", "slimy", "furry", "fuzzy", "fluffy", "prickly",
+      "itchy", "sweaty", "heavy",
     ],
     starts: ["tickl", "shiver", "nuzzl", "squish", "tingl", "wiggl"],
   },
   smell: {
-    words: [
-    "smell", "smelled", "smells", "smelly", "stink", "stinky", "stank", "scent", "whiff",
-    "smoky", "smoke", "fresh", "perfume", "rotten", "musty",
-    ],
+    exact: ["stank"],
+    words: ["smell", "stink", "scent", "whiff", "smoke", "perfume"],
+    describing: ["smelly", "stinky", "smoky", "fresh", "rotten", "musty"],
     starts: ["sniff", "fragran", "aroma"],
   },
   taste: {
-    words: [
-    "taste", "tasted", "tastes", "tasty", "salty", "sour", "sweet", "bitter", "spicy", "juicy",
-    "yum", "yummy", "chew", "chewed", "chewy", "bite", "bit", "sip", "sipped", "lick",
-    "sugary", "minty", "tangy", "crispy", "crunchy",
+    exact: ["bit", "lick"],
+    words: ["taste", "chew", "bite", "sip", "yum"],
+    describing: [
+      "tasty", "salty", "sour", "sweet", "bitter", "spicy", "juicy", "yummy", "chewy",
+      "sugary", "minty", "tangy", "crispy", "crunchy",
     ],
     starts: ["munch", "slurp", "gulp"],
   },
 };
+
+// Forms that look like a family member but almost never are
+const NOT_FORMS = new Set(["pants"]);
+
+// The base words a word could be a form of, by the usual spelling rules:
+// screams, crashes and cries; screamed, stared, hummed and cried; screaming,
+// shining and humming for doing words; louder, paler, hotter, noisier,
+// loudest, loudly and noisily for describing words. Bases shorter than three
+// letters are left out, so "has" isn't a form of "ha".
+function baseForms(word: string): { doing: string[]; describing: string[] } {
+  const doing: string[] = [];
+  const describing: string[] = [];
+  // "stem" with its last letter undoubled too: humm → hum
+  const undoubled = (stem: string) =>
+    stem.length > 1 && stem.at(-1) === stem.at(-2) ? [stem, stem.slice(0, -1)] : [stem];
+  // "stem", stem + "e" (shin → shine), and stem undoubled
+  const withE = (stem: string) => [...undoubled(stem), stem + "e"];
+
+  if (word.endsWith("ies")) doing.push(word.slice(0, -3) + "y");
+  if (word.endsWith("es")) doing.push(word.slice(0, -2));
+  if (word.endsWith("s") && !word.endsWith("ss")) doing.push(word.slice(0, -1));
+  if (word.endsWith("ied")) doing.push(word.slice(0, -3) + "y");
+  if (word.endsWith("ed")) {
+    doing.push(...undoubled(word.slice(0, -2)));
+    // stared → stare, but not seed → see
+    if (!word.endsWith("eed")) doing.push(word.slice(0, -1));
+  }
+  if (word.endsWith("ing")) doing.push(...withE(word.slice(0, -3)));
+
+  if (word.endsWith("ier")) describing.push(word.slice(0, -3) + "y");
+  if (word.endsWith("iest")) describing.push(word.slice(0, -4) + "y");
+  if (word.endsWith("ily")) describing.push(word.slice(0, -3) + "y");
+  if (word.endsWith("er")) describing.push(...withE(word.slice(0, -2)));
+  if (word.endsWith("est")) describing.push(...withE(word.slice(0, -3)));
+  if (word.endsWith("ly")) describing.push(word.slice(0, -2));
+
+  const long = (base: string) => base.length >= 3;
+  return { doing: doing.filter(long), describing: describing.filter(long) };
+}
+
+const LISTS = Object.fromEntries(
+  SENSE_KEYS.map((sense) => [
+    sense,
+    {
+      exact: new Set(SENSE_WORDS[sense].exact),
+      words: new Set(SENSE_WORDS[sense].words),
+      describing: new Set(SENSE_WORDS[sense].describing),
+      starts: SENSE_WORDS[sense].starts,
+    },
+  ])
+) as Record<SenseKey, { exact: Set<string>; words: Set<string>; describing: Set<string>; starts: readonly string[] }>;
 
 // Words that only tell how something is or feels. When the Tell sentence uses
 // one and the Show sentence repeats it, the student is telling again.
@@ -78,8 +159,12 @@ export const wordsOf = (text: string): string[] =>
   text.toLowerCase().replace(/[’‘]/g, "'").match(/[a-z']+/g) ?? [];
 
 const matches = (word: string, sense: SenseKey) => {
-  const { words, starts } = SENSE_WORDS[sense];
-  return words.includes(word) || starts.some((start) => word.startsWith(start));
+  const { exact, words, describing, starts } = LISTS[sense];
+  if (exact.has(word) || words.has(word) || describing.has(word)) return true;
+  if (starts.some((start) => word.startsWith(start))) return true;
+  if (NOT_FORMS.has(word)) return false;
+  const bases = baseForms(word);
+  return bases.doing.some((base) => words.has(base)) || bases.describing.some((base) => describing.has(base));
 };
 
 // For each sense, the first word in the sentence that uses it, or null
