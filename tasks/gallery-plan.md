@@ -80,6 +80,5 @@ layout. Activate after they pass on staging.
 
 ## Open questions
 
-
 - Should "Show more" load more from the server, or show the rest of what
   the Gallery already has? (G4)
