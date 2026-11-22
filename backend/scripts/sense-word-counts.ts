@@ -28,8 +28,12 @@ try {
     autoCreate: false,
   });
   console.log(`Connected to database "${mongoose.connection.name}" (read-only).`);
-  const approved = await Sentence.find({ approved: true }, { GID: 1, show: 1 }).lean<{ GID: string; show: string }[]>();
-  const shows = approved.filter((sentence) => !TEST_SENTENCES.test(sentence.GID)).map((sentence) => sentence.show);
+  const approved = await Sentence.find({ approved: true }, { GID: 1, show: 1, title: 1 }).lean<
+    { GID: string; show: string; title: string }[]
+  >();
+  const shows = approved
+    .filter((sentence) => !TEST_SENTENCES.test(sentence.GID))
+    .map((sentence) => ({ show: sentence.show, author: sentence.GID, tell: sentence.title }));
   const counts = countWords(shows);
   writeFileSync(out, JSON.stringify(counts, null, 2));
   console.log(`${shows.length} approved sentences; ${counts.length} words to ask about, in ${out}.`);

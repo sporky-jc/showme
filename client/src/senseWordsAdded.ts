@@ -1,16 +1,23 @@
 import type { SenseKey } from "./senses";
 
 // Sense words added by the weekly sense word job
-// (.github/workflows/sense-words.yml, client/scripts/sense-words.ts), each
-// in at least 3 approved sentences and given the same sense by the AI when
-// asked twice in different ways, with every sense test still passing. The
-// job rewrites this whole file, so change words in senses.ts instead; to
-// take one of these out, move it to NEVER_ADD in scripts/senseWordJob.ts
-// and delete it here.
-export const ADDED_SENSE_WORDS: Record<SenseKey, { words: readonly string[]; describing: readonly string[] }> = {
-  see: { words: [], describing: [] },
-  hear: { words: [], describing: [] },
-  feel: { words: [], describing: [] },
-  smell: { words: [], describing: [] },
-  taste: { words: [], describing: [] },
+// (.github/workflows/sense-words.yml, scripts/sense-words.ts). Each one
+// cleared every gate in tasks/sense-words-plan.md (S3). The job rewrites
+// this whole file, one word per line, so change words in senses.ts instead.
+// To take one out for good, add it to NEVER_ADD in scripts/senseWordJob.ts;
+// the next run removes it here.
+//
+// - exact: found only as written ("barked", when kids haven't shown the
+//   whole family means the sense)
+// - words: doing and naming words, with -s, -es, -ed and -ing
+// - describing: describing words, with -er, -est and -ly
+export const ADDED_SENSE_WORDS: Record<
+  SenseKey,
+  { exact: readonly string[]; words: readonly string[]; describing: readonly string[] }
+> = {
+  see: { exact: [], words: [], describing: [] },
+  hear: { exact: [], words: [], describing: [] },
+  feel: { exact: [], words: [], describing: [] },
+  smell: { exact: [], words: [], describing: [] },
+  taste: { exact: [], words: [], describing: [] },
 };

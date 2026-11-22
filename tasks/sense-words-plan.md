@@ -188,7 +188,11 @@ To keep it running unattended for months:
 
 Tasks (each one small PR into `staging`):
 
-- [ ] **S3a: Fix #164's holes, merged by hand.**
+- [x] **S3a: Fix #164's holes, merged by hand.** Also done here: the
+  first and second questions go to two model families (Llama, Mistral), with
+  a Neuron count and a cap per run; at most 5 new words a run; a word's
+  family goes in only when its bare base passed too; a run that only
+  removes words opens a PR too; and the run keeps its own schedule on.
   - Export `TELL_WORDS` and add a feelings-words list.
   - Apply `NEVER_ADD`, the telling words, the feelings words and
     `FIRST_NAMES` to the written word, its base and its family.
@@ -200,15 +204,38 @@ Tasks (each one small PR into `staging`):
 - [ ] **S3b: The "Sense words PR" check** (a job PR changes only
   `senseWordsAdded.ts`), and `NEVER_ADD` moved into senses.ts and applied
   by the matcher (blocking any word in the family).
-- [ ] **S3c: Check Cloudflare's facts and write them down, with the date:**
-  - the data policy (no keeping and no training, including on the free plan
-    and for third-party models);
-  - the free plan's limits;
-  - a second model family that answers in JSON.
+- [x] **S3c: Cloudflare's facts**, from developers.cloudflare.com, read
+  2026-11-22:
+  - **Data usage** (page updated Oct 16, 2026): "Zero data retention: ...
+    Cloudflare does not retain inputs or outputs after they are no longer
+    needed to process the request", and "No training: Cloudflare does not
+    use Customer Content processed by Workers AI to train AI models." The
+    content isn't shared with other customers. It covers third-party models
+    on Workers AI; only stateful features (AI Gateway logging, storage,
+    batch) keep anything, and the job uses none of them.
+  - **Pricing** (page updated Nov 18, 2026): 10,000 free Neurons a day,
+    reset at 00:00 UTC. On **Workers Free**, going over makes requests fail
+    and is never billed. On **Workers Paid**, going over is billed at
+    $0.011 per 1,000 Neurons. Llama 3.3 70B costs 26,668 Neurons per million
+    input tokens and 204,805 per million output tokens; Mistral Small 3.1
+    24B costs 31,876 and 50,488.
+  - **JSON mode** (page updated Sep 14, 2026): Llama 3.3 70B supports a JSON
+    schema. No current model from another family that supports it is on
+    the pricing page, so the second family is
+    `@cf/mistralai/mistral-small-3.1-24b-instruct`, told in its prompt to
+    answer in JSON, and read leniently. If fewer than 90% of its answers can
+    be read, the job opens the alert issue.
+  - **Budget:** about 15 output tokens per word. Gate 2 on at most 200
+    words a week (the most-used first, a different 200 each week) is about
+    700 Neurons. Gate 3 on at most 15 words, one request per word per
+    model, is about 500. The cap is 3,000 Neurons a run (30% of a day), on
+    Sundays.
+  - [ ] **Still to confirm, once, by a person:** the Cloudflare account in
+    `CLOUDFLARE_ACCOUNT_ID` is on **Workers Free**, not Workers Paid. The
+    AI token can't read the plan, and the connected Cloudflare login can't
+    see the account. Look in the Cloudflare dashboard under Workers & Pages,
+    then Plans.
 
-  developers.cloudflare.com is blocked from this environment, so this
-  needs an allowed host or a person to paste the pages. No real sentence is
-  sent before this is done.
 - [ ] **S3d: The backend's gate 1 and gate 3**, behind a job key. Gate 3
   takes only words from its own gate 1 list. It's deployed to staging on
   merge, and to production with the next promotion.
@@ -232,13 +259,22 @@ Risks, said plainly:
   protection; a wrong word is a wrong highlight, not a wrong grade.
 - **Gate 3 sends real sentences to Cloudflare**, from the backend, like
   Scribbles would. It waits for S3c.
-- **The token expires** (at most a year). The job warns 14 days ahead. A
-  GitHub App wouldn't expire, but is more setup.
+- **The token expires** (at most a year). The job warns 14 days ahead.
+  **Upgrade later:** swap SENSE_WORDS_TOKEN for a GitHub App installed on
+  this repository only (Contents, Pull requests and Issues set to read and
+  write). The workflow would mint a short-lived token each run with
+  `actions/create-github-app-token`, from two secrets (the app ID and its
+  private key). App tokens don't expire, aren't tied to a person, and still
+  start CI and QA Wolf. Only the token step changes.
 - **Staging's sentences are mostly made up**, so the staging runs only
   prove the machinery works. Real words come with S3g.
 - **GitHub turns off scheduled runs in a public repo after 60 days with no
-  commits.** Staging gets commits most weeks, and the job's own merges
-  count, but a long quiet break would stop it with no alert.
+  commits.** Handled: every run, including runs that find nothing, ends by
+  switching its own schedule back on through GitHub's API ("enable
+  workflow", with the workflow's own token and `actions: write`), which
+  restarts the 60 days. A weekly run keeps it well inside that. If it
+  ever does get paused, GitHub emails the repo owner, and running it once
+  from the Actions tab starts it again.
 - **The feelings-words list is hand-made.** Gate 3's "is it about how
   someone feels inside?" question is the backstop.
 
