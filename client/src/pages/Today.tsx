@@ -2,14 +2,19 @@ import React from "react";
 import { Link } from "react-router";
 import { useSelector } from "react-redux";
 import Scribbles from "../components/Scribbles";
+import SenseSticker from "../components/SenseSticker";
 import PageLoading from "../components/PageLoading";
 import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
 import { nextDay } from "../days";
+import { SENSE_KEYS, SENSE_NAMES, senseCounts } from "../senses";
 
 // How many of the student's latest sentences to show under their next Tell
 const LATEST = 3;
+
+// Each earned sticker's tilt in the sticker book, so they look stuck on by hand
+const STICKER_TILTS = [-6, 5, -4, 7, -5];
 
 // A signed-in student's home: their next Tell sentence with the way to start
 // writing, and where their latest sentences stand.
@@ -46,7 +51,11 @@ function Today() {
   // The day after the latest one written (see days.ts), or none: all done
   const next = nextDay(userSentences, tellSentences.length);
   const today = next === undefined ? undefined : tellSentences[next - 1];
-  const shown = userSentences.filter((sentence) => sentence.approved).length;
+  const approved = userSentences.filter((sentence) => sentence.approved);
+  const shown = approved.length;
+  // The sticker book: a sticker for each sense used in a sentence that made
+  // it into the gallery (see senses.ts)
+  const used = senseCounts(approved.map((sentence) => sentence.show));
   // Something is waiting for review: Scribbles is "checking" it
   const checking = userSentences.some((sentence) => !sentence.approved && !sentence.toRedo);
   // Newest first, each with the Tell stored with it
@@ -144,6 +153,37 @@ function Today() {
           </ul>
         </section>
       )}
+
+      <section className="paper-card paper-book" aria-labelledby="today-book">
+        <h2 id="today-book">Sticker book</h2>
+        <p className="paper-book__hint">
+          Use a sense in a sentence that makes it into the gallery to earn its
+          sticker.
+        </p>
+        <ul className="paper-book__stickers">
+          {SENSE_KEYS.map((sense, place) => {
+            const count = used[sense];
+            const name = SENSE_NAMES[sense];
+            return (
+              <li key={sense} className="paper-book__slot">
+                {count > 0 ? (
+                  <SenseSticker word={name} sense={sense} tilt={STICKER_TILTS[place]} />
+                ) : (
+                  <span className="paper-book__empty" aria-hidden>
+                    {name}?
+                  </span>
+                )}
+                <span className="visually-hidden">{name}: </span>
+                <span className="paper-book__count">
+                  {count === 0
+                    ? "Not yet. Try it today!"
+                    : `Used in ${count} ${count === 1 ? "sentence" : "sentences"}`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
     </div>
   );
 }
