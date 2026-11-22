@@ -90,6 +90,10 @@ const TEST_ACCOUNTS: Record<string, TestAccount> = {
   // Edits a sentence while a teacher's page still shows the old words, so
   // the teacher's out-of-date Approve is refused (see ReviewBody)
   "student-stale-approval": testStudent("student-stale-approval"),
+  // The refresher pop-ups: one that opens by itself for a new student, and
+  // one opened again from its button
+  "student-refresher-new": testStudent("student-refresher-new"),
+  "student-refresher-again": testStudent("student-refresher-again"),
   admin: testAdmin("admin"),
   // Logs out, which ends every session of its account (see logout in
   // routes.ts), so it needs its own: logging out as "admin" would sign out
