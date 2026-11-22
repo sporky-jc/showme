@@ -476,6 +476,27 @@ describe("Scribbles' notes", () => {
     expect(note).toHaveTextContent(said);
   });
 
+  // Scribbles never suggests a third "Try again" (MAX_SEND_BACKS,
+  // backend/reviewer/sendBacks.ts): the note says why it's the teacher's call
+  it("says when a sentence was sent back twice already, and leaves it to the teacher", async () => {
+    const twice = sentence("t", "Kai", "The cafateria was lound.", {
+      verdict: "unsure",
+      tip: null,
+      reasons: ["ai", "spelling", "redo-limit"],
+      misspelled: ["cafateria", "lound"],
+    });
+    renderAdmin({ queue: [twice, sentence("u", "Noa", "Words.", { verdict: "unsure", tip: null, reasons: ["no-provider"] })] });
+    await screen.findByText("Kai K");
+
+    const [first, second] = screen.getAllByRole("note");
+    expect(first).toHaveTextContent("Your call");
+    expect(first).toHaveTextContent("Sent back twice already.");
+    expect(first).toHaveTextContent("So I'll leave this one to you. You know Kai best.");
+    // Any other "unsure" keeps its note
+    expect(second).toHaveTextContent("Hmm, I'm not sure about this one.");
+    expect(second).not.toHaveTextContent("Sent back twice");
+  });
+
   it("marks the misspelled words in the sentence", async () => {
     renderAdmin({ queue: [again] });
     await screen.findByText("Maya K");

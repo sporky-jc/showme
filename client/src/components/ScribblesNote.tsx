@@ -68,6 +68,14 @@ function ScribblesNote({ suggestion, firstName }: { suggestion: ScribblesSuggest
       said = suggestion.tip ? `My tip: ${quoted(suggestion.tip.text)}` : "Press Try again to pick a tip.";
       break;
     default:
+      // Already sent back twice: Scribbles never suggests a third "Try
+      // again" (MAX_SEND_BACKS, backend/reviewer/sendBacks.ts), so the
+      // teacher knows why it's theirs to decide
+      if (suggestion.reasons.includes("redo-limit")) {
+        title = "Sent back twice already.";
+        said = `So I'll leave this one to you. You know ${firstName} best.`;
+        break;
+      }
       title = "Hmm, I'm not sure about this one.";
       said = `You know ${firstName} best. Over to you!`;
   }

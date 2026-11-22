@@ -28,18 +28,27 @@
 //      exactly as if there were no AI at all.
 //   6. The writing checks: spelling (spelling.ts), and capitals, end marks,
 //      punctuation, repeated words and "a"/"an" (mechanics.ts). Mistakes are
-//      listed for the teacher, and an approval becomes "redo" with the tip
-//      for the first one, so a sentence with mistakes never reaches the
-//      gallery. (Grammar a program can't check, the AI judges.)
+//      listed for the teacher, and an approval becomes "redo", so a
+//      sentence with mistakes never reaches the gallery. (Grammar a program
+//      can't check, the AI judges.) Their tip comes before the AI's (see
+//      writingTip below).
+//   7. The limit on send-backs: a sentence already sent back twice
+//      (MAX_SEND_BACKS) is never suggested for a third "Try again". It's
+//      left for a person ("unsure", "redo-limit") instead.
 //
 // So no provider can break reviewing, and switching or adding one is a
 // matter of the list passed in, not a change to the site.
 import { ProviderAnswer, WelfareAnswer, type AttemptOutcome, type Reason, type Suggestion } from "./contract.js";
-import { MECHANIC_TIP, MECHANICS, mechanicsIssues } from "./mechanics.js";
+import { MECHANIC_TIP, MECHANICS, mechanicsIssues, type Mechanic } from "./mechanics.js";
 import { ProviderError } from "./providers/http.js";
 import { checkRules } from "./rules.js";
 import { misspelledWords } from "./spelling.js";
-import { PRAISE } from "./tips.js";
+import { PRAISE, type TipId } from "./tips.js";
+import { withinSendBacks } from "./sendBacks.js";
+
+// The limit (step 7 above) is in sendBacks.ts, so the Teacher page can apply
+// it too
+export { MAX_SEND_BACKS } from "./sendBacks.js";
 
 // What a provider is shown: the Tell and the student's sentence, and nothing
 // else (no names, emails or ids)
@@ -74,7 +83,15 @@ interface Checks {
   timeoutMs?: number;
   safety?: SafetyCheck;
   welfare?: WelfareCheck;
+  // How many times this sentence has already been sent back for its day
+  // (the sentence's redoCount, models/sentences.ts)
+  sentBack?: number;
 }
+
+// The tips that ask for a new sentence, not a fix to this one: the writing
+// checks' tip doesn't go before these, since the words it's about are about
+// to be replaced
+const REWRITE_TIPS = new Set<TipId>(["onTopic", "ownWords"]);
 
 // How long one provider may take before the next one is asked
 export const PROVIDER_TIMEOUT_MS = 10_000;
@@ -145,7 +162,28 @@ const ask = async (
 export const reviewSentence = async (
   input: ReviewInput,
   providers: ReviewProvider[],
-  { timeoutMs = PROVIDER_TIMEOUT_MS, safety, welfare }: Checks = {}
+  checks: Checks = {}
+): Promise<ReviewResult> => {
+  const { suggestion, attempts } = await suggest(input, providers, checks);
+  return { suggestion: withinSendBacks(suggestion, checks.sentBack ?? 0), attempts };
+};
+
+// The one tip for the writing checks' mistakes. A child fixes one thing per
+// "Try again", and there are only MAX_SEND_BACKS of them, so the first tip
+// should get the most done: one kind of mistake gets its own tip (it says
+// exactly what to do), and more than one kind gets "checkWriting", which
+// covers them all at once, rather than one tip per try for spelling, then
+// capitals, then the period.
+const writingTip = (misspelled: string[], kinds: Mechanic[]): TipId => {
+  const tips = new Set<TipId>(kinds.map((kind) => MECHANIC_TIP[kind]));
+  if (misspelled.length > 0) tips.add("spelling");
+  return tips.size === 1 ? [...tips][0] : "checkWriting";
+};
+
+const suggest = async (
+  input: ReviewInput,
+  providers: ReviewProvider[],
+  { timeoutMs = PROVIDER_TIMEOUT_MS, safety, welfare }: Checks
 ): Promise<ReviewResult> => {
   // Only the two texts are passed on, whatever else the caller's object holds
   const shown: ReviewInput = { tell: input.tell, show: input.show };
@@ -195,12 +233,18 @@ export const reviewSentence = async (
     ...(misspelled.length > 0 ? { misspelled } : {}),
     ...(mechanics.length > 0 ? { mechanics } : {}),
   };
-  if (suggestion.verdict !== "approve") return { suggestion: { ...suggestion, ...found }, attempts };
+  if (suggestion.verdict === "unsure") return { suggestion: { ...suggestion, ...found }, attempts };
 
-  // An approval becomes "redo", with the tip for the first kind of mistake:
-  // spelling, then capitals, end marks, punctuation, then the rest
-  const tip = misspelled.length > 0 ? "spelling" : MECHANIC_TIP[kinds[0]];
-  return { suggestion: { ...suggestion, verdict: "redo", tip, ...found }, attempts };
+  // An approval becomes "redo". So does a "redo" from the AI, but with the
+  // writing checks' tip in place of the AI's (unless the AI asks for a new
+  // sentence): those mistakes are certain, quick to fix and keep a sentence
+  // out of the gallery whatever else is right, while the AI's tip about
+  // detail or style is a judgement, and can come on the next try once the
+  // writing is clean.
+  if (suggestion.verdict === "redo" && suggestion.tip && REWRITE_TIPS.has(suggestion.tip)) {
+    return { suggestion: { ...suggestion, ...found }, attempts };
+  }
+  return { suggestion: { ...suggestion, verdict: "redo", tip: writingTip(misspelled, kinds), ...found }, attempts };
 };
 
 // The safety check (step 2 above). Its answer is added to `attempts`; it

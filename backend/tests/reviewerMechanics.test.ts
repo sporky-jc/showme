@@ -87,11 +87,14 @@ describe("the reviewer and the writing checks", () => {
     expect(suggestion.mechanics?.length).toBeGreaterThan(0);
   });
 
-  it("puts spelling first, and lists every mistake for the teacher", async () => {
+  // A child fixes one thing per try, and has two: one tip for every kind of
+  // mistake at once, not spelling, then the capital, then the period
+  it("gives one tip for spelling, capitals and end marks together, and lists every mistake for the teacher", async () => {
     const { suggestion } = await reviewSentence({ tell: COLD, show: "my breth puffed out" }, [approving], { safety, welfare });
+    expect(TIPS.checkWriting).toMatch(/spelling, capitals and punctuation/);
     expect(suggestion).toEqual({
       verdict: "redo",
-      tip: "spelling",
+      tip: "checkWriting",
       reasons: ["ai", "spelling", "punctuation"],
       decidedBy: "ai",
       misspelled: ["breth"],
