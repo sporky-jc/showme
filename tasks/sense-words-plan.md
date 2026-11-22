@@ -73,7 +73,7 @@ also takes Scribbles' sound words (`backend/reviewer/soundWords.ts`) for
 Hear.
 - [x] Every word the list matches today still matches (a test pins them)
 - [x] Made-up sentences that only tell still light up nothing
-- [ ] QA Wolf: Write's sense flows pass
+- [x] QA Wolf: Write's sense flows pass
 
 Done as: `exact` words (irregular forms, and words whose family means
 something else: "feeling" is usually how someone feels inside, and
@@ -89,6 +89,12 @@ About 100 made-up sentences, each with the senses a teacher would see in
 it, including the kinds of words production missed. A test reports how
 many the matcher finds (recall) and how often it is wrong (precision), and
 fails if either gets worse.
+- [x] 97 sentences in `client/src/test/senseSet.ts` (22 only tell), scored by
+  `client/src/senseScore.test.ts`
+- [x] First score: recall 84.2%, precision 93.0%. Misses are words like
+  wailed, screeched, frigid, stench and slippery; wrong ones are mostly "bit"
+  (wind that bit my cheeks) and "sweet" for a smell. S3 and S4 should raise
+  recall, and the floors with it.
 
 ### S3: The weekly word job (AI-read, opens a PR)
 Finds unknown words, asks the free AI for each one's sense twice, runs
