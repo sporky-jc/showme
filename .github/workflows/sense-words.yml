@@ -1,0 +1,125 @@
+name: Weekly sense words
+
+# Grows the sense word list (client/src/senses.ts) from the words kids write
+# (S3 of tasks/sense-words-plan.md). Once a week it:
+# 1. counts the words in approved Show sentences
+#    (backend/scripts/sense-word-counts.ts): only single words, each in at
+#    least 3 sentences, real English words, never a name, and passing
+#    Scribbles' safety checks;
+# 2. asks the free Cloudflare Workers AI, twice and in two different ways,
+#    which sense each word the list doesn't know uses, keeps the words both
+#    answers agree on, and keeps only those every sense test still passes
+#    with (client/scripts/sense-words.ts);
+# 3. opens a pull request into staging with the qa-wolf label, adding them
+#    to client/src/senseWordsAdded.ts. Nobody needs to read a report: say
+#    "merge" or not, as with every pull request.
+#
+# Reads staging's database only, for now. Free: Cloudflare's daily free
+# Neurons and GitHub Actions minutes. Only single words are sent to the AI.
+#
+# Needs the SENSE_WORDS_TOKEN secret: a fine-grained GitHub token for this
+# repository only, with Contents and Pull requests set to read and write. A
+# pull request opened with the workflow's own token wouldn't start CI or QA
+# Wolf. Also uses CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AI_TOKEN and
+# STAGING_DATABASE_ACCESS, as other workflows do.
+on:
+  schedule:
+    - cron: '23 18 * * 1' # Mondays, 18:23 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Ask the AI and report, but open no pull request
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sense-words
+  cancel-in-progress: false
+
+jobs:
+  words:
+    name: Find new sense words
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check the token is set
+        env:
+          SENSE_WORDS_TOKEN: ${{ secrets.SENSE_WORDS_TOKEN }}
+        run: |
+          if [ -z "$SENSE_WORDS_TOKEN" ]; then
+            echo "::error::Add the SENSE_WORDS_TOKEN secret first (see the top of this workflow)."
+            exit 1
+          fi
+
+      # Last week's pull request, if it's still open, already has these words
+      - name: Check for an open sense words pull request
+        id: open
+        env:
+          GH_TOKEN: ${{ secrets.SENSE_WORDS_TOKEN }}
+        run: |
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("sense-words/"))] | length')
+          echo "count=$open" >> "$GITHUB_OUTPUT"
+          if [ "$open" != "0" ]; then echo "::notice::A sense words pull request is still open; skipping this week."; fi
+
+      - name: Checkout Repository
+        if: steps.open.outputs.count == '0'
+        uses: actions/checkout@v7
+        with:
+          ref: staging
+          token: ${{ secrets.SENSE_WORDS_TOKEN }}
+
+      - name: Set Up Node.js
+        if: steps.open.outputs.count == '0'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24' # keep in sync with "engines" in backend/package.json
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            client/package-lock.json
+
+      - name: Count the words in approved sentences
+        if: steps.open.outputs.count == '0'
+        working-directory: backend
+        env:
+          DATABASE_ACCESS: ${{ secrets.STAGING_DATABASE_ACCESS }}
+          DATABASE_NAME: ShowME-dev
+        run: |
+          npm ci
+          npm run build
+          node lib/scripts/sense-word-counts.js "$RUNNER_TEMP/counts.json"
+
+      - name: Ask the AI, and keep the words the tests pass with
+        if: steps.open.outputs.count == '0'
+        id: ask
+        working-directory: client
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}
+          DATABASE_LABEL: staging
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          npm ci
+          npx tsx scripts/sense-words.ts "$RUNNER_TEMP/counts.json" "$RUNNER_TEMP/report.md" $DRY_RUN
+
+      - name: Open a pull request
+        if: steps.open.outputs.count == '0' && steps.ask.outputs.added != '0' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.SENSE_WORDS_TOKEN }}
+          ADDED: ${{ steps.ask.outputs.added }}
+        run: |
+          branch="sense-words/$(date -u +%Y-%m-%d)"
+          git config user.name "Show ME sense words"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add client/src/senseWordsAdded.ts
+          git commit -m "Sense words: $ADDED new words from the weekly job"
+          git push origin "$branch"
+          gh pr create --base staging --head "$branch" \
+            --title "Sense words: $ADDED new words from the weekly job" \
+            --body-file "$RUNNER_TEMP/report.md" \
+            --label qa-wolf

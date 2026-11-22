@@ -101,6 +101,27 @@ Finds unknown words, asks the free AI for each one's sense twice, runs
 the checks above, and opens a PR with the words that pass. It is tried on
 staging first, then pointed at production with its approval.
 
+Built as `.github/workflows/sense-words.yml` (Mondays, and from the Actions
+tab, with a dry run):
+1. `backend/scripts/sense-word-counts.ts` writes the single words from
+   approved sentences (in 3 or more, in the dictionary, never capitalized
+   mid-sentence, passing Scribbles' safety checks). No sentence leaves.
+2. `client/scripts/sense-words.ts` asks Workers AI about the words the list
+   doesn't know, in batches of 50, two ways; keeps the words both answers
+   give the same sense; adds each as its base ("wailed" adds "wail", only
+   if the list's spelling rules agree) to `client/src/senseWordsAdded.ts`;
+   and keeps only the ones every sense test still passes with.
+3. The workflow opens the PR with the `qa-wolf` label, using
+   SENSE_WORDS_TOKEN, so CI and QA Wolf run on it. It skips a week while
+   last week's is still open.
+
+- [x] Built and tested with a stand-in AI (a word that made a telling
+  sentence light up was left out)
+- [ ] SENSE_WORDS_TOKEN added (fine-grained, this repo only: Contents and
+  Pull requests read and write)
+- [ ] A dry run on staging, then a real run
+- [ ] Pointed at production (decide how it gets production's approval)
+
 ### S4: The sense tagger
 A job of its own (not Scribbles) that tags an approved sentence's sense
 words, checks them against the sentence, and saves them. It runs after
@@ -120,3 +141,6 @@ day's free allowance.
 - Scribbles stays off; the tagger doesn't depend on it.
 - AI reads the weekly report, not a person, and it must stay free. A person
   only merges the PR the job opens.
+- The weekly job reads staging first; production comes in a later PR.
+- Its PRs are opened with a fine-grained token (SENSE_WORDS_TOKEN), so CI
+  and QA Wolf run on them.

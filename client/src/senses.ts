@@ -10,6 +10,8 @@
 // sparkly). Matching is by whole word, so "red" doesn't hide in "tired" and
 // "fur" doesn't hide in "furious".
 
+import { ADDED_SENSE_WORDS } from "./senseWordsAdded";
+
 export type SenseKey = "see" | "hear" | "feel" | "smell" | "taste";
 
 export const SENSE_KEYS: readonly SenseKey[] = ["see", "hear", "feel", "smell", "taste"];
@@ -101,7 +103,7 @@ const NOT_FORMS = new Set(["pants"]);
 // shining and humming for doing words; louder, paler, hotter, noisier,
 // loudest, loudly and noisily for describing words. Bases shorter than three
 // letters are left out, so "has" isn't a form of "ha".
-function baseForms(word: string): { doing: string[]; describing: string[] } {
+export function baseForms(word: string): { doing: string[]; describing: string[] } {
   const doing: string[] = [];
   const describing: string[] = [];
   // "stem" with its last letter undoubled too: humm → hum
@@ -132,13 +134,14 @@ function baseForms(word: string): { doing: string[]; describing: string[] } {
   return { doing: doing.filter(long), describing: describing.filter(long) };
 }
 
+// The list above, with the words the weekly sense word job added
 const LISTS = Object.fromEntries(
   SENSE_KEYS.map((sense) => [
     sense,
     {
       exact: new Set(SENSE_WORDS[sense].exact),
-      words: new Set(SENSE_WORDS[sense].words),
-      describing: new Set(SENSE_WORDS[sense].describing),
+      words: new Set([...SENSE_WORDS[sense].words, ...ADDED_SENSE_WORDS[sense].words]),
+      describing: new Set([...SENSE_WORDS[sense].describing, ...ADDED_SENSE_WORDS[sense].describing]),
       starts: SENSE_WORDS[sense].starts,
     },
   ])
