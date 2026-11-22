@@ -39,16 +39,16 @@ Tell without its "(Use a …)" ask, wherever a Tell appears (Today, Write, My
 sentences, gallery), since the badge says it instead.
 
 **Acceptance criteria:**
-- [ ] The gallery, Write and Today show the same Tells and photos as before
-- [ ] A Tell list saved in the browser without IDs is fetched again
-- [ ] No screen names change; the only wording change is the "(Use a …)"
+- [x] The gallery, Write and Today show the same Tells and photos as before
+- [x] A Tell list saved in the browser without IDs is fetched again
+- [x] No screen names change; the only wording change is the "(Use a …)"
   ask leaving the Tell (check QA Wolf flows that read Days 31–35)
 
 **Verification:**
-- [ ] `cd client && npx vitest run`, `npx eslint src`, `tsc` pass
-- [ ] Manual: fake-API screenshots of Today, Write and Gallery match the
+- [x] `cd client && npx vitest run`, `npx eslint src`, `tsc` pass
+- [x] Manual: fake-API screenshots of Today, Write and Gallery match the
   current ones
-- [ ] QA Wolf: all flows pass on the preview
+- [x] QA Wolf: all flows pass on the preview
 
 **Dependencies:** Task 1
 

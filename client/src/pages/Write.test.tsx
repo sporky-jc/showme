@@ -42,12 +42,14 @@ const shows = (n: number): Sentence[] =>
 const renderWrite = ({
   route = "/Write",
   tellCount = 12,
+  tellList,
   mine = shows(2),
   list,
   save,
 }: {
   route?: string;
   tellCount?: number;
+  tellList?: TellSentence[];
   mine?: Sentence[];
   list?: () => Outcome | Promise<Outcome>;
   save?: () => Outcome | Promise<Outcome>;
@@ -59,7 +61,7 @@ const renderWrite = ({
       <Route path="*" element={<p>Another page</p>} />
     </Routes>,
     {
-      state: { user: ada, tellsentences: tells(tellCount), usersentences: [] },
+      state: { user: ada, tellsentences: tellList ?? tells(tellCount), usersentences: [] },
       route,
       respond: (config) => {
         requests.push(config);
@@ -104,6 +106,21 @@ describe("Write", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect(openLogin).toHaveBeenCalledTimes(1);
     expect(requests).toHaveLength(0);
+  });
+
+  it("shows what the Tell asks for as a badge, and sends the Tell's own words", async () => {
+    const user = userEvent.setup();
+    const list = tells(3);
+    list[2] = { ...list[2], technique: "metaphor", tell: "The hot soup burned my mouth. (Use a Metaphor)" };
+    const { saves } = renderWrite({ mine: shows(2), tellList: list });
+
+    await user.type(await box(), "The soup was lava on my tongue.");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next TellThe hot soup burned my mouth.");
+    expect(screen.getByText("This Tell asks for a metaphor")).toBeInTheDocument();
+
+    await user.click(sendButton());
+    await waitFor(() => expect(saves()).toHaveLength(1));
+    expect(JSON.parse(saves()[0].data as string)).toMatchObject({ title: "day3" });
   });
 
   it("shows today's Tell sentence: the one after the student's last", async () => {

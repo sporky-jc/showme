@@ -8,6 +8,7 @@ import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
 import { nextDay } from "../days";
+import { askOf, classicId, tellById, withoutAsk } from "../tells";
 import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, leastUsedSense, senseCounts } from "../senses";
 
 // How many of the student's latest sentences to show under their next Tell
@@ -50,7 +51,9 @@ function Today() {
 
   // The day after the latest one written (see days.ts), or none: all done
   const next = nextDay(userSentences, tellSentences.length);
-  const today = next === undefined ? undefined : tellSentences[next - 1];
+  const today = next === undefined ? undefined : tellById(tellSentences, classicId(next));
+  // What the next Tell asks for beyond the senses, as a badge (see tells.ts)
+  const ask = askOf(today?.technique);
   const approved = userSentences.filter((sentence) => sentence.approved);
   const shown = approved.length;
   // The sticker book: a sticker for each sense used in a sentence that made
@@ -86,7 +89,8 @@ function Today() {
           <div className="paper-stack__card paper-today__card">
             <div className="paper-today__tell">
               <span className="paper-status paper-status--retry">Your next Tell</span>
-              <p className="paper-today__sentence">“{today.tell}”</p>
+              <p className="paper-today__sentence">“{withoutAsk(today.tell)}”</p>
+              {ask && <span className="paper-status paper-status--turn">{ask}</span>}
               <p className="paper-today__hint">
                 Show it with what you see, hear and feel.
               </p>
@@ -162,7 +166,7 @@ function Today() {
                   <Link to={sentence.toRedo ? `/Write/${sentence._id}` : "/MySentences"} className={note}>
                     <span className="paper-note__status">{label}</span>
                     <span className="paper-note__show">{sentence.show}</span>
-                    {tell && <span className="visually-hidden">for “{tell}”</span>}
+                    {tell && <span className="visually-hidden">for “{withoutAsk(tell)}”</span>}
                   </Link>
                 </li>
               );

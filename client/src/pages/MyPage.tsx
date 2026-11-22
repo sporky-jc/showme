@@ -11,6 +11,7 @@ import { useStudentData } from "../components/useStudentData";
 import * as config from "../config";
 import type { RootState } from "../reducers/types";
 import { dayOf, nextDay } from "../days";
+import { withoutAsk } from "../tells";
 
 // My sentences: everything the signed-in student has written, newest first,
 // each on a paper note colored by where it stands, with the way to change
@@ -138,7 +139,7 @@ function MyPage() {
                   </div>
                 )}
                 <div className="paper-mine__foot">
-                  <p className="paper-mine__tell">{sentence.tell}</p>
+                  <p className="paper-mine__tell">{withoutAsk(sentence.tell)}</p>
                   <div className="paper-mine__actions">
                     {/* Once it's in the gallery, its picture's frame */}
                     {sentence.approved && (

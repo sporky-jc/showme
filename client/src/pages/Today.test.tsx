@@ -170,6 +170,44 @@ describe("Today", () => {
     expect(requests).toEqual(["get /MyPage"]);
   });
 
+  it("asks for the Tell sentences again when this browser saved them before Tells had ids", async () => {
+    // As an older version of the site saved them: no id, no technique
+    const old = tells(12).map((tell) => ({ key: tell.key, title: tell.title, tell: tell.tell, image: tell.image }));
+    const requests: string[] = [];
+    renderWithApp(<Today />, {
+      state: { user: ada, tellsentences: old as TellSentence[] },
+      respond: (config) => {
+        requests.push(`${config.method} ${config.url}`);
+        if (config.url === "/MyPage") return { status: 200, data: shows(1) };
+        if (config.url === "/") return { status: 200, data: tells(12) };
+        return 200;
+      },
+    });
+
+    expect(await screen.findByText("“Tell 2”")).toBeInTheDocument();
+    expect(requests).toContain("get /");
+  });
+
+  it("shows what a Tell asks for as a badge, not in the Tell's words", async () => {
+    const list = tells(3);
+    list[1] = { ...list[1], technique: "simile", tell: "He dodged all the traps with ease. (Use a Simile)" };
+    renderWithApp(<Today />, {
+      state: { user: ada, tellsentences: list },
+      respond: (config) => (config.url === "/MyPage" ? { status: 200, data: shows(1) } : 200),
+    });
+
+    expect(await screen.findByText("“He dodged all the traps with ease.”")).toBeInTheDocument();
+    expect(screen.getByText("This Tell asks for a simile")).toBeInTheDocument();
+    expect(screen.queryByText(/Use a Simile/)).not.toBeInTheDocument();
+  });
+
+  it("has no badge for a Tell that asks for the senses", async () => {
+    renderToday();
+
+    await screen.findByText("“Tell 1”");
+    expect(screen.queryByText(/This Tell asks for/)).not.toBeInTheDocument();
+  });
+
   // No Tell sentences at all must not read as "you've written them all"
   it("says it couldn't load, not 'all done', when the Tell sentences don't arrive", async () => {
     renderToday({

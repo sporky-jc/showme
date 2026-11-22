@@ -10,6 +10,7 @@ import { createSentence, editSentences, type SaveResult } from "../actions/users
 import { fetchUser } from "../actions/user";
 import type { AppDispatch, RootState } from "../reducers/types";
 import { dayOf, nextDay } from "../days";
+import { askOf, classicId, tellById, withoutAsk } from "../tells";
 import { standing } from "../components/standing";
 import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, repeatedTellWord, senseWords } from "../senses";
 import type { OwnSentence } from "../api/types";
@@ -154,7 +155,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
         <div className="paper-stack">
           <div className="paper-stack__card paper-write__sent-card">
             <span className={badge}>{label}</span>
-            <p className="paper-write__sent-tell">{sent.sentence.tell}</p>
+            <p className="paper-write__sent-tell">{withoutAsk(sent.sentence.tell)}</p>
             <p className="paper-write__sent-show">{sent.sentence.show}</p>
           </div>
         </div>
@@ -193,7 +194,14 @@ function WriteSentence({ id }: { id: string | undefined }) {
   // sentence whose title isn't a day has no number.
   const editing = (id && userSentences.find((sentence) => sentence._id === id)) || null;
   const day = editing ? dayOf(editing.title) : nextDay(userSentences, tellSentences.length);
-  const tell = editing ? editing.tell : day === undefined ? undefined : tellSentences[day - 1]?.tell;
+  // Its Tell in the list, by id: the edited sentence's title, or the next
+  // day's on the Classic path (see tells.ts)
+  const tellEntry = tellById(tellSentences, editing ? editing.title : day === undefined ? undefined : classicId(day));
+  // The Tell's words as stored with the sentence (or the list's, for a new
+  // one), and as shown: without the "(Use a Simile)" ask, which the badge says
+  const storedTell = editing ? editing.tell : tellEntry?.tell;
+  const tell = storedTell === undefined ? undefined : withoutAsk(storedTell);
+  const ask = askOf(tellEntry?.technique);
 
   if (id && !editing) {
     return (
@@ -262,7 +270,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
 
   // Scribbles' picture of the sentence: the Tell's photo, foggy and gray
   // until the sentence has enough words and senses to see it clearly
-  const image = day === undefined ? undefined : tellSentences[day - 1]?.image;
+  const image = tellEntry?.image;
   const blur = tellWord ? 6 : Math.max(0, WORD_GOAL - words) * 1.2;
   const gray = found.see || used.length >= 2 ? 0 : used.length === 1 ? 0.5 : 1;
 
@@ -277,6 +285,8 @@ function WriteSentence({ id }: { id: string | undefined }) {
   async function send(event: React.FormEvent) {
     event.preventDefault();
     if (saving || !tell || text.trim() === "") return;
+    // A new sentence is for its Tell, named by the Tell's id
+    if (!editing && !tellEntry) return;
     setSaving(true);
     setProblem(null);
     // The server sets the rest itself: the day's Tell (from the same list),
@@ -284,12 +294,12 @@ function WriteSentence({ id }: { id: string | undefined }) {
     const result = editing
       ? await dispatch(editSentences({ title: editing.title, show: text }))
       : // The Tell goes along only for an older backend; the server looks it up itself
-        await dispatch(createSentence({ title: "day" + day, show: text, tell }));
+        await dispatch(createSentence({ title: tellEntry?.id ?? "", show: text, tell: storedTell }));
     setSaving(false);
     if (result.kind === "saved") {
       dispatch(fetchUser());
       // As the server saved it (trimmed), with the Tell it stored
-      setSent({ sentence: { ...result.sentence, tell: result.sentence.tell ?? tell }, again: false });
+      setSent({ sentence: { ...result.sentence, tell: result.sentence.tell ?? storedTell ?? tell }, again: false });
       return;
     }
     if (result.kind === "already-sent" && result.sentence) {
@@ -333,6 +343,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
               </span>
               <span className="paper-write__sentence">{tell}</span>
             </h1>
+            {ask && <p className="paper-status paper-status--turn paper-write__ask">{ask}</p>}
 
             {editing?.approved && (
               <p className="paper-write__notice">

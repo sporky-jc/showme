@@ -42,6 +42,22 @@ describe("Cards", () => {
     expect(screen.getAllByText("Ada L.")).toHaveLength(2);
   });
 
+  it("finds each sentence's picture by its Tell's id, wherever the Tell is in the list", () => {
+    renderWithApp(<Cards displaySentences={approved(2)} />, {
+      state: { tellsentences: [...tellsentences].reverse() },
+    });
+
+    const [first, second] = document.querySelectorAll("img");
+    expect(first).toHaveAttribute("src", "/cold.jpg");
+    expect(second).toHaveAttribute("src", "/hot.jpg");
+  });
+
+  it("shows the Tell without its \"(Use a …)\" ask", () => {
+    renderCards([{ ...approved(1)[0], tell: "The gale blew the flowers back and forth. (Use Personification)" }]);
+
+    expect(screen.getByText("The gale blew the flowers back and forth.")).toBeInTheDocument();
+  });
+
   it("puts each picture in the frame its author picked, and Grape when they haven't", () => {
     const [picked, none] = approved(2);
     renderCards([{ ...picked, look: { frame: "teal" } }, none]);
