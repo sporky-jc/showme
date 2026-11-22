@@ -281,6 +281,58 @@ describe("Collection", () => {
     expect(screen.queryByRole("group", { name: "Find a sense" })).not.toBeInTheDocument();
   });
 
+  // The end of the wall: Show more, then Scribbles' invite for visitors
+  it("Show more shows the next 12, and the keyboard goes to the first new card", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: fromServer(30) });
+    await screen.findByRole("region", { name: "Scribbles’ pick" });
+    await pickSort(user, "Newest");
+    expect(wallShows()).toHaveLength(12);
+    expect(screen.getByText("Showing 12 of 29 sentences.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show more" }));
+
+    expect(wallShows()).toHaveLength(24);
+    expect(wallShows()[12]).toBe("Sentence 14");
+    expect(document.activeElement?.textContent).toContain("Sentence 14");
+    expect(screen.getByText("Showing 24 of 29 sentences.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show more" }));
+
+    expect(wallShows()).toHaveLength(29);
+    expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+    expect(screen.getByText("Showing all 29 sentences.")).toBeInTheDocument();
+    // Scribbles' pick is never on the wall too
+    expect(wallShows()).not.toContain(pickShows());
+  });
+
+  it("has no Show more when every sentence fits", async () => {
+    renderCollection({ server: fromServer(6) });
+    await screen.findByRole("region", { name: "Scribbles’ pick" });
+
+    expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+  });
+
+  it("starts from 12 again with a new order", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: fromServer(30) });
+    await screen.findByRole("region", { name: "Scribbles’ pick" });
+    await user.click(screen.getByRole("button", { name: "Show more" }));
+
+    await pickSort(user, "Newest");
+
+    expect(wallShows()).toHaveLength(12);
+  });
+
+  it("invites a visitor to write one, with a button that isn't another Sign in", async () => {
+    renderCollection({ server: fromServer(3) });
+    const invite = await screen.findByRole("region", { name: "I tape up the best ones" });
+
+    expect(within(invite).getByRole("button", { name: "Write one too" })).toBeInTheDocument();
+    expect(within(invite).queryByRole("button", { name: /sign in/i })).not.toBeInTheDocument();
+  });
+
   it("says when no sentences have been approved yet", async () => {
     renderCollection({ server: [] });
 

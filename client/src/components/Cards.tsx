@@ -23,14 +23,13 @@ function Cards(props: {
   // The signed-in user's view of each sentence's likes, or null for none
   likes?: LikesById | null;
   onToggleLike?: (id: string) => void;
+  // How many to show (Show more raises it)
+  limit?: number;
 }) {
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
   const likes = props.likes ?? null;
   const onToggleLike = props.onToggleLike ?? noLikes;
-  const sentences = (props.displaySentences ?? []).slice(
-    0,
-    config.DisplayCollectionSentences
-  );
+  const sentences = (props.displaySentences ?? []).slice(0, props.limit ?? config.DisplayCollectionSentences);
 
   return (
     <ul className="paper-gallery__cards">
@@ -39,7 +38,8 @@ function Cards(props: {
         const senses = SENSE_KEYS.filter((sense) => pieces.some((piece) => piece.sense === sense));
         return (
           <li key={sentence._id}>
-            <article className="paper-gallery__card" style={frameStyle(sentence.look?.frame)}>
+            {/* tabIndex -1: Show more puts the keyboard on the first new one */}
+            <article className="paper-gallery__card" style={frameStyle(sentence.look?.frame)} tabIndex={-1}>
               {/* Scenery for the sentences under it, which say it all. The
                   sky shows in it until it has downloaded. */}
               <div className="paper-gallery__frame">

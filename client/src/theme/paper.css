@@ -1954,6 +1954,66 @@ h3,
   cursor: pointer;
 }
 
+/* ---- The end of the wall: Show more, and Scribbles' invite ---- */
+
+.paper-gallery__more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 34px 0 8px;
+}
+
+.paper-gallery__more p {
+  margin: 0;
+  font-weight: 700;
+  color: var(--paper-muted);
+}
+
+/* The first new card after Show more, when the keyboard lands on it */
+.paper-gallery__card:focus-visible {
+  outline: 4px solid var(--paper-brand);
+  outline-offset: 4px;
+}
+
+/* For visitors: Scribbles, what he does, and a way in */
+.paper-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  margin: 40px 0 8px;
+  padding: 20px 24px;
+  border: 3px dashed var(--paper-brand);
+  border-radius: 28px;
+  background: var(--paper-white);
+}
+
+.paper-invite .scribbles {
+  flex: none;
+  width: 80px;
+  height: auto;
+}
+
+.paper-invite__words {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.paper-invite__words h2 {
+  margin: 0;
+  font-size: clamp(1.4rem, 3.5vw, 1.9rem);
+}
+
+.paper-invite__words p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--paper-muted);
+}
+
 /* A sentence's heart and how many likes it has */
 .paper-like {
   display: inline-flex;

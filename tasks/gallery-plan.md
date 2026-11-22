@@ -66,8 +66,8 @@ sentences that use that sense; a status line says how many.
 It filters the wall only; Scribbles' pick stays. With no sense pressed, the
 wall is exactly as before.
 
-- [ ] Works with Shuffle and Newest; pressing again shows all
-- [ ] A sense with no sentences says so and offers Show all
+- [x] Works with Shuffle and Newest; pressing again shows all
+- [x] A sense with no sentences says so and offers Show all
 
 Files: `Collection.tsx`, `paper.css`
 
@@ -75,6 +75,12 @@ Files: `Collection.tsx`, `paper.css`
 
 "Show more" after 12 cards, and for guests Scribbles' "I tape up the best
 ones" with Sign in.
+
+Show more shows the rest of what the Gallery already loaded (the server
+sends every approved sentence), 12 more at a time, and puts the keyboard on
+the first new card. The invite's button is "Write one too" (it opens the
+sign-in pop-up): a second button named with "Sign in" would match the
+menu's in flows that find "Sign in" by name.
 
 ### G5: Phone layout
 
@@ -90,5 +96,3 @@ layout. Activate after they pass on staging.
 
 ## Open questions
 
-- Should "Show more" load more from the server, or show the rest of what
-  the Gallery already has? (G4)
