@@ -59,8 +59,8 @@ The tasks with acceptance criteria are in `tasks/todo.md`.
 - [ ] Gallery photos, Write and Today unchanged for an existing student
 
 ### Phase 2: Refreshers
-- [ ] Task 3: Refresher content as data
-- [ ] Task 4: Refresher pop-up, opened from "What's a …?"
+- [x] Task 3: Refresher content as data
+- [x] Task 4: Refresher pop-up, opened from "What's a …?"
 - [ ] Task 5: Remember which refreshers a student has seen (backend)
 - [ ] Task 6: Open a refresher by itself the first time (senses on Day 1)
 
