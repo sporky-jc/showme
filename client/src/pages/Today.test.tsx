@@ -199,6 +199,9 @@ describe("Today", () => {
     expect(await screen.findByText("“He dodged all the traps with ease.”")).toBeInTheDocument();
     expect(screen.getByText("This Tell asks for a simile")).toBeInTheDocument();
     expect(screen.queryByText(/Use a Simile/)).not.toBeInTheDocument();
+    // One ask, not two: the hint says the same as the badge
+    expect(screen.getByText("Show it with a simile.")).toBeInTheDocument();
+    expect(screen.queryByText("Show it with what you see, hear and feel.")).not.toBeInTheDocument();
   });
 
   it("has no badge for a Tell that asks for the senses", async () => {

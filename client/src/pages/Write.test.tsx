@@ -7,7 +7,7 @@ import { OpenLoginContext } from "../components/loginPopup";
 import type { InternalAxiosRequestConfig } from "axios";
 import { renderWithApp } from "../test/testUtils";
 import type { Outcome } from "../test/testUtils";
-import type { Sentence, TellSentence } from "../api/types";
+import type { Sentence, Technique, TellSentence } from "../api/types";
 
 // The Write page: today's Tell sentence, a box to show it in, Scribbles'
 // questions for each sense, and what happens once it's sent. With a
@@ -43,6 +43,7 @@ const renderWrite = ({
   route = "/Write",
   tellCount = 12,
   tellList,
+  student = ada,
   mine = shows(2),
   list,
   save,
@@ -50,6 +51,7 @@ const renderWrite = ({
   route?: string;
   tellCount?: number;
   tellList?: TellSentence[];
+  student?: typeof ada & { seenRefreshers?: Technique[] };
   mine?: Sentence[];
   list?: () => Outcome | Promise<Outcome>;
   save?: () => Outcome | Promise<Outcome>;
@@ -61,7 +63,7 @@ const renderWrite = ({
       <Route path="*" element={<p>Another page</p>} />
     </Routes>,
     {
-      state: { user: ada, tellsentences: tellList ?? tells(tellCount), usersentences: [] },
+      state: { user: student, tellsentences: tellList ?? tells(tellCount), usersentences: [] },
       route,
       respond: (config) => {
         requests.push(config);
@@ -72,7 +74,10 @@ const renderWrite = ({
           if (save) return save();
           return { status: 201, data: { _id: "new", ...JSON.parse(config.data) } };
         }
-        if (config.url === "/Login") return { status: 200, data: ada };
+        if (config.url === "/Login") return { status: 200, data: student };
+        if (config.url?.startsWith("/Login/refreshers/")) {
+          return { status: 200, data: { ...student, seenRefreshers: [...(student.seenRefreshers ?? []), "senses"] } };
+        }
         return 200;
       },
     }
@@ -146,6 +151,38 @@ describe("Write", () => {
 
     expect(screen.getByRole("button", { name: "What’s a sense?" })).toBeInTheDocument();
     expect(screen.queryByText(/This Tell asks for/)).not.toBeInTheDocument();
+  });
+
+  it("opens the senses refresher by itself the first time, and tells the server it was seen", async () => {
+    const { requests } = renderWrite({ mine: [], student: { ...ada, seenRefreshers: [] } });
+
+    expect(await screen.findByRole("dialog", { name: "What’s a sense?" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(requests.some((r) => r.method === "put" && r.url === "/Login/refreshers/senses")).toBe(true)
+    );
+  });
+
+  it("doesn't open a refresher by itself once it's been seen", async () => {
+    const { requests } = renderWrite({ mine: [], student: { ...ada, seenRefreshers: ["senses"] } });
+    await box();
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "What’s a sense?" })).toBeInTheDocument();
+    expect(requests.some((r) => r.url?.startsWith("/Login/refreshers/"))).toBe(false);
+  });
+
+  it("doesn't open a refresher by itself while editing, or before the server says what's been seen", async () => {
+    renderWrite({ route: "/Write/s1", mine: shows(2), student: { ...ada, seenRefreshers: [] } });
+    await box();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("opens a new technique's refresher by itself even when the senses one was seen", async () => {
+    const list = tells(3);
+    list[2] = { ...list[2], technique: "simile", tell: "He dodged all the traps with ease. (Use a Simile)" };
+    renderWrite({ mine: shows(2), tellList: list, student: { ...ada, seenRefreshers: ["senses"] } });
+
+    expect(await screen.findByRole("dialog", { name: "What’s a simile?" })).toBeInTheDocument();
   });
 
   it("shows today's Tell sentence: the one after the student's last", async () => {

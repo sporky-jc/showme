@@ -145,12 +145,12 @@ haven't seen, its refresher opens by itself and is marked seen. The senses
 refresher opens on Day 1.
 
 **Acceptance criteria:**
-- [ ] It opens once per technique per student, on any device
-- [ ] If marking it seen fails, the student can still write (nothing blocks)
-- [ ] Later visits only open it from the button
+- [x] It opens once per technique per student, on any device
+- [x] If marking it seen fails, the student can still write (nothing blocks)
+- [x] Later visits only open it from the button
 
 **Verification:**
-- [ ] `cd client && npx vitest run`
+- [x] `cd client && npx vitest run`
 - [ ] New QA Wolf flows (Chi Sandbox): first-time senses refresher on Day 1,
   and reopening from the button; both pass on the preview
 

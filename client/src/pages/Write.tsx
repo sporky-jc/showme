@@ -11,8 +11,7 @@ import { fetchUser } from "../actions/user";
 import type { AppDispatch, RootState } from "../reducers/types";
 import { dayOf, nextDay } from "../days";
 import { askOf, classicId, tellById, withoutAsk } from "../tells";
-import Refresher from "../components/Refresher";
-import { REFRESHERS } from "../refreshers";
+import RefresherButton from "../components/RefresherButton";
 import { standing } from "../components/standing";
 import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, repeatedTellWord, senseWords } from "../senses";
 import type { OwnSentence } from "../api/types";
@@ -117,10 +116,6 @@ function WriteSentence({ id }: { id: string | undefined }) {
 
   // Once sent, the page changes under the reader: move them to its heading
   const sentHeading = useRef<HTMLHeadingElement>(null);
-  // The refresher pop-up for what the Tell asks for, and the button that
-  // opens it (the keyboard goes back there when it closes)
-  const [refresherOpen, setRefresherOpen] = useState(false);
-  const refresherButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (sent) sentHeading.current?.focus();
   }, [sent]);
@@ -208,13 +203,13 @@ function WriteSentence({ id }: { id: string | undefined }) {
   const storedTell = editing ? editing.tell : tellEntry?.tell;
   const tell = storedTell === undefined ? undefined : withoutAsk(storedTell);
   const ask = askOf(tellEntry?.technique);
-  // Its refresher: "What's a simile?" (see refreshers.ts)
-  const refresher = tellEntry ? REFRESHERS[tellEntry.technique] : undefined;
-  const closeRefresher = () => {
-    setRefresherOpen(false);
-    // After the pop-up is gone
-    setTimeout(() => refresherButton.current?.focus());
-  };
+  // Its refresher ("What's a simile?", see RefresherButton). It opens by
+  // itself the first time the student writes for a Tell that asks for a
+  // technique they haven't seen: on Day 1, the senses. Not while editing,
+  // and not before the server has said which ones they've seen.
+  const technique = tellEntry?.technique;
+  const seen = user.seenRefreshers;
+  const firstTime = !editing && technique !== undefined && seen !== undefined && !seen.includes(technique);
 
   if (id && !editing) {
     return (
@@ -356,23 +351,10 @@ function WriteSentence({ id }: { id: string | undefined }) {
               </span>
               <span className="paper-write__sentence">{tell}</span>
             </h1>
-            {(ask || refresher) && (
+            {technique && (
               <div className="paper-write__asks">
                 {ask && <p className="paper-status paper-status--turn paper-write__ask">{ask}</p>}
-                {refresher && (
-                  <button
-                    type="button"
-                    ref={refresherButton}
-                    className="paper-write__what"
-                    aria-haspopup="dialog"
-                    onClick={() => setRefresherOpen(true)}
-                  >
-                    <span className="paper-write__what-mark" aria-hidden>
-                      ?
-                    </span>
-                    {refresher.ask}
-                  </button>
-                )}
+                <RefresherButton technique={technique} firstTime={firstTime} />
               </div>
             )}
 
@@ -499,7 +481,6 @@ function WriteSentence({ id }: { id: string | undefined }) {
           </div>
         </form>
       </div>
-      {refresherOpen && refresher && <Refresher words={refresher} onClose={closeRefresher} />}
     </div>
   );
 }

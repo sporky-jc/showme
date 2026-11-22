@@ -16,6 +16,7 @@ import type {
   ReviewTipId,
   SentenceLikes,
   SentenceWithAuthor,
+  Technique,
   TellSentence,
   UndoAnswer,
   UndoBody,
@@ -47,6 +48,10 @@ export const editUserSentences = (editedSentence: EditSentenceBody) =>
 
 // logout User
 export const logoutUser = () => API.post("/Logout");
+
+// The student has seen a refresher, so it won't open by itself again
+export const markRefresherSeen = (technique: Technique) =>
+  API.put<User>(`/Login/refreshers/${encodeURIComponent(technique)}`);
 
 // Pick the frame an approved sentence has in the gallery
 export const setSentenceLook = (id: string, look: Look) =>

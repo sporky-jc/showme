@@ -1,5 +1,12 @@
 import type { ThunkAction, ThunkDispatch } from "@reduxjs/toolkit";
-import type { GallerySentence, OwnSentence, QueueSentence, TellSentence, User } from "../api/types";
+import type {
+  GallerySentence,
+  OwnSentence,
+  QueueSentence,
+  Technique,
+  TellSentence,
+  User,
+} from "../api/types";
 import type { RootState } from "./index";
 
 export type { RootState };
@@ -10,6 +17,7 @@ export type AppAction =
   | { type: "FETCH_TELL"; payload: TellSentence[] }
   | { type: "FIND_USER"; payload: User }
   | { type: "SESSION_CHECKED" }
+  | { type: "SAW_REFRESHER"; payload: Technique }
   | { type: "LOGOUT" }
   | { type: "FETCH_ALL"; payload: OwnSentence[] }
   | { type: "CREATE"; payload: OwnSentence }

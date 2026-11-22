@@ -10,6 +10,12 @@ const user = (state: UserState = {}, action: AppAction): UserState => {
   switch (action.type) {
     case "FIND_USER":
       return action.payload;
+    // Seen at once on this screen, while the server is told (see
+    // markRefresherSeen), so it doesn't open by itself again
+    case "SAW_REFRESHER":
+      return state.seenRefreshers?.includes(action.payload)
+        ? state
+        : { ...state, seenRefreshers: [...(state.seenRefreshers ?? []), action.payload] };
     case "LOGOUT":
       return {};
     default:
