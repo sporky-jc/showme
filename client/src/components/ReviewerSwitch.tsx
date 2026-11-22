@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { AxiosError } from "axios";
 import * as api from "../api";
 import type { ReviewerStatus } from "../api/types";
@@ -39,9 +39,12 @@ function ReviewerSwitch({ onSaid }: { onSaid: (said: string) => void }) {
   const [failed, setFailed] = useState<string | null>(null);
   const panel = useRef<HTMLElement>(null);
   // Where the keyboard goes after the next redraw: the confirm step's first
-  // button when it opens, the switch's button when it closes or saves
+  // button when it opens, the switch's button when it closes or saves.
+  // A layout effect, so it runs as each redraw lands: a plain effect can be
+  // left waiting, then run just after a click has set focusNext but before
+  // that click's redraw, and use up focusNext with the button not there yet
   const focusNext = useRef<"confirm" | "switch" | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const target = focusNext.current;
     if (!target || saving) return;
     focusNext.current = null;
