@@ -1,19 +1,27 @@
 // Scribbles, the pencil who coaches students. Drawn in SVG and moved with CSS
-// (src/theme/paper.css): he sways, blinks and waves; "happy" adds a spin and
-// a hop, "thinking" scratches his head, "worried" (raised brows, a wobbly
-// mouth and a drop of sweat) is for a sentence that may mean a student needs
-// help. He can hold something for the job on each page. Everything stands still for anyone whose device asks for less
-// motion.
+// (src/theme/paper.css). He is always moving, with one big, simple motion per
+// mood: "idle" bobs and blinks, "happy" hops and waves both arms, "thinking"
+// sways with thought dots over his head, and "worried" (raised brows, a
+// wobbly mouth and a drop of sweat) wobbles, for a sentence that may mean a
+// student needs help. He can hold something for the job on each page.
+// Everything stands still for anyone whose device asks for less motion.
 export type ScribblesMood = "idle" | "happy" | "thinking" | "worried";
 export type ScribblesProp = "none" | "note" | "check" | "brush" | "tape";
 
-// The left arm, waving or scratching his head
-const ARM = {
-  idle: "M66 104 Q 44 96 40 78",
-  happy: "M66 104 Q 44 80 46 54",
-  thinking: "M66 104 Q 48 80 66 58",
-  worried: "M66 104 Q 52 112 50 126",
+const INK = "#20304a";
+
+// His left arm: down, cheering, scratching his head, or hugging himself
+const LEFT_ARM = {
+  idle: "M64 108 Q 42 116 38 136",
+  happy: "M64 104 Q 40 90 36 64",
+  thinking: "M64 104 Q 46 84 64 60",
+  worried: "M64 108 Q 50 120 58 134",
 } as const;
+
+// His right hand is where he holds things (see Held), so it stays put
+// unless his hand is free and he is cheering
+const RIGHT_ARM = "M136 108 Q 152 112 156 124";
+const RIGHT_ARM_CHEER = "M136 104 Q 160 90 164 64";
 
 // Written out in full: the production build keeps only the CSS class names
 // that appear literally in the code (vite.config.ts), so a name pieced
@@ -26,11 +34,14 @@ const MOOD_CLASS = {
 } as const;
 
 const MOUTH = {
-  idle: "M88 118 Q 100 128 112 118",
-  happy: "M88 118 Q 100 130 112 118",
-  thinking: "M90 122 Q 100 118 110 122",
-  worried: "M90 122 Q 95 118 100 122 T 110 122",
+  idle: { d: "M88 122 Q 100 134 112 122", fill: "none" },
+  happy: { d: "M86 118 Q 100 142 114 118 Z", fill: "#ff6b5b" },
+  thinking: { d: "M95 126 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0", fill: INK },
+  worried: { d: "M88 128 Q 94 122 100 128 T 112 128", fill: "none" },
 } as const;
+
+// Which way he looks: thinking glances up and to the side
+const LOOK = { idle: 0, happy: 0, thinking: 3, worried: -1 } as const;
 
 function Held({ prop }: { prop: ScribblesProp }) {
   switch (prop) {
@@ -49,11 +60,11 @@ function Held({ prop }: { prop: ScribblesProp }) {
     case "check":
       return (
         <g data-held="check" transform="rotate(6 169 133)">
-          <rect x="146" y="110" width="46" height="46" rx="10" fill="#fff" stroke="#5fbf7d" strokeWidth={4} />
+          <rect x="146" y="110" width="46" height="46" rx="10" fill="#fff" stroke="#6fe0b0" strokeWidth={4} />
           <path
             d="M157 133 l 9 9 l 16 -18"
             fill="none"
-            stroke="#3a9a5c"
+            stroke="#17694a"
             strokeWidth={6}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -64,7 +75,7 @@ function Held({ prop }: { prop: ScribblesProp }) {
       return (
         <g data-held="brush">
           <path d="M154 128 L 192 86" stroke="#a0673f" strokeWidth={7} strokeLinecap="round" />
-          <path d="M192 76 Q 204 60 200 52 Q 190 62 188 72 Z" fill="#ff8a3d" />
+          <path d="M192 76 Q 204 60 200 52 Q 190 62 188 72 Z" fill="#7a5cff" />
         </g>
       );
     case "tape":
@@ -76,7 +87,7 @@ function Held({ prop }: { prop: ScribblesProp }) {
             width="52"
             height="16"
             rx="2"
-            fill="#ffd35c"
+            fill="#ffc93c"
             opacity={0.75}
             transform="rotate(-12 172 124)"
           />
@@ -102,6 +113,8 @@ function Scribbles({
   decorative?: boolean;
 }) {
   const label = decorative ? {} : { role: "img", "aria-label": "Scribbles the pencil" };
+  const look = LOOK[mood];
+  const cheering = mood === "happy" && prop === "none";
   return (
     <svg
       className={MOOD_CLASS[mood]}
@@ -111,54 +124,74 @@ function Scribbles({
       aria-hidden={decorative || undefined}
       {...label}
     >
+      <ellipse className="scribbles__shadow" cx="100" cy="208" rx="40" ry="6" fill={INK} opacity={0.12} />
       <path
         className="scribbles__squiggle"
         d="M24 200 C 44 182 64 212 84 194 S 124 182 144 196"
         pathLength={1}
         fill="none"
-        stroke="#ff8a3d"
+        stroke="#ff6b5b"
         strokeWidth={5}
         strokeLinecap="round"
         opacity={0.7}
       />
+      {mood === "thinking" && (
+        <g className="scribbles__dots" data-thinking>
+          <circle cx="146" cy="30" r="6" fill="#7a5cff" />
+          <circle cx="162" cy="16" r="7" fill="#7a5cff" />
+          <circle cx="180" cy="4" r="8" fill="#7a5cff" />
+        </g>
+      )}
       <g className="scribbles__body">
-        <rect x="66" y="22" width="68" height="34" rx="14" fill="#ff9fb6" />
-        <rect x="62" y="50" width="76" height="16" rx="4" fill="#b9c3cf" />
-        <rect x="66" y="62" width="68" height="96" fill="#ffd35c" />
-        <rect x="66" y="62" width="22" height="96" fill="#ffe27f" />
-        <rect x="112" y="62" width="22" height="96" fill="#f4b400" />
-        <path d="M66 158 L 134 158 L 100 196 Z" fill="#ffe2b8" />
-        <path d="M90 185 L 110 185 L 100 196 Z" fill="#2d2a32" />
+        <path
+          className="scribbles__arm"
+          d={LEFT_ARM[mood]}
+          fill="none"
+          stroke={INK}
+          strokeWidth={7}
+          strokeLinecap="round"
+        />
+        <path
+          className={cheering ? "scribbles__arm scribbles__arm--right" : undefined}
+          d={cheering ? RIGHT_ARM_CHEER : RIGHT_ARM}
+          fill="none"
+          stroke={INK}
+          strokeWidth={7}
+          strokeLinecap="round"
+        />
+        <rect x="64" y="20" width="72" height="36" rx="15" fill="#ff9fb0" />
+        <rect x="62" y="50" width="76" height="16" rx="3" fill="#b8c6d6" />
+        <path d="M62 56 H 138 M62 61 H 138" stroke="#94a6ba" strokeWidth={2} />
+        <rect x="64" y="66" width="72" height="92" fill="#ffc93c" />
+        <rect x="88" y="66" width="24" height="92" fill="#ffb21a" />
+        <path d="M64 158 L 136 158 L 100 200 Z" fill="#f6d6ae" />
+        <path d="M90 188 L 110 188 L 100 200 Z" fill={INK} />
         {mood === "worried" && (
           <g data-worried>
             {/* Brows raised in the middle, and a drop of sweat */}
-            <path d="M79 86 Q 86 85 94 80" fill="none" stroke="#2d2a32" strokeWidth={4} strokeLinecap="round" />
-            <path d="M121 86 Q 114 85 106 80" fill="none" stroke="#2d2a32" strokeWidth={4} strokeLinecap="round" />
-            <path d="M128 70 Q 133 79 128 83 Q 123 79 128 70 Z" fill="#8fd3ff" stroke="#4aa3d8" strokeWidth={1.5} />
+            <path d="M76 80 Q 84 80 94 74" fill="none" stroke={INK} strokeWidth={4} strokeLinecap="round" />
+            <path d="M124 80 Q 116 80 106 74" fill="none" stroke={INK} strokeWidth={4} strokeLinecap="round" />
+            <path d="M130 66 Q 135 75 130 79 Q 125 75 130 66 Z" fill="#8fd3ff" stroke="#4aa3d8" strokeWidth={1.5} />
           </g>
         )}
-        <ellipse className="scribbles__eye" cx="88" cy="98" rx="7" ry="8" fill="#2d2a32" />
-        <ellipse className="scribbles__eye" cx="112" cy="98" rx="7" ry="8" fill="#2d2a32" />
-        <circle cx="90" cy="95" r="2.2" fill="#fff" />
-        <circle cx="114" cy="95" r="2.2" fill="#fff" />
-        <path d={MOUTH[mood]} fill="none" stroke="#2d2a32" strokeWidth={4} strokeLinecap="round" />
-        <circle cx="76" cy="114" r="5" fill="#ff9fb6" opacity={0.8} />
-        <circle cx="124" cy="114" r="5" fill="#ff9fb6" opacity={0.8} />
+        <g className="scribbles__eye">
+          <ellipse cx="86" cy="100" rx="10" ry="12" fill="#fff" />
+          <ellipse cx="114" cy="100" rx="10" ry="12" fill="#fff" />
+          <circle cx={86 + look} cy={102 - Math.abs(look)} r="6" fill={INK} />
+          <circle cx={114 + look} cy={102 - Math.abs(look)} r="6" fill={INK} />
+          <circle cx={88 + look} cy={98 - Math.abs(look)} r="2" fill="#fff" />
+          <circle cx={116 + look} cy={98 - Math.abs(look)} r="2" fill="#fff" />
+        </g>
         <path
-          className="scribbles__arm"
-          d={ARM[mood]}
-          fill="none"
-          stroke="#2d2a32"
-          strokeWidth={5}
+          d={MOUTH[mood].d}
+          fill={MOUTH[mood].fill}
+          stroke={INK}
+          strokeWidth={4}
           strokeLinecap="round"
+          strokeLinejoin="round"
         />
-        <path
-          d="M134 104 Q 150 110 156 124"
-          fill="none"
-          stroke="#2d2a32"
-          strokeWidth={5}
-          strokeLinecap="round"
-        />
+        <circle cx="74" cy="120" r="6" fill="#ff9fb0" opacity={0.8} />
+        <circle cx="126" cy="120" r="6" fill="#ff9fb0" opacity={0.8} />
         <Held prop={prop} />
       </g>
     </svg>

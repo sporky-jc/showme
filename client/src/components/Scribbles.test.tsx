@@ -33,6 +33,21 @@ describe("Scribbles", () => {
     expect(container.querySelector("[data-worried]")).toBeNull();
   });
 
+  it("shows thought dots only while thinking", () => {
+    const { container, rerender } = render(<Scribbles mood="thinking" />);
+    expect(container.querySelector("[data-thinking]")).not.toBeNull();
+    rerender(<Scribbles mood="idle" />);
+    expect(container.querySelector("[data-thinking]")).toBeNull();
+  });
+
+  it("waves both arms when happy with nothing to hold", () => {
+    const { container, rerender } = render(<Scribbles mood="happy" />);
+    expect(container.querySelectorAll(".scribbles__arm")).toHaveLength(2);
+    // Holding something, he keeps that hand still
+    rerender(<Scribbles mood="happy" prop="check" />);
+    expect(container.querySelectorAll(".scribbles__arm")).toHaveLength(1);
+  });
+
   it("holds the prop for the page's job, and nothing by default", () => {
     const { container, rerender } = render(<Scribbles />);
     expect(container.querySelector("[data-held]")).toBeNull();
