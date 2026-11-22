@@ -90,6 +90,28 @@ export function senseWords(text: string): Record<SenseKey, string | null> {
   return found;
 }
 
+// A sentence cut into pieces that read as the whole sentence again, each word
+// that uses a sense a piece of its own with that sense (the first one it
+// matches), for the gallery to light up
+export type SensePiece = { text: string; sense: SenseKey | null };
+
+export function sensePieces(text: string): SensePiece[] {
+  const pieces: SensePiece[] = [];
+  const add = (piece: string, sense: SenseKey | null) => {
+    if (piece === "") return;
+    const last = pieces[pieces.length - 1];
+    if (sense === null && last?.sense === null) last.text += piece;
+    else pieces.push({ text: piece, sense });
+  };
+  // Words as wordsOf reads them, and everything between them as it is
+  for (const part of text.split(/([A-Za-z'’‘]+)/)) {
+    const word = wordsOf(part)[0];
+    const sense = word === undefined ? null : (SENSE_KEYS.find((key) => matches(word, key)) ?? null);
+    add(part, /[A-Za-z]/.test(part) ? sense : null);
+  }
+  return pieces;
+}
+
 // The telling word the Show sentence repeats from the Tell sentence, if any:
 // "happy" in "The dog was so happy" for the Tell "The dog was happy."
 export function repeatedTellWord(show: string, tell: string): string | null {
