@@ -136,6 +136,36 @@ export const ReviewerSwitchBody = z.object({
 // must be a real id written as text.
 export const SentenceIdParam = sentenceId;
 
+// A sentence's look in the gallery, picked by its author once it's approved
+// (PUT /MyPage/:id/look): a frame around its picture, and maybe one word of
+// the sentence on a big sticker in a sense's color. The word must be one of
+// the sentence's own words (the server checks), so only words a reviewer
+// approved ever reach the gallery.
+export const FRAMES = ["violet", "coral", "teal", "sun"] as const;
+export const STICKER_SENSES = ["see", "hear", "feel", "smell", "taste"] as const;
+const NOT_A_FRAME = "Pick one of the frames";
+const NOT_A_SENSE = "Pick one of the senses";
+const NOT_A_WORD = "The sticker must be one word";
+export const STICKER_NOT_IN_SENTENCE = "The sticker must be a word from your sentence";
+export const Look = z.object({
+  frame: z.enum(FRAMES, { error: NOT_A_FRAME }),
+  sticker: z
+    .object({
+      word: z
+        .string({ error: NOT_A_WORD })
+        .trim()
+        .toLowerCase()
+        .regex(/^[a-z']{1,30}$/, { error: NOT_A_WORD }),
+      sense: z.enum(STICKER_SENSES, { error: NOT_A_SENSE }),
+    })
+    .nullable(),
+});
+
+// The words of a sentence, the way the website finds sense words in it
+// (client/src/senses.ts): lowercased, curly apostrophes made straight
+export const wordsOf = (text: string): string[] =>
+  text.toLowerCase().replace(/[’‘]/g, "'").match(/[a-z']+/g) ?? [];
+
 // POST /auth: the ID token Google's sign-in button gave the website
 export const LoginBody = z.object({
   token: z.string().min(1),
@@ -191,6 +221,9 @@ export const Sentence = z.object({
   approved: z.boolean(),
   toRedo: z.boolean(), // an admin sent it back to be rewritten
   createdAt: z.string(), // when it was written or last edited (an ISO date)
+  // Its look in the gallery, once its author picks one (see Look). An
+  // edit clears it: the sticker was a word of the old text.
+  look: Look.nullish().transform((look) => look ?? undefined).optional(),
 });
 
 // A tip from Scribbles' list (reviewer/tips.ts), stored by its id and sent
@@ -340,4 +373,6 @@ export type ReviewCounts = z.infer<typeof ReviewCounts>;
 export type ReviewerSwitchBody = z.infer<typeof ReviewerSwitchBody>;
 export type ReviewerStatus = z.infer<typeof ReviewerStatus>;
 export type SentenceLikes = z.infer<typeof SentenceLikes>;
+export type Look = z.infer<typeof Look>;
+export type Frame = (typeof FRAMES)[number];
 export type ErrorAnswer = z.infer<typeof ErrorAnswer>;

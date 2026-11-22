@@ -5,6 +5,7 @@ import { logger } from "firebase-functions/logger";
 import {
   decisionsRateLimitStore,
   likesRateLimitStore,
+  lookRateLimitStore,
   reviewCountRateLimitStore,
   reviewerSwitchRateLimitStore,
   reviewTipsRateLimitStore,
@@ -35,6 +36,7 @@ afterEach(async () => {
   await Promise.all(collections.map((c) => c.deleteMany({})));
   // Likewise the rate limits' request counts
   await likesRateLimitStore.resetAll();
+  await lookRateLimitStore.resetAll();
   await sentenceWritesPerMinuteStore.resetAll();
   await sentenceWritesPerDayStore.resetAll();
   await reviewTipsRateLimitStore.resetAll();

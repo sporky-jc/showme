@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { TIP_IDS } from "../reviewer/tips.js";
+import { FRAMES, STICKER_SENSES } from "../contract/api.js";
 
 // User sentence schema
 const sentenceSchema = new mongoose.Schema({
@@ -38,6 +39,28 @@ const sentenceSchema = new mongoose.Schema({
     },
   ],
   GID: { type: String, required: true },
+  // Its look in the gallery, picked by its author once it's approved (PUT
+  // /MyPage/:id/look, see Look in contract/api.ts): a frame, and maybe one
+  // of its words on a sticker. Cleared when the student edits it.
+  look: {
+    type: new mongoose.Schema(
+      {
+        frame: { type: String, enum: FRAMES, required: true },
+        sticker: {
+          type: new mongoose.Schema(
+            {
+              word: { type: String, required: true },
+              sense: { type: String, enum: STICKER_SENSES, required: true },
+            },
+            { _id: false }
+          ),
+          default: null,
+        },
+      },
+      { _id: false }
+    ),
+    default: undefined,
+  },
   // The tip from Scribbles' list (reviewer/tips.ts) the student sees with
   // their teacher's decision: one they chose with "Try again", or the
   // praise tip once approved. Cleared when the student edits the sentence.
