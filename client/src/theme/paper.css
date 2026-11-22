@@ -1890,6 +1890,70 @@ h3,
   }
 }
 
+/* ---- The sense finder over the wall ---- */
+
+.paper-finder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 0 0 26px;
+}
+
+/* One row that scrolls sideways on a phone, rather than wrapping */
+.paper-finder__senses {
+  display: flex;
+  gap: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+}
+
+.paper-finder__sense {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 16px 6px 10px;
+  border: 3px solid var(--paper-edge);
+  border-radius: 999px;
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.paper-finder__sense:hover {
+  border-color: var(--paper-control-edge);
+}
+
+/* The sense pressed: ink, like the chosen order */
+.paper-finder__sense[aria-pressed="true"] {
+  border-color: var(--paper-ink);
+  background: var(--paper-ink);
+  color: var(--paper-white);
+}
+
+.paper-finder__said {
+  margin: 0;
+  font-weight: 700;
+  color: var(--paper-muted);
+}
+
+.paper-finder__all {
+  min-height: 44px;
+  padding: 6px 18px;
+  border: 3px solid var(--paper-ink);
+  border-radius: 999px;
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 /* A sentence's heart and how many likes it has */
 .paper-like {
   display: inline-flex;

@@ -3,6 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import Cards from "../components/Cards";
 import Scribbles from "../components/Scribbles";
 import GalleryPick from "../components/GalleryPick";
+import SenseFinder from "../components/SenseFinder";
+import { DisplayCollectionSentences } from "../config";
+import { senseWords } from "../senses";
+import type { SenseKey } from "../senses";
 import { anyOf, pickAndWall } from "./pickAndWall";
 import { useLikes } from "../components/useLikes";
 import LoadingOverlay from "react-loading-overlay-ts";
@@ -28,6 +32,8 @@ function Collection() {
   const [order, setOrder] = useState<"shuffle" | "newest">("shuffle");
   // Scribbles' pick, once "Show me another" has chosen one (see pickAndWall)
   const [pickId, setPickId] = useState<string | null>(null);
+  // The sense finder's sense, if one is pressed (see SenseFinder)
+  const [sense, setSense] = useState<SenseKey | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -79,6 +85,11 @@ function Collection() {
   };
 
   const { pick, wall, others } = pickAndWall(displaySentences, pickId);
+  // With a sense pressed, the wall shows every sentence but the pick that
+  // uses it (Cards shows the first DisplayCollectionSentences of them)
+  const found = sense
+    ? displaySentences.filter((sentence) => sentence !== pick && senseWords(sentence.show)[sense] !== null)
+    : wall;
   // A different one from the ones Scribbles could pick
   const showAnother = () => {
     const choices = others.filter((sentence) => sentence._id !== pick?._id);
@@ -88,7 +99,8 @@ function Collection() {
   // Scribbles taped the cards up. He tells a signed-in student when one of
   // theirs is among the ones showing.
   const firstName = useSelector((state: RootState) => state.user.firstName);
-  const mineIsUp = (pick ? [pick, ...wall] : wall)
+  const showing = found.slice(0, DisplayCollectionSentences);
+  const mineIsUp = (pick ? [pick, ...showing] : showing)
     .some((sentence) => likes?.[sentence._id]?.mine);
 
   // The Show ME gallery: every approved sentence, from every student
@@ -137,13 +149,14 @@ function Collection() {
               onToggleLike={toggle}
             />
           )}
+          {sentences.length > 0 && <SenseFinder sense={sense} found={found.length} onPick={setSense} />}
           {!loading && sentences.length === 0 ? (
             <p className="page-message">
               No sentences have been approved yet.
             </p>
           ) : (
             <Cards
-              displaySentences={wall}
+              displaySentences={found}
               likes={likes}
               onToggleLike={toggle}
             />
