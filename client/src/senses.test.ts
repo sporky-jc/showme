@@ -133,3 +133,35 @@ describe("sensePieces", () => {
     expect(sensePieces("")).toEqual([]);
   });
 });
+
+describe("sense tags from the sense tagger", () => {
+  const tags = [
+    { word: "wailed", sense: "hear" as const },
+    { word: "sweet", sense: "smell" as const },
+  ];
+
+  it("lights a tagged word the list doesn't know, and puts its tagged sense first", () => {
+    const show = "Wind wailed, and the roses smelled sweet.";
+    expect(sensePieces(show, tags).filter((piece) => piece.sense).map((piece) => [piece.text, piece.sense])).toEqual([
+      ["wailed", "hear"],
+      ["smelled", "smell"],
+      ["sweet", "smell"],
+    ]);
+    // Without tags, the list alone: "sweet" is a taste, "wailed" isn't known
+    expect(sensePieces(show).filter((piece) => piece.sense).map((piece) => [piece.text, piece.sense])).toEqual([
+      ["smelled", "smell"],
+      ["sweet", "taste"],
+    ]);
+  });
+
+  it("counts a tagged word for its tagged sense only", () => {
+    const found = senseWords("Wind wailed and the cake was sweet.", tags);
+    expect(found.hear).toBe("wailed");
+    expect(found.smell).toBe("sweet");
+    expect(found.taste).toBeNull();
+  });
+
+  it("reads tags whatever their case or apostrophes", () => {
+    expect(senseWords("It WAILED.", [{ word: "Wailed", sense: "hear" }]).hear).toBe("wailed");
+  });
+});

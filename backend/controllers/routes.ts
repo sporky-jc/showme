@@ -85,6 +85,20 @@ const sentencesWithAuthorNames = async (filter: {
     )
   );
 
+// The gallery's sentences (GET /Collections): approved, with each author's
+// name as above, and with their sense highlights (tagger/queue.ts), kept
+// only while they're for the sentence's current words
+const gallerySentences = async () => {
+  const sentences = newestFirst(
+    await Sentence.find({ approved: true }, "-GID -likedBy +senseTags +taggedShow")
+      .populate("author", "firstName lastName -_id")
+      .lean<{ show: string; createdAt: Date; taggedShow?: string; senseTags?: unknown[] }[]>()
+  );
+  return sentences.map(({ taggedShow, senseTags, ...sentence }) =>
+    taggedShow === sentence.show && Array.isArray(senseTags) ? { ...sentence, senseTags } : sentence
+  );
+};
+
 // MongoDB's answer when a unique index already holds the value
 const isDuplicateKey = (error: unknown) =>
   typeof error === "object" && error !== null && (error as { code?: unknown }).code === 11000;
@@ -525,9 +539,7 @@ export const updatePendingApprovalSentences = async (
 export const fetchApprovedSentences = async (req: Request, res: Response) => {
   try {
     // find all approved sentences, newest first
-    const approvedSentences = await sentencesWithAuthorNames({
-      approved: true,
-    });
+    const approvedSentences = await gallerySentences();
 
     // GallerySentences, not the Teacher page's SentencesWithAuthor: anyone
     // can read this answer, so each author goes out as a first name and a

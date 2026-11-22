@@ -339,7 +339,7 @@ describe("POST /MyPage: one sentence per student per day", () => {
     expect(gallery.body[0]).not.toHaveProperty("dayKey");
   });
 
-  it("clears a sentence's sense highlights when it's edited, and never sends them yet", async () => {
+  it("sends a sentence's sense highlights to the gallery, and clears them when it's edited", async () => {
     const ada = await createUser();
     const created = await request(app)
       .post("/MyPage")
@@ -351,8 +351,13 @@ describe("POST /MyPage: one sentence per student per day", () => {
       { approved: true, senseTags: [{ word: "rang", sense: "hear" }], taggedShow: "The bell rang.", taggedAt: new Date() }
     );
     const gallery = await request(app).get("/Collections");
-    expect(gallery.body[0]).not.toHaveProperty("senseTags");
+    expect(gallery.body[0].senseTags).toEqual([{ word: "rang", sense: "hear" }]);
     expect(gallery.body[0]).not.toHaveProperty("taggedShow");
+    // Never sent for other words than the ones tagged
+    await Sentence.updateOne({ _id: created.body._id }, { show: "The bell clanged." });
+    const stale = await request(app).get("/Collections");
+    expect(stale.body[0]).not.toHaveProperty("senseTags");
+    await Sentence.updateOne({ _id: created.body._id }, { show: "The bell rang." });
 
     await request(app).patch("/MyPage").set("Cookie", sessionCookie(ada)).send({ title: "day1", show: "The bell clanged." });
 

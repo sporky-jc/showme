@@ -15,6 +15,7 @@ import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
 import { MAX_CHARACTERS, REASONS, REVIEWER_MODES, VERDICTS } from "../reviewer/contract.js";
 import { MECHANICS } from "../reviewer/mechanics.js";
 import { tellForTitle } from "../public/tellList.js";
+import { SENSE_KEYS } from "../tagger/senseTags.js";
 
 // ---- Requests --------------------------------------------------------------
 
@@ -277,9 +278,18 @@ export const GalleryAuthor = z.object({
 // GET/PATCH /Admin (the queue) and GET /Admin/decisions: the whole name
 export const SentenceWithAuthor = Sentence.extend({ author: Author });
 
+// The words of an approved sentence that two AI models agree show a sense
+// there, each with that sense (backend/tagger/, Stage A of
+// tasks/sense-words-plan.md). Only words of the sentence itself.
+export const SenseTag = z.object({ word: z.string(), sense: z.enum(SENSE_KEYS) });
+
 // GET /Collections (approved sentences): only the author's first name and
-// last initial
-export const GallerySentence = Sentence.extend({ author: GalleryAuthor });
+// last initial, and the sentence's sense highlights, when it has some for
+// its current words (the website lights them up with the word list's)
+export const GallerySentence = Sentence.extend({
+  author: GalleryAuthor,
+  senseTags: z.array(SenseTag).optional(),
+});
 
 // What Scribbles suggests for a sentence waiting for review (reviewer/,
 // saved by the scheduled reviewer), for the Teacher page only: never sent to
@@ -377,6 +387,7 @@ export type Author = z.infer<typeof Author>;
 export type SentenceWithAuthor = z.infer<typeof SentenceWithAuthor>;
 export type GalleryAuthor = z.infer<typeof GalleryAuthor>;
 export type GallerySentence = z.infer<typeof GallerySentence>;
+export type SenseTag = z.infer<typeof SenseTag>;
 export type UndoBody = z.infer<typeof UndoBody>;
 export type UndoAnswer = z.infer<typeof UndoAnswer>;
 export type ReviewCounts = z.infer<typeof ReviewCounts>;

@@ -234,6 +234,18 @@ describe("Collection", () => {
     expect(screen.getByText("2 sentences you can hear.")).toHaveAttribute("role", "status");
   });
 
+  it("finds a sentence by the words two AI models agreed on, too", async () => {
+    const user = userEvent.setup();
+    const tagged = { ...withSenses()[3], show: "Wind wailed all night.", senseTags: [{ word: "wailed", sense: "hear" as const }] };
+    renderCollection({ server: [...withSenses().slice(0, 3), tagged] });
+    await screen.findByRole("group", { name: "Find a sense" });
+    await pickSort(user, "Newest");
+
+    await user.click(senseButton("Hear"));
+
+    expect(wallShows()).toContain("Wind wailed all night.");
+  });
+
   it("shows them all again when the sense is pressed again", async () => {
     const user = userEvent.setup();
     renderCollection({ server: withSenses() });

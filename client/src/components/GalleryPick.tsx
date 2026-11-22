@@ -37,7 +37,7 @@ function GalleryPick({
   onAnother?: () => void;
 }) {
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
-  const pieces = sensePieces(sentence.show);
+  const pieces = sensePieces(sentence.show, sentence.senseTags);
   // Each sense the sentence uses, with its words: "Hear: crunched"
   const senses = SENSE_KEYS.flatMap((sense) => {
     const words = [
