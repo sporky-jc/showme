@@ -54,9 +54,9 @@ The tasks with acceptance criteria are in `tasks/todo.md`.
 - [x] Task 2: Website finds Tells by ID, not by position
 
 ### Checkpoint: Foundation
-- [ ] Backend and client tests pass, `tsc` clean
-- [ ] QA Wolf: all flows pass on the preview
-- [ ] Gallery photos, Write and Today unchanged for an existing student
+- [x] Backend and client tests pass, `tsc` clean
+- [x] QA Wolf: all flows pass on the preview
+- [x] Gallery photos, Write and Today unchanged for an existing student
 
 ### Phase 2: Refreshers
 - [x] Task 3: Refresher content as data
@@ -65,10 +65,10 @@ The tasks with acceptance criteria are in `tasks/todo.md`.
 - [x] Task 6: Open a refresher by itself the first time (senses on Day 1)
 
 ### Checkpoint: Refreshers
-- [ ] A new student sees the senses refresher once on Day 1, then only from
+- [x] A new student sees the senses refresher once on Day 1, then only from
   its button, on any device
-- [ ] New QA Wolf flows for the refresher are added and pass
-- [ ] Review with a person before Phase 3
+- [x] New QA Wolf flows for the refresher are added and pass
+- [x] Review with a person before Phase 3
 
 ### Phase 3: Paths and placement (later)
 - [ ] Task 7: Paths on the backend; every student on Classic
