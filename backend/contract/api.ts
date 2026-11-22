@@ -136,6 +136,16 @@ export const ReviewerSwitchBody = z.object({
 // must be a real id written as text.
 export const SentenceIdParam = sentenceId;
 
+// A sentence's look in the gallery, picked by its author once it's approved
+// (PUT /MyPage/:id/look): the color of the frame around its picture. Every
+// card has a frame: one with no pick shows the first, DEFAULT_FRAME.
+export const FRAMES = ["violet", "coral", "teal", "sun"] as const;
+export const DEFAULT_FRAME: (typeof FRAMES)[number] = "violet";
+const NOT_A_FRAME = "Pick one of the frames";
+export const Look = z.object({
+  frame: z.enum(FRAMES, { error: NOT_A_FRAME }),
+});
+
 // POST /auth: the ID token Google's sign-in button gave the website
 export const LoginBody = z.object({
   token: z.string().min(1),
@@ -191,6 +201,9 @@ export const Sentence = z.object({
   approved: z.boolean(),
   toRedo: z.boolean(), // an admin sent it back to be rewritten
   createdAt: z.string(), // when it was written or last edited (an ISO date)
+  // Its look in the gallery, once its author picks one (see Look). An
+  // edit clears it, like its likes: it waits to be approved again.
+  look: Look.nullish().transform((look) => look ?? undefined).optional(),
 });
 
 // A tip from Scribbles' list (reviewer/tips.ts), stored by its id and sent
@@ -340,4 +353,6 @@ export type ReviewCounts = z.infer<typeof ReviewCounts>;
 export type ReviewerSwitchBody = z.infer<typeof ReviewerSwitchBody>;
 export type ReviewerStatus = z.infer<typeof ReviewerStatus>;
 export type SentenceLikes = z.infer<typeof SentenceLikes>;
+export type Look = z.infer<typeof Look>;
+export type Frame = (typeof FRAMES)[number];
 export type ErrorAnswer = z.infer<typeof ErrorAnswer>;

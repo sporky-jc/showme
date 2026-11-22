@@ -133,6 +133,23 @@ const sentenceWritesPerDay = rateLimit({
 // Both limits, for POST and PATCH /MyPage (routes/routes.ts)
 export const sentenceWritesRateLimit = [sentenceWritesPerMinute, sentenceWritesPerDay];
 
+// How many times one signed-in user may pick a sentence's look in the gallery
+// (PUT /MyPage/:id/look) in a minute. A student tries a few frames, never dozens a minute. Kept apart from the sentence-save limits:
+// a look isn't sent to the AI reviewer, so it mustn't use up a day's saves.
+export const LOOK_WRITES_PER_MINUTE = 30;
+export const lookRateLimitStore = new MemoryStore();
+
+export const lookRateLimit = rateLimit({
+  store: lookRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: LOOK_WRITES_PER_MINUTE,
+  keyGenerator: perUser,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many tries. Wait a minute, then try again." },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});
+
 // How many times one signed-in user may load or use the Teacher page's
 // "Recent decisions" (GET /Admin/decisions, PATCH /Admin/undo) in a minute:
 // a teacher opens the list and takes back a few decisions, never dozens a

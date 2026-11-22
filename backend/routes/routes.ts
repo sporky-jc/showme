@@ -3,6 +3,7 @@ import {
   getUserSentences,
   createNewUserSentence,
   editUserSentence,
+  setSentenceLook,
   getTellSentences,
   getUserInfo,
   getPendingApprovalSentences,
@@ -27,6 +28,7 @@ import admin from "../middlewares/admin.js";
 import {
   decisionsRateLimit,
   likesRateLimit,
+  lookRateLimit,
   reviewCountRateLimit,
   reviewerSwitchRateLimit,
   reviewTipsRateLimit,
@@ -55,6 +57,8 @@ router.get("/MyPage", auth, getUserSentences);
 // save is sent to the AI reviewer
 router.post("/MyPage", sentenceWritesRateLimit, auth, createNewUserSentence);
 router.patch("/MyPage", sentenceWritesRateLimit, auth, editUserSentence);
+// Pick how an approved sentence looks in the gallery: a frame and a sticker
+router.put("/MyPage/:id/look", lookRateLimit, auth, setSentenceLook);
 
 // // Route for fetching Tell sentences
 // router.get("/Login", getTellSentences);
