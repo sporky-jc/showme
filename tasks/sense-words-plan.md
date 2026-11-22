@@ -86,9 +86,8 @@ account. Each returns its sense words, each with a sense.
       rest.
   - **Saved on the sentence:** `senseTags` and `taggedShow`. An edit, or a
     taken-back approval, clears them. Not sent to the website until A2.
-  - **Switched on per environment** by the GitHub variables
-    `STAGING_SENSE_TAGGER` and `PRODUCTION_SENSE_TAGGER` set to `on`, at the
-    next deploy. It uses Scribbles' Cloudflare secrets.
+  - **Switched on from the Owner settings** (A6). It uses Scribbles'
+    Cloudflare secrets.
 - [x] **A2: The Gallery uses the saved tags** (S5):
   - **The data:** GET /Collections sends `senseTags`, but only while
     `taggedShow` is still the sentence's words.
@@ -96,21 +95,19 @@ account. Each returns its sense words, each with a sense.
     the agreed words, plus what the list finds. A tagged word counts for its
     tagged sense only ("sweet perfume" is a smell, not a taste).
   - QA Wolf on the PR.
-- [ ] **A6: Owner settings, on the Teacher page, that only the owner sees.**
-  - **Who's the owner:** the account a GitHub secret `OWNER_ACCOUNT` names
-    (its Google account id), written to the backend's settings at deploy,
-    so no email goes in the code. The backend checks it on every owner
-    route; other teachers never see the panel or reach its routes.
-  - **"AI sense highlights":** an on/off switch stored in the database (like
-    Scribbles' pause switch), taking effect at the next 10-minute run with
-    no deploy. It shows today's count against the daily limit of 150, and
-    when the tagger last ran.
-  - **Replaces the variables:** `STAGING_SENSE_TAGGER` and
-    `PRODUCTION_SENSE_TAGGER` go away; the Cloudflare secrets still come
-    from the deploy.
+- [x] **A6: Owner settings, on the Teacher page, that only the owner sees.**
+  - **Who's the owner:** the account whose email is the GitHub secret
+    `OWNER_EMAIL`, written to the backend's settings at deploy, so no email
+    goes in the code. Test accounts never are. Other teachers get 403 from
+    GET/PATCH `/Admin/owner`, and the panel doesn't show for them.
+  - **"AI highlights":** on or off, stored in the database
+    (`models/ownerSettings.ts`), read at each 10-minute run, so there's no
+    deploy. It shows today's count against the 150 limit, and says when
+    the Cloudflare keys aren't set.
+  - **Replaces the variables:** the `STAGING_SENSE_TAGGER` and
+    `PRODUCTION_SENSE_TAGGER` variables are gone.
   - **Later switches in the same panel:** Stage B's "Scribbles suggests" and
     Stage C's "Let Scribbles approve".
-  - Tests that a teacher who isn't the owner gets 403 and no panel.
 - [ ] **A3: Tag the sentences already approved** (S6), a few each run until
   done: about 3,300 Neurons for production's 113, spread over days.
 - [ ] **A4: A weekly measure** (not on every PR): the two models on the S2

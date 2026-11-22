@@ -10,6 +10,8 @@ import type {
   ReviewBody,
   ReviewCounts,
   ReviewDecision,
+  OwnerSettings,
+  OwnerSettingsBody,
   ReviewerStatus,
   ReviewerSwitchBody,
   ReviewTip,
@@ -89,6 +91,12 @@ export const fetchReviewCounts = () => API.get<ReviewCounts>("/Admin/count");
 export const fetchReviewerStatus = () => API.get<ReviewerStatus>("/Admin/reviewer");
 export const setReviewerPaused = (paused: boolean) =>
   API.patch<ReviewerStatus>("/Admin/reviewer", { paused } satisfies ReviewerSwitchBody);
+
+// The Owner settings on the Teacher page (components/OwnerSettings.tsx),
+// which only the site's owner gets an answer for: the sense tagger's switch
+export const fetchOwnerSettings = () => API.get<OwnerSettings>("/Admin/owner");
+export const setSenseTagger = (senseTagger: boolean) =>
+  API.patch<OwnerSettings>("/Admin/owner", { senseTagger } satisfies OwnerSettingsBody);
 
 // The sentences approved or sent back most recently, and taking one of those
 // decisions back so it waits for review again. `status` is the decision

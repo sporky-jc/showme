@@ -29,7 +29,7 @@ export type TagStop = "out-of-neurons" | "credentials" | "daily-limit" | "deadli
 
 type Tag = (show: string, settings: TaggerSettings, signal: AbortSignal) => Promise<{ tags: SenseTag[]; neurons: number }>;
 
-const startOfToday = (now: Date) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+export const startOfToday = (now: Date) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
 export async function tagApprovedSentences(
   settings: TaggerSettings,

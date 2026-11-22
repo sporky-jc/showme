@@ -8,6 +8,7 @@ import type { NoteKind } from "../components/noteKind";
 import PageLoading from "../components/PageLoading";
 import RecentDecisions from "../components/RecentDecisions";
 import ReviewerSwitch from "../components/ReviewerSwitch";
+import OwnerSettings from "../components/OwnerSettings";
 import * as api from "../api";
 import {
   updatePendingApprovalSentences,
@@ -385,6 +386,8 @@ function Admin() {
           onSaving={setSaving}
         />
       )}
+      {/* At the bottom: the site owner's settings, which nobody else sees */}
+      <OwnerSettings onSaid={setSaid} />
     </div>
   );
 }

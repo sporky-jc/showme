@@ -2954,6 +2954,21 @@ h3,
   box-shadow: 0 4px 0 var(--paper-edge);
 }
 
+/* The site owner's settings, at the bottom of the Teacher page */
+.paper-review__owner {
+  margin-top: 32px;
+}
+
+.paper-review__owner-title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.paper-review__owner-count {
+  margin: 0;
+  color: var(--paper-muted);
+}
+
 .paper-review__switch--paused {
   background: var(--paper-turn-bg);
   box-shadow: 0 4px 0 var(--paper-turn-edge);
