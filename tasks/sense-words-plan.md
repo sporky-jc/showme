@@ -38,6 +38,91 @@ behind.
    (an issue the job opens). Over time the list catches up, and the tagger
    (layer 2) is the safety net in between.
 
+## The plan now: stages A to C (decided 2026-11-22)
+
+A sense belongs to a word in a sentence, not to the word everywhere:
+"sweet perfume" is a smell, "sweet cake" a taste, and "tree bark" isn't a
+sound. So the main fix reads whole sentences, with two free models from
+different families that must agree. Stage A covers highlights; stages B and
+C, later and only on evidence, cover approving sentences.
+
+### Stage A: highlights from two models (do now)
+
+When a teacher approves a sentence, the backend sends it to two free
+Workers AI models (Llama 3.3 70B and Mistral Small 3.1), on one Cloudflare
+account. Each returns its sense words, each with a sense.
+- **What lights up:** only words where both models give the same sense, and
+  only if the word is really in the kid's sentence.
+- **What never does:** telling and feeling words (`TELL_WORDS`, the
+  feelings list, `NEVER_ADD`).
+- **When they disagree:** the word list still lights what it knows, as
+  today.
+- **Saving:** the agreed words are saved on the sentence. An edit clears
+  them, and the sentence is tagged again when it's re-approved.
+- **When it runs:** the same scheduled function as Scribbles' queue, a few
+  sentences each run.
+- **Cost:** about 30 Neurons a sentence; there's room for about 300 a day,
+  free. If the Neurons run out, a sentence waits for the next run with the
+  word list's highlights.
+- **Privacy:** sentences go only to Cloudflare (which keeps nothing and
+  trains on nothing; see S3c). The rule checks' worrying and unsafe
+  sentences are never approved, so they're never tagged.
+
+- [ ] **A1: The tagger.**
+  - A pure function: two models' answers become the agreed words. It drops
+    words not in the sentence, blocked words and disagreements.
+  - The scheduled run, a Neuron cap, saving on the sentence, clearing on
+    edit.
+  - Tests with stand-in answers.
+- [ ] **A2: The Gallery uses the saved tags** (S5): cards, Scribbles' pick and
+  the sense finder light the agreed words, plus what the list finds. QA
+  Wolf on the PR.
+- [ ] **A3: Tag the sentences already approved** (S6), a few each run until
+  done: about 3,300 Neurons for production's 113, spread over days.
+- [ ] **A4: A weekly measure** (not on every PR): the two models on the S2
+  test set, reporting how often they agree and how often they're right.
+- [ ] **A5: The weekly word job learns from the agreed tags** (S3, reworked):
+  a word goes on the list for the Write page (which can't call an AI on
+  every keystroke) when both models tagged it with the same sense in at
+  least 3 sentences by 3 different kids. No bare-word questions. It keeps
+  S3a's gates (blocked words, names, caps, rounded counts, alerts).
+
+### Stage B: Scribbles suggests, teachers still decide (after A)
+
+- Turn Scribbles on in **suggest** mode, in staging and then production.
+  It changes nothing kids see.
+- Add the second model to its review: one call per model returns a verdict
+  and the sense words together, which is cheaper than two.
+- The shadow report keeps score against teachers' real decisions.
+
+Before turning it on, confirm with the owner; it changes "Scribbles stays
+off".
+
+### Stage C: auto-approval, only on evidence (after B)
+
+A sentence is approved without a teacher only when all of these hold:
+1. The rule checks pass: nothing worrying, sensitive, unsafe or personal.
+   Anything they flag always goes to a person and is never sent to an AI.
+2. The safety model and the welfare check pass.
+3. Both models say approve.
+4. The shadow report shows at least 100 real teacher decisions, and zero
+   where Scribbles would have approved a sentence a teacher sent back for
+   safety.
+
+Everything else waits for a teacher, as today. Beyond that:
+- **Approve only, never send back automatically.** A wrong "redo"
+  discourages a kid.
+- **Teachers can undo** any auto-approval from Recent decisions.
+- **Switches:** an off switch, and a per-class "Let Scribbles approve"
+  setting, off by default.
+- **Cost:** about 60 to 70 Neurons a sentence; there's room for about 150
+  a day, free.
+- **The fail-safe is always "a person decides".** Out of Neurons, a model
+  down, or answers that can't be read all mean the sentence waits for a
+  teacher.
+- **It takes time.** With today's volume, 100 teacher decisions will take a
+  while. Stage C waits for them.
+
 ## Rules that keep it safe
 
 - **Only the student's own words are lit up.** Words from Scribbles must
@@ -94,7 +179,11 @@ fails if either gets worse.
   (wind that bit my cheeks) and "sweet" for a smell. S3 and S4 should raise
   recall, and the floors with it.
 
-### S3: The weekly word job (fully automatic)
+### S3: The weekly word job (fully automatic; reworked as A5)
+
+> Since 2026-11-22: the job learns from the two models' agreed tags (Stage
+> A5) instead of asking about bare words. S3a's gates carry over; S3d's
+> bare-word checks are replaced by Stage A.
 
 Re-planned after two rounds of adversarial review of the first version
 (PR #164). Every word it adds must clear all of these gates, in this order.
@@ -278,23 +367,28 @@ Risks, said plainly:
 - **The feelings-words list is hand-made.** Gate 3's "is it about how
   someone feels inside?" question is the backstop.
 
-### S4: The sense tagger
+### S4: The sense tagger (now Stage A1, with two models)
 A job of its own (not Scribbles) that tags an approved sentence's sense
 words, checks them against the sentence, and saves them. It runs after
 approval, then retries any it missed when the free allowance ran out.
 
-### S5: The Gallery uses the saved tags
+### S5: The Gallery uses the saved tags (now Stage A2)
 The cards, Scribbles' pick and the sense finder light up list words plus
 saved tags.
 
-### S6: Tag the sentences already approved
+### S6: Tag the sentences already approved (now Stage A3)
 A one-off script, like backfill-praise: a dry run on staging, then on
 production with approval, spread over days if it needs more than one
 day's free allowance.
 
 ## Decisions
 
-- Scribbles stays off; the tagger doesn't depend on it.
+- Scribbles stays off for now; the tagger doesn't depend on it. Stage B turns
+  it on in suggest mode, after the owner confirms.
+- Highlights come from two models reading each sentence and agreeing (Stage
+  A); the word list stays for Write and as the fallback.
+- Sentences may one day be approved automatically, only as Stage C sets out,
+  never sent back automatically, with a teacher able to undo.
 - AI and the job's own gates decide, not a person, and it must stay free.
 - The weekly job adds words with no person in the loop: its PR merges itself
   into `staging` once CI and QA Wolf pass. Production gets the words with

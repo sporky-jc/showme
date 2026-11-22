@@ -30,9 +30,10 @@ name: Weekly sense words
 # repository only, minting a short-lived token each run with
 # actions/create-github-app-token (see the plan's S3 risks). Only the token
 # steps change.
+# Run by hand only, for now: Stage A5 of the plan reworks it to learn from
+# the words two models agree on in each sentence, and turns the weekly
+# schedule on (Sundays, 18:23 UTC: cron '23 18 * * 0').
 on:
-  schedule:
-    - cron: '23 18 * * 0' # Sundays, 18:23 UTC
   workflow_dispatch:
     inputs:
       dry_run:
