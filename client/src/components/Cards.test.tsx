@@ -42,6 +42,17 @@ describe("Cards", () => {
     expect(screen.getAllByText("Ada L.")).toHaveLength(2);
   });
 
+  it("puts each picture in the frame its author picked, and Grape when they haven't", () => {
+    const [picked, none] = approved(2);
+    renderCards([{ ...picked, look: { frame: "teal" } }, none]);
+
+    const frames = [...document.querySelectorAll<HTMLElement>(".paper-gallery__frame")];
+    expect(frames.map((frame) => frame.style.getPropertyValue("--frame-color"))).toEqual([
+      "var(--paper-frame-teal)",
+      "var(--paper-frame-violet)",
+    ]);
+  });
+
   it("shows at most 12 cards", () => {
     renderCards(approved(15));
 

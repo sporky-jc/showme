@@ -3,6 +3,7 @@ import type {
   EditSentenceBody,
   GallerySentence,
   LoginBody,
+  Look,
   NewSentenceBody,
   OwnSentence,
   QueueSentence,
@@ -46,6 +47,10 @@ export const editUserSentences = (editedSentence: EditSentenceBody) =>
 
 // logout User
 export const logoutUser = () => API.post("/Logout");
+
+// Pick the frame an approved sentence has in the gallery
+export const setSentenceLook = (id: string, look: Look) =>
+  API.put<OwnSentence>(`/MyPage/${encodeURIComponent(id)}/look`, look);
 
 // retrieve/approve/reject sentences awaiting approval
 export const fetchApprovalSentences = () =>

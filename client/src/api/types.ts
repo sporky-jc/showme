@@ -20,7 +20,9 @@ export type {
   UndoBody,
   // what it reads back
   Author,
+  Frame,
   GalleryAuthor,
+  Look,
   GallerySentence,
   OwnSentence,
   QueueSentence,

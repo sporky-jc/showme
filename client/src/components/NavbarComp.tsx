@@ -20,6 +20,7 @@ const loadMyPage = () => import("../pages/MyPage");
 const loadWrite = () => import("../pages/Write");
 const loadAdmin = () => import("../pages/Admin");
 const loadCollection = () => import("../pages/Collection");
+const loadFrame = () => import("../pages/Frame");
 
 const About = lazy(loadAbout);
 const Login = lazy(loadLogin);
@@ -27,12 +28,13 @@ const MyPage = lazy(loadMyPage);
 const Write = lazy(loadWrite);
 const Admin = lazy(loadAdmin);
 const Collection = lazy(loadCollection);
+const Frame = lazy(loadFrame);
 
 // Once the first page is showing and the browser has nothing else to do,
 // download the other pages' files in the background, so opening them later
 // is instant instead of waiting for the download at the moment of the click.
 const prefetchPages = () => {
-  [loadAbout, loadLogin, loadMyPage, loadWrite, loadAdmin, loadCollection].forEach(
+  [loadAbout, loadLogin, loadMyPage, loadWrite, loadAdmin, loadCollection, loadFrame].forEach(
     (load) => load().catch(() => {}) // a failure here is retried on the click
   );
 };
@@ -283,6 +285,8 @@ function NavbarComp() {
                   <Route path="/MyPage" element={<Navigate to="/MySentences" replace />} />
                   {/* A new sentence, or with an id, an edit of that one */}
                   <Route path="/Write/:id?" element={<Write />} />
+                  {/* The frame an approved sentence has in the gallery */}
+                  <Route path="/Frame/:id" element={<Frame />} />
                   <Route path="/" element={<Home />} />
                 </Routes>
               </OpenLoginContext.Provider>

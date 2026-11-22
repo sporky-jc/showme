@@ -136,6 +136,16 @@ describe("My sentences", () => {
     expect(screen.getByRole("link", { name: "Try again: sentence 2" })).toHaveAttribute("href", "/Write/s2");
   });
 
+  it("a sentence in the gallery has a link to pick its frame; the others don't", async () => {
+    const mine = shows(3);
+    mine[0].approved = true;
+    mine[1].toRedo = true;
+    renderMyPage({ mine });
+
+    expect(await screen.findByRole("link", { name: "Pick a frame: sentence 1" })).toHaveAttribute("href", "/Frame/s1");
+    expect(screen.getAllByRole("link", { name: /^Pick a frame/ })).toHaveLength(1);
+  });
+
   it("shows the senses each sentence uses as stickers, said in words for screen readers", async () => {
     const mine = shows(2);
     mine[0] = { ...mine[0], show: "His tail thumped and he licked my salty cheek." };

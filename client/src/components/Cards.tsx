@@ -5,6 +5,7 @@ import LikeButton from "./LikeButton";
 import type { LikesById } from "./useLikes";
 import type { GallerySentence } from "../api/types";
 import type { RootState } from "../reducers/types";
+import { frameStyle } from "../frames";
 
 // Nothing to do when there are no likes to press
 const noLikes = () => {};
@@ -39,15 +40,18 @@ function Cards(props: {
         return (
           <li key={sentence._id}>
             <article className="paper-gallery__card">
-              {/* Scenery for the sentences under it, which say it all. The
-                  sky shows in its frame until it has downloaded. */}
-              <div className="paper-gallery__frame">
-                <img
-                  className="paper-gallery__photo"
-                  src={tellSentences[day - 1]?.image}
-                  alt=""
-                  loading="lazy"
-                />
+              {/* Scenery for the sentences under it, which say it all, in
+                  the frame its author picked (see frames.ts). The sky shows
+                  in it until it has downloaded. */}
+              <div className="paper-gallery__frame" style={frameStyle(sentence.look?.frame)}>
+                <div className="paper-gallery__window">
+                  <img
+                    className="paper-gallery__photo"
+                    src={tellSentences[day - 1]?.image}
+                    alt=""
+                    loading="lazy"
+                  />
+                </div>
               </div>
               <p className="paper-gallery__tell">{sentence.tell}</p>
               <p className="paper-gallery__show">{sentence.show}</p>
