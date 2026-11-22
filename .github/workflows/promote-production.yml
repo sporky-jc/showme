@@ -154,6 +154,8 @@ jobs:
           CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           REVIEWER_MODE: ${{ vars.PRODUCTION_REVIEWER_MODE }}
+          # "on" turns on the sense tagger (backend/tagger), off when unset
+          SENSE_TAGGER: ${{ vars.PRODUCTION_SENSE_TAGGER }}
           REVIEWER_USE_GROQ: ${{ vars.REVIEWER_USE_GROQ }}
           CLOUDFLARE_REVIEW_MODEL: ${{ vars.CLOUDFLARE_REVIEW_MODEL }}
         run: |

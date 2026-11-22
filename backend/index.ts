@@ -7,8 +7,10 @@ import { logger } from "firebase-functions/logger";
 import mongoose from "mongoose";
 import app from "./app.js";
 import { connectWithRetry } from "./config/db.js";
-import { reviewWaitingSentences } from "./reviewer/queue.js";
+import { RUN_DEADLINE_MS as REVIEW_DEADLINE_MS, reviewWaitingSentences } from "./reviewer/queue.js";
 import { reviewerSetup } from "./reviewer/settings.js";
+import { tagApprovedSentences } from "./tagger/queue.js";
+import { taggerSetup } from "./tagger/settings.js";
 
 mongoose.set("strictQuery", false);
 // Connect to mongodb via mongoose. DATABASE_NAME overrides the database in the
@@ -41,7 +43,9 @@ export const apiv2 = onRequest(
   app
 );
 
-// Scribbles the reviewer: every 10 minutes, suggestions for the sentences
+// Every 10 minutes: the sense tagger, then Scribbles the reviewer.
+//
+// Scribbles the reviewer: suggestions for the sentences
 // waiting for the teacher (reviewer/queue.ts). It does nothing unless
 // REVIEWER_MODE is "suggest" and a provider is set up, and nothing while a
 // teacher has paused it from the Teacher page; and nothing it does
@@ -59,11 +63,28 @@ export const reviewer = onSchedule(
     retryCount: 0,
   },
   async () => {
+    // The sense tagger first (tagger/queue.ts): highlights for approved
+    // sentences, from two models that must agree. It runs whether or not
+    // Scribbles is on, only when SENSE_TAGGER is "on", and starts no new
+    // sentence after 45 seconds. Scribbles gets the rest of its 240.
+    const started = Date.now();
+    const tagger = taggerSetup();
+    if (tagger) {
+      const { tagged, unreadable, stopped } = await tagApprovedSentences(tagger);
+      if (tagged > 0 || stopped) {
+        logger.info(
+          `Sense tagger saved ${tagged} sentence(s)${unreadable ? `, ${unreadable} with unreadable answers` : ""}${stopped ? `, stopped: ${stopped}` : ""}`
+        );
+      }
+    }
+
     const setup = reviewerSetup();
     if (setup.mode === "off") return;
     // No new review starts after 240 seconds (RUN_DEADLINE_MS), well inside
     // the 300 above
-    const { reviewed, stopped } = await reviewWaitingSentences(setup);
+    const { reviewed, stopped } = await reviewWaitingSentences(setup, {
+      deadlineMs: Math.max(0, REVIEW_DEADLINE_MS - (Date.now() - started)),
+    });
     // Paused from the Teacher page before anything was saved: the reviewer
     // has already said so, in one line
     if (stopped === "paused" && reviewed === 0) return;

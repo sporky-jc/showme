@@ -1,3 +1,4 @@
+import { SENSE_KEYS } from "../tagger/senseTags.js";
 import mongoose from "mongoose";
 import { TIP_IDS } from "../reviewer/tips.js";
 import { FRAMES } from "../contract/api.js";
@@ -78,6 +79,26 @@ const sentenceSchema = new mongoose.Schema({
   // `reviewedShow`, so it's reviewed again; an unchanged resubmission keeps
   // its suggestion.
   reviewedShow: { type: String, select: false },
+  // The sense tagger's highlights (tagger/queue.ts, Stage A of
+  // tasks/sense-words-plan.md): the words of the sentence two models agree
+  // show a sense, each with that sense, and the exact words they were found
+  // for. The gallery may only use them while `taggedShow` is still the
+  // sentence's `show`. Cleared when the student edits the sentence or a
+  // teacher takes back its approval. Not read by default (select: false)
+  // and in no answer the contract sends yet (Stage A2 adds them).
+  senseTags: {
+    type: [
+      new mongoose.Schema(
+        { word: { type: String, required: true }, sense: { type: String, enum: SENSE_KEYS, required: true } },
+        { _id: false }
+      ),
+    ],
+    default: undefined,
+    select: false,
+  },
+  taggedShow: { type: String, select: false },
+  // When the tagger last saved highlights, for its daily limit
+  taggedAt: { type: Date, select: false },
   reviewedAt: { type: Date, select: false },
   // The words the safety check (or the welfare check) last gave an invalid
   // answer about: a second invalid answer for the same words is saved as a
