@@ -176,10 +176,13 @@ account. Each returns its sense words, each with a sense.
       reservations: while nobody uses production, staging 5,000 and
       production 500; when production goes live, staging 1,000 and
       production 4,500.
-    - [ ] **5d. The measure every week, and a switch that only turns off:**
+    - [x] **5d. The measure every week, and a switch that only turns off:**
       if a finished measure misses the bar, or a model is gone, it turns "AI
       highlights for kids" off and the run fails (GitHub emails the owner).
       It never turns anything on, and doesn't act when it couldn't run.
+      Sundays at 19:41 UTC, on the sense account. Staging only for now:
+      production's switch, behind the production approval, comes when
+      production is in use.
   - [ ] **6. Production:** AI reading on and AI highlights for kids off for
     about a week, then on.
 - [ ] **A5: The weekly word job learns from the agreed tags** (S3, reworked):
