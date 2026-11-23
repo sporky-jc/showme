@@ -27,3 +27,16 @@ A "show, don't tell" writing app for kids in grades 4–7. The client is in
   more.
 - Never show surnames where kids see other kids' work (first name, or first
   name and initial).
+
+## Explainer films
+
+- Films are made with the Lemo Opuscar plugin (`lemo-opuscar@lemolab`). Use it
+  only when asked for a film.
+- Make each film in `../showme-films/<name>/`, next to this repo, never inside
+  it. Only the finished, compressed MP4 and its captions come into the app.
+- Narration and on-screen words follow the house rules above: American
+  spelling, short plain words, no surnames.
+- In the app, a film never plays by itself: it has a real play `<button>` and
+  captions on.
+- Don't use the Clawd character or the Mascot Screencast style (Anthropic's,
+  not licensed), or the narration from Lemo Opuscar's own demo films.
