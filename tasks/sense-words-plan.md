@@ -160,10 +160,22 @@ account. Each returns its sense words, each with a sense.
     stays fair. Measured once the judge panel's answers are in.
   - [ ] **4. Only if 3 misses the bar:** a yes/no double-check of each
     agreed word by the other model, then a third AI family.
-  - [ ] **5. Running it unattended:** a daily limit of about 100 sentences
-    (answers are longer now, about 33 Neurons each), the measure every week,
-    and the workflow turns "AI highlights for kids" off by itself if it
-    stops passing.
+  - [ ] **5. Running it unattended**, on two Cloudflare accounts: one for
+    approvals (Scribbles), one for senses (the tagger, the judge panel, the
+    measure), each shared by staging and production for now.
+    - [x] **5a. A retired or unknown model stops the run** (`isModelGone`:
+      HTTP 404 or 410, errors 5007 or 5028), instead of every sentence
+      failing every 10 minutes.
+    - [ ] **5b. The tagger uses the sense account** (secrets
+      `CLOUDFLARE_SENSE_ACCOUNT_ID`, `CLOUDFLARE_SENSE_AI_TOKEN`), falling back
+      to the main one.
+    - [ ] **5c. A Neuron budget per backend** (Cloudflare reports each
+      request's Neurons), with the sentence count as a backstop, leaving room
+      for the weekly measure.
+    - [ ] **5d. The measure every week, and a switch that only turns off:**
+      if a finished measure misses the bar, or a model is gone, it turns "AI
+      highlights for kids" off and the run fails (GitHub emails the owner).
+      It never turns anything on, and doesn't act when it couldn't run.
   - [ ] **6. Production:** AI reading on and AI highlights for kids off for
     about a week, then on.
 - [ ] **A5: The weekly word job learns from the agreed tags** (S3, reworked):

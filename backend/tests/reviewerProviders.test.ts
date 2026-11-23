@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cloudflareReviewer,
   errorDetail,
+  isModelGone,
   cloudflareSafety,
   cloudflareWelfare,
   CLOUDFLARE_REVIEW_MODEL,
@@ -177,6 +178,18 @@ describe("errorDetail", () => {
     expect(errorDetail({ errors: [{ code: 1, message: "x".repeat(500) }] })).toHaveLength(3 + 160);
     expect(errorDetail({ errors: [] })).toBeUndefined();
     expect(errorDetail(null)).toBeUndefined();
+  });
+});
+
+describe("isModelGone", () => {
+  it("is a retired or unknown model, and nothing else", () => {
+    expect(isModelGone(410, "5028: AiError: Model has been deprecated")).toBe(true);
+    expect(isModelGone(400, "5007: No such model")).toBe(true);
+    expect(isModelGone(404, undefined)).toBe(true);
+    expect(isModelGone(400, "3040: busy; 5007: No such model")).toBe(true);
+    expect(isModelGone(429, "3036: daily free allocation")).toBe(false);
+    expect(isModelGone(400, "5006: Bad input")).toBe(false);
+    expect(isModelGone(400, "15007: something else")).toBe(false);
   });
 });
 

@@ -272,6 +272,30 @@ describe("the tagger's queue", () => {
     expect((await tagged(sentence._id))?.taggedShow).toBeUndefined();
   });
 
+  it.each([
+    ["retired (410)", new ProviderError("HTTP 410", 410, false, "5028: AiError: Model has been deprecated")],
+    ["unknown (5007)", new ProviderError("HTTP 400", 400, false, "5007: No such model")],
+    ["not found (404)", new ProviderError("HTTP 404", 404)],
+  ])("stops the run when a model is %s, instead of trying every sentence every run", async (_, gone) => {
+    await add({ approved: true });
+    await add({ approved: true, title: "day2" });
+    const tag = vi.fn(async () => {
+      throw gone;
+    });
+    expect(await tagApprovedSentences(settings, { tag })).toMatchObject({ tagged: 0, stopped: "model-gone", detail: gone.detail });
+    expect(tag).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps going after any other one-off error (it's tried again next run)", async () => {
+    await add({ approved: true });
+    await add({ approved: true, title: "day2" });
+    const tag = vi.fn(async () => {
+      throw new ProviderError("HTTP 400", 400, false, "5006: Bad input");
+    });
+    expect(await tagApprovedSentences(settings, { tag })).toMatchObject({ tagged: 0 });
+    expect(tag).toHaveBeenCalledTimes(2);
+  });
+
   it("saves no AI highlights when an answer can't be read, so it isn't tried every run", async () => {
     const sentence = await add({ approved: true });
     const garbled = vi.fn(async () => {

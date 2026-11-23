@@ -11,6 +11,7 @@
 import mongoose from "mongoose";
 import { Sentence } from "../models/sentences.js";
 import { TEST_SENTENCES } from "../config/testAccounts.js";
+import { isModelGone } from "../reviewer/providers/cloudflare.js";
 import { ProviderError } from "../reviewer/providers/http.js";
 import { tagShow, type TaggerSettings } from "./tagger.js";
 import type { SenseTag } from "./senseTags.js";
@@ -26,8 +27,10 @@ export const REQUEST_TIMEOUT_MS = 20_000;
 export const RUN_DEADLINE_MS = 45_000;
 
 // "rate-limited": Workers AI turned requests away for now (HTTP 429), such as
-// today's free Neurons running out or a busy model; `detail` says which
-export type TagStop = "rate-limited" | "credentials" | "daily-limit" | "deadline";
+// today's free Neurons running out or a busy model; "model-gone": one of the
+// two models is retired or unknown (tagger.ts's TAG_MODELS needs changing).
+// `detail` says what Cloudflare said.
+export type TagStop = "rate-limited" | "credentials" | "model-gone" | "daily-limit" | "deadline";
 
 type Tag = (show: string, settings: TaggerSettings, signal: AbortSignal) => Promise<{ tags: SenseTag[]; neurons: number }>;
 
@@ -77,6 +80,9 @@ export async function tagApprovedSentences(
       }
       if (error instanceof ProviderError && (error.status === 401 || error.status === 403)) {
         return { tagged, unreadable, neurons, stopped: "credentials", detail: error.detail };
+      }
+      if (error instanceof ProviderError && isModelGone(error.status, error.detail)) {
+        return { tagged, unreadable, neurons, stopped: "model-gone", detail: error.detail };
       }
       // A model answered in a form that can't be read: saved with no AI
       // highlights (the word list still lights what it knows), so the same
