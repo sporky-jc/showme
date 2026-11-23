@@ -14,10 +14,16 @@ import { SENSE_KEYS, type SenseKey } from "../src/senses";
 // read 2026-11-23). None marked deprecated in Cloudflare's model catalog
 // then (Qwen 3 was retired on 2026-11-20, while still listed: check the
 // model's own page before swapping one in).
+//
+// `noThinking`: asked to answer straight away (chat_template_kwargs
+// enable_thinking: false, on their model pages). With long thinking, about 1
+// answer in 8 ran out of room before the answer itself (the first full run,
+// 2026-11-23). gpt-oss-120b still reasons, and a sense only counts if all
+// three agree.
 export const JUDGES = [
-  { name: "@cf/google/gemma-4-26b-a4b-it", input: 9_091, output: 27_273 },
-  { name: "@cf/zai-org/glm-4.7-flash", input: 5_500, output: 36_400 },
-  { name: "@cf/openai/gpt-oss-120b", input: 31_818, output: 68_182 },
+  { name: "@cf/google/gemma-4-26b-a4b-it", input: 9_091, output: 27_273, noThinking: true },
+  { name: "@cf/zai-org/glm-4.7-flash", input: 5_500, output: 36_400, noThinking: true },
+  { name: "@cf/openai/gpt-oss-120b", input: 31_818, output: 68_182, noThinking: false },
 ] as const;
 export type Judge = (typeof JUDGES)[number];
 
