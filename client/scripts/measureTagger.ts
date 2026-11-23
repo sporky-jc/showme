@@ -41,6 +41,21 @@ export function agreement(first: Map<string, SenseKey>, second: Map<string, Sens
   return { agreed, differentSense, onlyOne };
 }
 
+// The words either model named with a sense, once each, leaving out a word
+// the two gave different senses: the most a closed question (both models
+// label the same words) could find
+export function eitherTags(first: readonly SenseTag[], second: readonly SenseTag[]): SenseTag[] {
+  const sense = new Map<string, SenseKey | null>();
+  for (const { word, sense: s } of [...first, ...second]) {
+    const before = sense.get(word);
+    sense.set(word, before === undefined || before === s ? s : null);
+  }
+  return [...sense].flatMap(([word, s]) => (s ? [{ word, sense: s }] : []));
+}
+
+// One model on its own: how many words it named, and how its words alone score
+export type ModelScore = { name: string; named: number; score: Score };
+
 export const addAgreement = (a: Agreement, b: Agreement): Agreement => ({
   agreed: a.agreed + b.agreed,
   differentSense: a.differentSense + b.differentSense,
@@ -56,6 +71,8 @@ export function report({
   list,
   aiOnly,
   withTags,
+  models = [],
+  either,
   agreed,
   unreadable,
   neurons,
@@ -64,6 +81,10 @@ export function report({
   list: Score;
   aiOnly: Score;
   withTags: Score;
+  // Each model alone, and the words of either (not used in the Gallery: for
+  // seeing which model to fix)
+  models?: readonly ModelScore[];
+  either?: Score;
   agreed: Agreement;
   unreadable: number;
   neurons: number;
@@ -78,7 +99,10 @@ export function report({
     row("Word list alone (today without AI)", list),
     row("The two AIs' agreed words alone", aiOnly),
     row("**Gallery: word list + agreed words**", withTags),
+    ...models.map(({ name, score }) => row(`${name} alone`, score)),
+    ...(either ? [row("Either AI's words (if both labeled the same words)", either)] : []),
     "",
+    ...models.map(({ name, named }) => `- **${name}** named ${named} words in all (not counting blocked words).`),
     `- **The two AIs agreed** on ${agreed.agreed} of the ${named} words either named (${percent(agreed.agreed / Math.max(1, named))}); ${agreed.differentSense} got different senses, and ${agreed.onlyOne} only one named.`,
     `- **Unreadable answers:** ${unreadable} of ${sentences} sentences.`,
     `- **Neurons used:** about ${Math.round(neurons)} of the 10,000 free a day.`,

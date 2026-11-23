@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addAgreement, agreement, gallery, ready, report, tagsOnly } from "../scripts/measureTagger";
+import { addAgreement, agreement, eitherTags, gallery, ready, report, tagsOnly } from "../scripts/measureTagger";
 import { score } from "./test/senseScoring";
 import type { Labeled } from "./test/senseSet";
 import type { SenseKey } from "./senses";
@@ -59,5 +59,44 @@ describe("the tagger's measure", () => {
     expect(text).toContain("agreed** on 2 of the 4 words either named (50.0%)");
     expect(text).toContain("about 90 of the 10,000 free a day");
     expect(text).toContain("**Ready for production:**");
+  });
+
+  it("reports each model alone and either model's words, when given", () => {
+    const aiOnly = score(set, tagsOnly(tags));
+    const text = report({
+      sentences: 3,
+      list: aiOnly,
+      aiOnly,
+      withTags: aiOnly,
+      models: [{ name: "llama", named: 7, score: aiOnly }],
+      either: aiOnly,
+      agreed: { agreed: 0, differentSense: 0, onlyOne: 0 },
+      unreadable: 0,
+      neurons: 0,
+    });
+    expect(text).toMatch(/\| llama alone \| [\d.]+% \| [\d.]+% \|/);
+    expect(text).toContain("| Either AI's words (if both labeled the same words) |");
+    expect(text).toContain("**llama** named 7 words in all (not counting blocked words).");
+  });
+});
+
+describe("eitherTags", () => {
+  it("keeps each word either model named once, and leaves out a word they gave different senses", () => {
+    expect(
+      eitherTags(
+        [
+          { word: "crunched", sense: "hear" },
+          { word: "sweet", sense: "taste" },
+        ],
+        [
+          { word: "crunched", sense: "hear" },
+          { word: "sweet", sense: "smell" },
+          { word: "glowed", sense: "see" },
+        ]
+      )
+    ).toEqual([
+      { word: "crunched", sense: "hear" },
+      { word: "glowed", sense: "see" },
+    ]);
   });
 });
