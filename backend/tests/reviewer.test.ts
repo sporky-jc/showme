@@ -80,9 +80,10 @@ describe("the rule checks: held for a person, never sent to an AI", () => {
       outcome: "hold",
       reasons: ["worrying", "unsafe-words", "personal-details"],
     });
+    // Words a grown-up should read first are a "Check in" too
     expect(checkRules(COLD, "I felt so lonely, damn it was cold.")).toEqual({
       outcome: "hold",
-      reasons: ["sensitive-words", "unsafe-words"],
+      reasons: ["worrying", "sensitive-words", "unsafe-words"],
     });
   });
 });
@@ -472,7 +473,7 @@ describe("the reviewer", () => {
 
   // A copy of the Tell is only sent back once the safety check passes it
   it.each([
-    ["unsafe", safetyCheck("unsafe"), ["safety-check"], "guard"],
+    ["unsafe", safetyCheck("unsafe"), ["worrying", "safety-check"], "guard"],
     ["failed", safetyCheck(new Error("down")), ["no-safety-check"], "none"],
     ["not set up", undefined, ["no-safety-check"], "none"],
   ])("holds a copy of the Tell when the safety check is %s", async (_, safety, reasons, decidedBy) => {
@@ -532,7 +533,7 @@ describe("the reviewer", () => {
 
   it("keeps only hold reasons on a hold, with the mistakes as evidence", async () => {
     for (const { safety, ai, reasons } of [
-      { safety: safetyCheck("unsafe"), ai: provider("ai", {}), reasons: ["safety-check"] },
+      { safety: safetyCheck("unsafe"), ai: provider("ai", {}), reasons: ["worrying", "safety-check"] },
       { safety: safetyCheck("safe"), ai: provider("ai", { verdict: "unsure", tip: "great" }), reasons: ["ai"] },
     ]) {
       const { suggestion } = await reviewSentence({ tell: COLD, show: "the wind bit my noze" }, [ai], { safety, welfare: calm() });
@@ -658,7 +659,8 @@ describe("the reviewer", () => {
 
     const { suggestion, attempts } = await reviewSentence({ tell: COLD, show: GOOD }, [ai], { safety: safetyCheck("unsafe") });
 
-    expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: "guard" });
+    // Unsafe is a "Check in": worrying, and shown first
+    expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons: ["worrying", "safety-check"], decidedBy: "guard" });
     expect(outcomes(attempts)).toEqual([{ provider: "guard", outcome: "unsafe" }]);
     expect(ai.review).not.toHaveBeenCalled();
   });
@@ -910,7 +912,7 @@ describe("the welfare check", () => {
   });
 
   it.each([
-    ["says unsafe", safetyCheck("unsafe"), ["safety-check"]],
+    ["says unsafe", safetyCheck("unsafe"), ["worrying", "safety-check"]],
     ["fails", safetyCheck(new Error("down")), ["no-safety-check"]],
     ["isn't set up", undefined, ["no-safety-check"]],
   ])("is never asked when the safety check %s", async (_, safety, reasons) => {

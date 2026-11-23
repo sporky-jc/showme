@@ -56,7 +56,7 @@ describe("GET /Admin/count", () => {
     const edited = await createSentence(student, { title: "day4", show: "New happy words." });
     await createSentence(student, { title: "day5", show: "No suggestion yet." });
     await suggest(worrying, ["worrying"]);
-    await suggest(alsoWorrying, ["worrying", "sensitive-words"]);
+    await suggest(alsoWorrying, ["worrying", "safety-check"]);
     await suggest(sensitive, ["sensitive-words"]);
     // About words the student has since changed: no longer counts
     await suggest({ _id: edited._id, show: "Old worrying words." }, ["worrying"]);
