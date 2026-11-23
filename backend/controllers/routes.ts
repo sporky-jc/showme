@@ -24,6 +24,7 @@ import {
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
 import { ReviewDecision } from "../models/reviewDecisions.js";
 import { logger } from "firebase-functions/logger";
+import { aiHighlightsShown } from "../models/ownerSettings.js";
 import { PRAISE, TIP_IDS, TIPS, type TipId } from "../reviewer/tips.js";
 import type { Reason, Verdict } from "../reviewer/contract.js";
 import { withinSendBacks } from "../reviewer/sendBacks.js";
@@ -86,16 +87,18 @@ const sentencesWithAuthorNames = async (filter: {
   );
 
 // The gallery's sentences (GET /Collections): approved, with each author's
-// name as above, and with their sense highlights (tagger/queue.ts), kept
-// only while they're for the sentence's current words
+// name as above, and with their sense highlights (tagger/queue.ts) while
+// the owner shows them to kids (models/ownerSettings.ts), kept only while
+// they're for the sentence's current words. Hidden, they aren't even read.
 const gallerySentences = async () => {
+  const showTags = await aiHighlightsShown();
   const sentences = newestFirst(
-    await Sentence.find({ approved: true }, "-GID -likedBy +senseTags +taggedShow")
+    await Sentence.find({ approved: true }, showTags ? "-GID -likedBy +senseTags +taggedShow" : "-GID -likedBy")
       .populate("author", "firstName lastName -_id")
       .lean<{ show: string; createdAt: Date; taggedShow?: string; senseTags?: unknown[] }[]>()
   );
   return sentences.map(({ taggedShow, senseTags, ...sentence }) =>
-    taggedShow === sentence.show && Array.isArray(senseTags) ? { ...sentence, senseTags } : sentence
+    showTags && taggedShow === sentence.show && Array.isArray(senseTags) ? { ...sentence, senseTags } : sentence
   );
 };
 

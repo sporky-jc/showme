@@ -2969,6 +2969,20 @@ h3,
   color: var(--paper-muted);
 }
 
+/* One switch in the Owner settings, a line between each */
+.paper-review__owner-flag {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+
+.paper-review__owner-flag + .paper-review__owner-flag {
+  padding-top: 14px;
+  border-top: 2px dashed var(--paper-edge);
+}
+
 .paper-review__switch--paused {
   background: var(--paper-turn-bg);
   box-shadow: 0 4px 0 var(--paper-turn-edge);

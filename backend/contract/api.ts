@@ -134,9 +134,14 @@ export const ReviewerSwitchBody = z.object({
 
 // PATCH /Admin/owner (the site's owner only): turns the sense tagger on or
 // off
-export const OwnerSettingsBody = z.object({
-  senseTagger: z.boolean({ error: "senseTagger must be true or false" }),
-});
+export const OwnerSettingsBody = z
+  .object({
+    senseTagger: z.boolean({ error: "senseTagger must be true or false" }).optional(),
+    showAiHighlights: z.boolean({ error: "showAiHighlights must be true or false" }).optional(),
+  })
+  .refine((body) => body.senseTagger !== undefined || body.showAiHighlights !== undefined, {
+    error: "Say which setting to change",
+  });
 
 // PUT and DELETE /Collections/:id/like: the sentence to like or unlike, from
 // the address. It goes into a database query, so, like ReviewBody's, it
@@ -368,6 +373,11 @@ export const OwnerSettings = z.object({
     today: z.number().int().nonnegative(),
     perDay: z.number().int().positive(),
     lastTaggedAt: z.iso.datetime().optional(),
+  }),
+  // Whether kids see the tagger's highlights in the Gallery
+  showAiHighlights: z.object({
+    on: z.boolean(),
+    changedAt: z.iso.datetime().optional(),
   }),
 });
 
