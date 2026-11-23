@@ -61,7 +61,10 @@ const fail = (message: string): never => {
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked: readonly SenseKey[], retried = false) {
+// Unreadable answers printed so far (the first few, to see why)
+let shownUnreadable = 0;
+
+async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked: readonly SenseKey[], attempt = 1): Promise<Map<SenseKey, boolean> | null> {
   const response = await fetch(runUrl(accountId!, judge.name), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -71,8 +74,9 @@ async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked:
         { role: "user", content: judgeMessage(show, must, asked) },
       ],
       temperature: 0,
-      // Room for a model that thinks before it answers
-      max_tokens: 1_500,
+      // Room for a model that thinks before it answers; more on a second try
+      max_tokens: attempt === 1 ? 2_000 : 4_000,
+      ...(judge.noThinking ? { chat_template_kwargs: { enable_thinking: false } } : {}),
     }),
     signal: AbortSignal.timeout(180_000),
   });
@@ -82,9 +86,9 @@ async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked:
   } | null;
   if (isOutOfNeurons(body)) fail("Out of today's free Neurons: run it again after 00:00 UTC.");
   // Busy for now (a 429 that isn't out of Neurons, or a server error): once more
-  if (!retried && (response.status === 429 || response.status >= 500)) {
+  if (attempt === 1 && (response.status === 429 || response.status >= 500)) {
     await wait(10_000);
-    return ask(judge, show, must, asked, true);
+    return ask(judge, show, must, asked, 2);
   }
   if (!response.ok || !body?.success) {
     fail(`${judge.name} answered ${response.status}: ${errorDetail(body) ?? "no reason given"}.`);
@@ -92,7 +96,15 @@ async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked:
   const usage = body!.result?.usage;
   neurons += ((usage?.prompt_tokens ?? 0) * judge.input + (usage?.completion_tokens ?? 0) * judge.output) / 1_000_000;
   if (trying) console.log(`--- ${judge.name}, raw result:\n${JSON.stringify(body!.result).slice(0, 1_500)}`);
-  return readVerdicts(answerText(body!.result), asked);
+  const verdicts = readVerdicts(answerText(body!.result), asked);
+  if (verdicts) return verdicts;
+  // Unreadable (cut off, or not JSON): say why, the first few times, then
+  // ask once more with more room
+  if (shownUnreadable < 3) {
+    shownUnreadable += 1;
+    console.log(`Unreadable answer from ${judge.name} (try ${attempt}):\n${JSON.stringify(body!.result).slice(-800)}`);
+  }
+  return attempt === 1 ? ask(judge, show, must, asked, 2) : null;
 }
 
 const sentences = SETS[setName].slice(0, trying ? 3 : undefined);
