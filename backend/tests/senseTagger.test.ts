@@ -203,6 +203,20 @@ describe("tagShow", () => {
 });
 
 describe("taggerSetup", () => {
+  it("uses the sense account when both its settings are there, otherwise the main one", () => {
+    const main = { CLOUDFLARE_ACCOUNT_ID: "main", CLOUDFLARE_AI_TOKEN: "main-token" };
+    expect(taggerSetup({ ...main, CLOUDFLARE_SENSE_ACCOUNT_ID: "sense", CLOUDFLARE_SENSE_AI_TOKEN: "sense-token" })).toEqual({
+      accountId: "sense",
+      token: "sense-token",
+    });
+    // Half a sense account isn't one: never one account's id with another's token
+    expect(taggerSetup({ ...main, CLOUDFLARE_SENSE_ACCOUNT_ID: "sense" })).toEqual({ accountId: "main", token: "main-token" });
+    expect(taggerSetup({ CLOUDFLARE_SENSE_ACCOUNT_ID: "sense", CLOUDFLARE_SENSE_AI_TOKEN: "sense-token" })).toEqual({
+      accountId: "sense",
+      token: "sense-token",
+    });
+  });
+
   it("has the Cloudflare account and token, or nothing (the owner's switch says whether it runs)", () => {
     expect(taggerSetup({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_AI_TOKEN: "t" })).toEqual({ accountId: "a", token: "t" });
     expect(taggerSetup({ CLOUDFLARE_ACCOUNT_ID: "a" })).toBeNull();

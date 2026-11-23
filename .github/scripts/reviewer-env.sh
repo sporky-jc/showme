@@ -5,6 +5,11 @@
 #
 #   CLOUDFLARE_ACCOUNT_ID   secret: the Cloudflare account's id
 #   CLOUDFLARE_AI_TOKEN     secret: an API token with only "Workers AI" access
+#   CLOUDFLARE_SENSE_ACCOUNT_ID, CLOUDFLARE_SENSE_AI_TOKEN
+#                           secrets, optional: a second Cloudflare account for
+#                           the sense tagger alone (backend/tagger/settings.ts),
+#                           so it never uses Scribbles' free Neurons; both or
+#                           neither
 #   GROQ_API_KEY            secret, optional: only used with REVIEWER_USE_GROQ
 #   REVIEWER_MODE           variable: "off" (the default) or "suggest"
 #   OWNER_EMAIL             secret: the email of the site's owner, who sees
@@ -44,6 +49,15 @@ if [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || [ -n "${CLOUDFLARE_AI_TOKEN:-}" ]; the
     line CLOUDFLARE_AI_TOKEN "$CLOUDFLARE_AI_TOKEN"
   else
     echo "::warning::CLOUDFLARE_ACCOUNT_ID (32 letters 0-9 a-f) or CLOUDFLARE_AI_TOKEN isn't in the expected shape; Cloudflare is left out" >&2
+  fi
+fi
+
+if [ -n "${CLOUDFLARE_SENSE_ACCOUNT_ID:-}" ] || [ -n "${CLOUDFLARE_SENSE_AI_TOKEN:-}" ]; then
+  if [[ "${CLOUDFLARE_SENSE_ACCOUNT_ID:-}" =~ ^[0-9a-f]{32}$ ]] && [[ "${CLOUDFLARE_SENSE_AI_TOKEN:-}" =~ ^[A-Za-z0-9_-]{20,200}$ ]]; then
+    line CLOUDFLARE_SENSE_ACCOUNT_ID "$CLOUDFLARE_SENSE_ACCOUNT_ID"
+    line CLOUDFLARE_SENSE_AI_TOKEN "$CLOUDFLARE_SENSE_AI_TOKEN"
+  else
+    echo "::warning::CLOUDFLARE_SENSE_ACCOUNT_ID (32 letters 0-9 a-f) or CLOUDFLARE_SENSE_AI_TOKEN isn't in the expected shape; the sense tagger uses the main account" >&2
   fi
 fi
 

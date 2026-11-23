@@ -54,6 +54,7 @@ About 20 minutes, once. Everything here is free, and nothing asks for a credit c
    |---|---|
    | `CLOUDFLARE_ACCOUNT_ID` | the Account ID from 1.2 |
    | `CLOUDFLARE_AI_TOKEN` | the token from 1.3 |
+   | `CLOUDFLARE_SENSE_ACCOUNT_ID`, `CLOUDFLARE_SENSE_AI_TOKEN` | optional: a second account, made the same way, for the sense tagger and its testing workflows, so they never use Scribbles' free Neurons |
 
    Click **Add secret** after each one.
 4. Now delete the note where you pasted them.
@@ -121,5 +122,5 @@ Groq's Terms of Sale don't allow sending data about children under 13, so **skip
 - Writing checks (strict, because approved sentences go into the gallery): capitals, end marks, punctuation spacing, repeated words and "a"/"an" in `backend/reviewer/mechanics.ts`; grammar and staying on topic are judged by the AI (`prompt.ts`).
 - Spelling: `backend/reviewer/spelling.ts` (nspell with the en-US and en-GB dictionaries, on our server) lists words neither dictionary knows, so British spellings like "colour" are fine. An approval with any of them becomes "redo" with the spelling tip, so mistakes never reach the gallery. Names written with a capital, and sound words like "Brrr", "crunch crunch" or "sooooo" (`backend/reviewer/soundWords.ts`), aren't counted.
 - Code: `backend/reviewer/` (`settings.ts` reads the settings, `providers/` talks to Cloudflare and Groq, `queue.ts` is the scheduled job). Suggestions are saved in `backend/models/reviewSuggestions.ts`, which nothing a student or the gallery reads.
-- Settings the deploys write into `backend/.env` (`.github/scripts/reviewer-env.sh`): `REVIEWER_MODE` (`off`/`suggest`), `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_AI_TOKEN`, optionally `CLOUDFLARE_REVIEW_MODEL` (variable; default `@cf/meta/llama-3.3-70b-instruct-fp8-fast`), `REVIEWER_USE_GROQ`, `GROQ_API_KEY`.
+- Settings the deploys write into `backend/.env` (`.github/scripts/reviewer-env.sh`): `REVIEWER_MODE` (`off`/`suggest`), `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_AI_TOKEN`, optionally `CLOUDFLARE_SENSE_ACCOUNT_ID` and `CLOUDFLARE_SENSE_AI_TOKEN` (the sense tagger's own account), `CLOUDFLARE_REVIEW_MODEL` (variable; default `@cf/meta/llama-3.3-70b-instruct-fp8-fast`), `REVIEWER_USE_GROQ`, `GROQ_API_KEY`.
 - Measure locally: put the Cloudflare settings in `backend/.env.local`, then `npm run measure:reviewer` (sends only the made-up samples).
