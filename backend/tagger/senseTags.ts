@@ -4,7 +4,8 @@
 // approved sentences.
 //
 // A word lights up only when:
-// - it's a word of the kid's own sentence (nothing a model writes is shown);
+// - it's a word of the kid's own sentence, one we asked about (nothing a
+//   model writes is shown);
 // - both models give it the same sense;
 // - it isn't a feelings word, a telling word or in NEVER_ADD (blocked.ts).
 import { blockedWord } from "./blocked.js";
@@ -13,44 +14,62 @@ export const SENSE_KEYS = ["see", "hear", "feel", "smell", "taste"] as const;
 export type SenseKey = (typeof SENSE_KEYS)[number];
 export type SenseTag = { word: string; sense: SenseKey };
 
-// What both models are told. Same task, same answer form, so their answers
-// can be compared; they're different model families (tagger.ts), which is
+// What both models are told. A closed question: our code picks the words
+// (wordsToLabel) and both models label every one, so their answers are about
+// the same words and can be compared word by word. (An open "list the sense
+// words" let a model stay quiet: on the made-up set Llama named 19 words in
+// 97 sentences and Mistral 178, so they agreed on almost nothing.) Same task,
+// same answer form; they're different model families (tagger.ts), which is
 // what makes agreement worth something.
-export const TAG_INSTRUCTIONS = `You help a writing app for kids in grades 4 to 7. A kid wrote a "show, don't tell" sentence. List the words in it that show one of the five senses, the way a teacher would mark them:
+export const LABEL_INSTRUCTIONS = `You help a writing app for kids in grades 4 to 7. A kid wrote a "show, don't tell" sentence. For each word in the list, say which of the five senses it shows in this sentence, the way a teacher would mark it, or none:
 - see: sight, colors, light, shapes, how something looks
 - hear: sounds, voices, noises
 - feel: touch, temperature, pain, how the body feels
 - smell
 - taste
+- none: it shows no sense here
 
 Rules:
-- Only list words that are in the sentence, exactly as written there, one word each (no phrases).
+- Give every word in the list one label, and only those words.
 - Decide each word by how it's used in this sentence: "sweet perfume" is smell, "sweet cake" is taste.
-- Leave out words that only tell a feeling inside (happy, scared, proud, nervous) or only judge (good, nice, gross, delicious).
-- If no word shows a sense, give an empty list.`;
+- A word that only tells a feeling inside (happy, scared, proud, nervous) or only judges (good, nice, gross, delicious) is none.`;
 
 // For a model without a JSON schema option: the answer form, in words
-export const ANSWER_AS_JSON = `\n\nAnswer only with JSON, nothing else, like this: {"words": [{"word": "crunched", "sense": "hear"}]}`;
+export const ANSWER_AS_JSON = `\n\nAnswer only with JSON, nothing else, like this: {"labels": [{"word": "crunched", "sense": "hear"}, {"word": "door", "sense": "none"}]}`;
 
-export const TAG_SCHEMA = {
+export const LABEL_SCHEMA = {
   type: "object",
   properties: {
-    words: {
+    labels: {
       type: "array",
       items: {
         type: "object",
         properties: {
           word: { type: "string" },
-          sense: { type: "string", enum: [...SENSE_KEYS] },
+          sense: { type: "string", enum: [...SENSE_KEYS, "none"] },
         },
         required: ["word", "sense"],
       },
     },
   },
-  required: ["words"],
+  required: ["labels"],
 };
 
-export const tagMessage = (show: string) => `Sentence: ${show}`;
+export const labelMessage = (show: string, words: readonly string[]) => `Sentence: ${show}\nWords: ${words.join(", ")}`;
+
+// Small words that never show a sense, so they aren't asked about
+export const SMALL_WORDS = new Set(
+  (
+    "a an the and or but so if then than as of to in on at by for from with into onto over under " +
+    "up down out off about through after before while until because i me my mine we us our you your " +
+    "he him his she her it its they them their this that these those there here who what when where " +
+    "why how is am are was were be been being do does did have has had can could will would should " +
+    "may might must not no yes all some any each every just very too also again i'm it's i'd"
+  ).split(" ")
+);
+
+// At most this many words a sentence, so an answer is never long
+export const MOST_WORDS = 20;
 
 // The words of a sentence, lower case, apostrophes kept ("can't"), as the
 // website reads them (client/src/senses.ts, wordsOf)
@@ -68,21 +87,28 @@ function lenientJson(text: string): unknown {
   return null;
 }
 
-// One model's answer, as word → sense, keeping only single words that are
-// in the sentence, with a sense key (the first answer for each word). Null
-// when the answer can't be read at all (not the same as "no sense words").
-export function readTags(response: unknown, show: string): Map<string, SenseKey> | null {
+// The words to ask both models about: the sentence's own words, once each,
+// in order, less small words and blocked ones (which never light up anyway)
+export function wordsToLabel(show: string): string[] {
+  const words = new Set(wordsOf(show).filter((word) => word.replace(/'/g, "").length > 1 && !SMALL_WORDS.has(word) && !blockedWord(word)));
+  return [...words].slice(0, MOST_WORDS);
+}
+
+// One model's labels, as word → sense, keeping only the asked words with a
+// sense (none left out; the first answer for each word). Null when the
+// answer can't be read at all (not the same as "no sense words").
+export function readLabels(response: unknown, asked: readonly string[]): Map<string, SenseKey> | null {
   const parsed = typeof response === "string" ? lenientJson(response) : response;
-  const words = (parsed as { words?: unknown } | null)?.words;
-  if (!Array.isArray(words)) return null;
-  const inSentence = new Set(wordsOf(show));
+  const labels = (parsed as { labels?: unknown } | null)?.labels;
+  if (!Array.isArray(labels)) return null;
+  const askedWords = new Set(asked);
+  const seen = new Set<string>();
   const found = new Map<string, SenseKey>();
-  for (const entry of words as { word?: unknown; sense?: unknown }[]) {
+  for (const entry of labels as { word?: unknown; sense?: unknown }[]) {
     const word = typeof entry?.word === "string" ? entry.word.trim().toLowerCase().replace(/[’‘]/g, "'") : "";
-    const sense = entry?.sense;
-    if (!inSentence.has(word) || found.has(word)) continue;
-    if (!SENSE_KEYS.includes(sense as SenseKey)) continue;
-    found.set(word, sense as SenseKey);
+    if (!askedWords.has(word) || seen.has(word)) continue;
+    seen.add(word);
+    if (SENSE_KEYS.includes(entry.sense as SenseKey)) found.set(word, entry.sense as SenseKey);
   }
   return found;
 }

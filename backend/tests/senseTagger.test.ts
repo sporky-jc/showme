@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Sentence } from "../models/sentences.js";
 import { ProviderError } from "../reviewer/providers/http.js";
 import { TEST_ACCOUNT_PREFIX } from "../config/testAccounts.js";
-import { agreedTags, readTags, type SenseKey } from "../tagger/senseTags.js";
+import { agreedTags, readLabels, wordsToLabel, type SenseKey } from "../tagger/senseTags.js";
 import { blockedWord } from "../tagger/blocked.js";
 import { TAG_MODELS, neuronsFor, tagShow } from "../tagger/tagger.js";
 import { TAGS_PER_RUN, tagApprovedSentences } from "../tagger/queue.js";
@@ -16,20 +16,33 @@ import { createUser } from "./helpers.js";
 const SHOW = "Wind wailed through the trees and the bark felt rough.";
 const tags = (entries: [string, SenseKey][]) => new Map(entries);
 
-describe("readTags", () => {
-  it("keeps the sentence's own words with a sense, once each", () => {
-    const read = readTags(
+describe("wordsToLabel", () => {
+  it("is the sentence's words to ask about: once each, in order, less small and blocked words", () => {
+    expect(wordsToLabel(SHOW)).toEqual(["wind", "wailed", "trees", "bark", "felt", "rough"]);
+    expect(wordsToLabel("I was so happy, and the cake smelled sweet, so sweet!")).toEqual(["cake", "smelled", "sweet"]);
+  });
+
+  it("is empty when there's nothing to ask about", () => {
+    expect(wordsToLabel("I was so happy.")).toEqual([]);
+  });
+});
+
+describe("readLabels", () => {
+  const WORDS = ["wind", "wailed", "trees", "bark", "felt", "rough"];
+
+  it("keeps the asked words with a sense, once each, and leaves out none and anything else", () => {
+    const read = readLabels(
       {
-        words: [
+        labels: [
           { word: "Wailed", sense: "hear" },
           { word: "wailed", sense: "see" }, // a second answer: the first counts
-          { word: "howled", sense: "hear" }, // not in the sentence
-          { word: "felt rough", sense: "feel" }, // a phrase
+          { word: "trees", sense: "none" },
+          { word: "howled", sense: "hear" }, // not asked about
           { word: "rough", sense: "touch" }, // not a sense
           { word: "bark", sense: "feel" },
         ],
       },
-      SHOW
+      WORDS
     );
     expect([...(read ?? [])]).toEqual([
       ["wailed", "hear"],
@@ -38,14 +51,14 @@ describe("readTags", () => {
   });
 
   it("reads JSON text leniently, as a model told to answer in JSON writes it", () => {
-    const read = readTags('Sure!\n```json\n{"words": [{"word": "rough", "sense": "feel"}]}\n```', SHOW);
+    const read = readLabels('Sure!\n```json\n{"labels": [{"word": "rough", "sense": "feel"}]}\n```', WORDS);
     expect([...(read ?? [])]).toEqual([["rough", "feel"]]);
   });
 
-  it("is empty for no sense words, and null for an answer it can't read", () => {
-    expect(readTags({ words: [] }, SHOW)?.size).toBe(0);
-    expect(readTags("I can't help with that.", SHOW)).toBeNull();
-    expect(readTags({ answer: "hear" }, SHOW)).toBeNull();
+  it("is empty when every word is none, and null for an answer it can't read", () => {
+    expect(readLabels({ labels: [{ word: "wind", sense: "none" }] }, WORDS)?.size).toBe(0);
+    expect(readLabels("I can't help with that.", WORDS)).toBeNull();
+    expect(readLabels({ answer: "hear" }, WORDS)).toBeNull();
   });
 });
 
@@ -108,8 +121,8 @@ describe("tagShow", () => {
 
   it("asks two different model families, and returns what they agree on with the Neurons used", async () => {
     const fetch = answering({
-      [LLAMA]: { words: [{ word: "wailed", sense: "hear" }, { word: "rough", sense: "feel" }] },
-      [MISTRAL]: '{"words": [{"word": "wailed", "sense": "hear"}, {"word": "trees", "sense": "see"}]}',
+      [LLAMA]: { labels: [{ word: "wailed", sense: "hear" }, { word: "rough", sense: "feel" }, { word: "trees", sense: "none" }] },
+      [MISTRAL]: '{"labels": [{"word": "wailed", "sense": "hear"}, {"word": "rough", "sense": "none"}, {"word": "trees", "sense": "see"}]}',
     });
     vi.stubGlobal("fetch", fetch);
 
@@ -126,8 +139,16 @@ describe("tagShow", () => {
     expect(bodies[0].response_format.type).toBe("json_schema");
     expect(bodies[1].response_format).toBeUndefined();
     expect(bodies[1].messages[0].content).toContain("Answer only with JSON");
-    // Only the sentence's words are sent
-    expect(bodies[0].messages[1].content).toBe(`Sentence: ${SHOW}`);
+    // Only the sentence and its own words are sent, the same to both
+    expect(bodies[0].messages[1].content).toBe(`Sentence: ${SHOW}\nWords: wind, wailed, trees, bark, felt, rough`);
+    expect(bodies[1].messages[1].content).toBe(bodies[0].messages[1].content);
+  });
+
+  it("asks nothing when the sentence has no words to ask about", async () => {
+    const fetch = answering({});
+    vi.stubGlobal("fetch", fetch);
+    expect(await tagShow("I was so happy.", settings, AbortSignal.timeout(1000))).toEqual({ tags: [], neurons: 0, answers: [new Map(), new Map()] });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("says when the day's free Neurons have run out", async () => {
@@ -153,7 +174,7 @@ describe("tagShow", () => {
   });
 
   it("says when a model's answer can't be read", async () => {
-    vi.stubGlobal("fetch", answering({ [LLAMA]: { words: [] }, [MISTRAL]: "Sorry, I can't." }));
+    vi.stubGlobal("fetch", answering({ [LLAMA]: { labels: [] }, [MISTRAL]: "Sorry, I can't." }));
     await expect(tagShow(SHOW, settings, AbortSignal.timeout(1000))).rejects.toMatchObject({ invalid: true });
   });
 });

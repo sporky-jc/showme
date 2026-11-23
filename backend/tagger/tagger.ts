@@ -8,11 +8,12 @@ import { postJson, ProviderError } from "../reviewer/providers/http.js";
 import { errorDetail, isOutOfNeurons, runUrl, statusOf } from "../reviewer/providers/cloudflare.js";
 import {
   ANSWER_AS_JSON,
-  TAG_INSTRUCTIONS,
-  TAG_SCHEMA,
+  LABEL_INSTRUCTIONS,
+  LABEL_SCHEMA,
   agreedTags,
-  readTags,
-  tagMessage,
+  labelMessage,
+  readLabels,
+  wordsToLabel,
   type SenseKey,
   type SenseTag,
 } from "./senseTags.js";
@@ -49,19 +50,23 @@ export async function tagShow(
 ): Promise<{ tags: SenseTag[]; neurons: number; answers: Map<string, SenseKey>[] }> {
   let neurons = 0;
   const answers: Map<string, SenseKey>[] = [];
+  // Nothing to ask about ("I was so happy."): no request, no Neurons
+  const words = wordsToLabel(show);
+  if (words.length === 0) return { tags: [], neurons, answers: TAG_MODELS.map(() => new Map()) };
   for (const model of TAG_MODELS) {
     const body = (await postJson(
       runUrl(accountId, model.name),
       token,
       {
         messages: [
-          { role: "system", content: model.jsonSchema ? TAG_INSTRUCTIONS : TAG_INSTRUCTIONS + ANSWER_AS_JSON },
-          { role: "user", content: tagMessage(show) },
+          { role: "system", content: model.jsonSchema ? LABEL_INSTRUCTIONS : LABEL_INSTRUCTIONS + ANSWER_AS_JSON },
+          { role: "user", content: labelMessage(show, words) },
         ],
-        ...(model.jsonSchema ? { response_format: { type: "json_schema", json_schema: TAG_SCHEMA } } : {}),
-        // Same answer for the same sentence, and nothing long
+        ...(model.jsonSchema ? { response_format: { type: "json_schema", json_schema: LABEL_SCHEMA } } : {}),
+        // Same answer for the same sentence; room for a label for each of
+        // up to 20 words (MOST_WORDS)
         temperature: 0,
-        max_tokens: 300,
+        max_tokens: 400,
       },
       signal,
       { statusOf, detailOf: errorDetail }
@@ -71,7 +76,7 @@ export async function tagShow(
       throw new ProviderError("Unexpected answer from Workers AI", undefined, false, errorDetail(body));
     }
     neurons += neuronsFor(model, body.result.usage);
-    const tags = readTags(body.result.response, show);
+    const tags = readLabels(body.result.response, words);
     if (!tags) throw new ProviderError(`Couldn't read ${model.name}'s answer`, undefined, true);
     answers.push(tags);
   }

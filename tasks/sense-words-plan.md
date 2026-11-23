@@ -75,6 +75,12 @@ account. Each returns its sense words, each with a sense.
     `client/src/taggerBlocked.test.ts`).
   - **The requests** (`tagger.ts`): Llama with a JSON schema, Mistral asked
     for JSON in its prompt. Neurons are counted from the token counts.
+  - **A closed question** (changed after the first A4 measure): our code
+    picks the sentence's words to ask about (`wordsToLabel`: no small or
+    blocked words), and both models label every one see, hear, feel, smell,
+    taste or none. Asked to "list the sense words", Llama named 19 words in
+    97 sentences and Mistral 178, so they agreed on only 17 of 182 words,
+    always rightly, and the Gallery found no more senses than without AI.
   - **The queue** (`queue.ts`), run first in the 10-minute scheduled
     function:
     - approved sentences, newest first, never test accounts';
@@ -112,11 +118,12 @@ account. Each returns its sense words, each with a sense.
   done: about 3,300 Neurons for production's 113, spread over days.
 - [x] **A4: The measure** (not on every PR): the workflow "Measure the sense
   tagger", run from the Actions tab.
-  - It runs the two models on S2's 97 made-up sentences, about 3,000 free
+  - It runs the two models on S2's 97 made-up sentences, about 1,750 free
     Neurons a run.
   - It reports three scores: the word list alone, the AI tags alone, and the
-    Gallery with both. It also reports how often the models agree, any
-    unreadable answers, and the Neurons used.
+    Gallery with both. It also reports each model alone, either model's
+    words, how often the models agree, any unreadable answers, and the
+    Neurons used.
   - **Ready for production** means that with the AI, the Gallery finds more
     senses than the word list alone and is right at least as often.
 - [ ] **A5: The weekly word job learns from the agreed tags** (S3, reworked):
