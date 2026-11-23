@@ -149,7 +149,7 @@ account. Each returns its sense words, each with a sense.
     85.0% found, 94.4% right on it (84.2% and 93.0% on the tuning set).
   - [ ] **2b. A judge panel decides the may senses**, once, then frozen
     (`client/src/test/senseMay.ts`): three AI families other than the
-    tagger's (Gemma, Qwen, gpt-oss) are asked, for every sense a sentence's
+    tagger's (Gemma 4, GLM-4.7-flash, gpt-oss-120b) are asked, for every sense a sentence's
     labels leave out, whether most grade 4 to 7 teachers would accept it.
     Only a unanimous yes counts; any doubt counts against the tagger.
   - [ ] **3. The tagger says clear or maybe** for each label, and a word

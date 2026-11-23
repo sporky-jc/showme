@@ -48,26 +48,33 @@ const fail = (message: string): never => {
   process.exit(1);
 };
 
-async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked: readonly SenseKey[]) {
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked: readonly SenseKey[], retried = false) {
   const response = await fetch(runUrl(accountId!, judge.name), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: [
         { role: "system", content: JUDGE_INSTRUCTIONS },
-        { role: "user", content: judgeMessage(show, must, asked) + ("noThinking" in judge ? " /no_think" : "") },
+        { role: "user", content: judgeMessage(show, must, asked) },
       ],
       temperature: 0,
       // Room for a model that thinks before it answers
       max_tokens: 1_500,
     }),
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(180_000),
   });
   const body = (await response.json().catch(() => null)) as {
     success?: boolean;
     result?: { usage?: { prompt_tokens?: number; completion_tokens?: number } } & Record<string, unknown>;
   } | null;
   if (isOutOfNeurons(body)) fail("Out of today's free Neurons: run it again after 00:00 UTC.");
+  // Busy for now (a 429 that isn't out of Neurons, or a server error): once more
+  if (!retried && (response.status === 429 || response.status >= 500)) {
+    await wait(10_000);
+    return ask(judge, show, must, asked, true);
+  }
   if (!response.ok || !body?.success) {
     fail(`${judge.name} answered ${response.status}: ${errorDetail(body) ?? "no reason given"}.`);
   }
@@ -80,27 +87,35 @@ async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked:
 const sentences = [...SENSE_SET, ...SENSE_HELD_OUT].slice(0, trying ? 3 : undefined);
 const may: Record<string, SenseKey[]> = {};
 const readable = JUDGES.map(() => 0);
-for (const { show, senses } of sentences) {
-  if (neurons > NEURON_BUDGET) fail(`Stopped at about ${Math.round(neurons)} Neurons, near the free daily 10,000.`);
+
+// One sentence: all three judges at once (some think for half a minute first)
+async function judge({ show, senses }: (typeof sentences)[number]) {
   const asked = sensesToAsk(senses);
-  const verdicts = [];
-  for (const [i, judge] of JUDGES.entries()) {
-    const verdict = await ask(judge, show, senses, asked);
+  const verdicts = await Promise.all(JUDGES.map((judge) => ask(judge, show, senses, asked)));
+  verdicts.forEach((verdict, i) => {
     if (verdict) readable[i] += 1;
-    verdicts.push(verdict);
-  }
+  });
   may[show] = unanimous(asked, verdicts);
   if (trying) console.log(`=> ${show}\n   may: ${may[show].join(", ") || "none"}`);
 }
+
+// A few sentences at a time, well inside Workers AI's request limits
+const AT_ONCE = 4;
+for (let i = 0; i < sentences.length; i += AT_ONCE) {
+  if (neurons > NEURON_BUDGET) fail(`Stopped at about ${Math.round(neurons)} Neurons, near the free daily 10,000.`);
+  await Promise.all(sentences.slice(i, i + AT_ONCE).map(judge));
+}
+// In the sets' order, whatever order the answers came in
+const ordered = Object.fromEntries(sentences.map(({ show }) => [show, may[show] ?? []]));
 
 const lines = [
   `## Sense practice sets judged: ${sentences.length} sentences`,
   "",
   ...JUDGES.map(({ name }, i) => `- **${name}:** ${readable[i]} of ${sentences.length} answers readable.`),
-  `- **Judgment calls (unanimous):** ${Object.values(may).filter((senses) => senses.length).length} sentences.`,
+  `- **Judgment calls (unanimous):** ${Object.values(ordered).filter((senses) => senses.length).length} sentences.`,
   `- **Neurons used:** about ${Math.round(neurons)}.`,
   "",
-  ...Object.entries(may)
+  ...Object.entries(ordered)
     .filter(([, senses]) => senses.length)
     .map(([show, senses]) => `- ${senses.join(", ")}: ${show}`),
 ];
@@ -111,6 +126,6 @@ if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMM
 if (trying) process.exit(0);
 const worst = Math.min(...readable) / sentences.length;
 if (worst < READABLE_AT_LEAST) fail(`A judge's answers could be read only ${Math.round(worst * 100)}% of the time.`);
-const file = mayFile(may, new Date().toISOString().slice(0, 10));
+const file = mayFile(ordered, new Date().toISOString().slice(0, 10));
 writeFileSync(MAY_FILE, file);
 console.log(`\nWrote ${MAY_FILE}:\n\n${file}`);
