@@ -10,7 +10,9 @@ import type { SenseKey } from "../senses";
 // Label what a teacher would see, not what the list finds today: the score
 // in senseScore.test.ts is how close the list gets.
 
-export type Labeled = { show: string; senses: readonly SenseKey[] };
+// `senses` are the ones a teacher would see ("must"); `may` are judgment
+// calls, added from test/senseMay.ts, that count neither way
+export type Labeled = { show: string; senses: readonly SenseKey[]; may?: readonly SenseKey[] };
 
 const set = (show: string, ...senses: SenseKey[]): Labeled => ({ show, senses });
 
