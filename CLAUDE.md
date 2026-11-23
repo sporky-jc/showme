@@ -32,8 +32,10 @@ A "show, don't tell" writing app for kids in grades 4–7. The client is in
 
 - Films are made with the Lemo Opuscar plugin (`lemo-opuscar@lemolab`). Use it
   only when asked for a film.
-- Make each film in `../showme-films/<name>/`, next to this repo, never inside
-  it. Only the finished, compressed MP4 and its captions come into the app.
+- Films live in their own repo, `sporky-jc/showme-films`, cloned next to this
+  one (`../showme-films/<name>/`). Make them there, never inside this repo.
+  Only the finished, compressed MP4, its captions and poster come into the
+  app.
 - Narration and on-screen words follow the house rules above: American
   spelling, short plain words, no surnames.
 - In the app, a film never plays by itself: it has a real play `<button>` and
