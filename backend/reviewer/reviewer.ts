@@ -5,8 +5,9 @@
 //      AI, not even the safety check, ever sees them), and find the one
 //      plain case, a copy of the Tell.
 //   2. The AI safety check: a model that only judges whether the sentence is
-//      safe. Unsafe, or no answer (not set up, failed, too slow, out of free
-//      requests), and it's held for a person: no AI reviewer reads it. A
+//      safe. Unsafe, and it's held for a person as worrying ("Check in"); no
+//      answer (not set up, failed, too slow, out of free requests), and it's
+//      held for a person all the same. Either way no AI reviewer reads it. A
 //      copy of the Tell the rules found is only sent back once this check
 //      says it's safe: "It is cold outside, help me." copies the Tell, and
 //      must still be read by a person if it's worrying.
@@ -264,7 +265,12 @@ const checkSafety = async (
     outcome: safe ?? (checked.kind === "answer" ? "invalid" : checked.kind),
     ms: checked.ms,
   });
-  if (safe === "unsafe") return { verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: safety.name };
+  // "Unsafe" from Llama Guard is nearly always a child who may need help
+  // (31 of 35 in the held-out fair test), so it's a "Check in": shown first
+  // and counted on the Teacher link's badge, with no further AI asked
+  if (safe === "unsafe") {
+    return { verdict: "unsure", tip: null, reasons: ["worrying", "safety-check"], decidedBy: safety.name };
+  }
   if (safe !== "safe") return { verdict: "unsure", tip: null, reasons: ["no-safety-check"], decidedBy: "none" };
   return null;
 };

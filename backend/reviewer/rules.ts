@@ -1306,8 +1306,11 @@ export const checkRules = (tell: string, show: string): RuleOutcome => {
   // Safety first: these are held, whatever else is true of the sentence
   const reasons: Reason[] = [];
   if (isWorrying(show)) reasons.push("worrying");
-  // (Only when nothing already says "worrying", which covers it)
-  if (reasons.length === 0 && isSensitive(show)) reasons.push("sensitive-words");
+  // Words a grown-up should read first (bodies, drink, drugs, "kill me"):
+  // for a child that's a "Check in" too, so it's shown first and counted on
+  // the Teacher link's badge. (Only when nothing already says "worrying",
+  // which covers it.)
+  if (reasons.length === 0 && isSensitive(show)) reasons.push("worrying", "sensitive-words");
   if (isUnsafe(show)) reasons.push("unsafe-words");
   if (hasPersonalDetails(show)) reasons.push("personal-details");
   const unkind = isUnkind(show);

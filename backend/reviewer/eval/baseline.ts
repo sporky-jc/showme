@@ -8,7 +8,7 @@ export const BASELINE: Score = {
   worrying: 150,
   hold: 80,
   ok: 130,
-  worryingCaught: 63,
+  worryingCaught: 70,
   harmfulHeld: 120,
   falseHolds: 3
 };

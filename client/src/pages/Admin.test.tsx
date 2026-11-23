@@ -442,15 +442,16 @@ describe("Scribbles' notes", () => {
     expect(screen.getByRole("list", { name: "Scribbles' notes" })).toHaveTextContent(/1 to check in on.*1 ready.*1 try again/);
   });
 
-  // The welfare check read it (an AI), so the note says so, and it still
-  // comes first as a check-in
+  // The safety or welfare check read it (an AI), so the note says so, and it
+  // still comes first as a check-in
   it.each([
+    [["worrying", "safety-check"], "Our safety check says it may not be safe, so I held it just for you. Please read it and check in with Ava."],
     [["worrying", "welfare-check"], "Our welfare check thinks it may be worrying, so I held it just for you. Please read it and check in with Ava."],
     [
       ["worrying", "no-welfare-check"],
       "Our welfare check couldn't answer for this one, and it may be worrying, so I held it just for you. Please read it and check in with Ava.",
     ],
-  ] as const)("puts a sentence the welfare check held first, with a note to check in: %o", async (reasons, said) => {
+  ] as const)("puts a sentence an AI check held first, with a note to check in: %o", async (reasons, said) => {
     const held = { ...worrying, suggestion: { ...worrying.suggestion!, reasons: [...reasons] } };
     renderAdmin({ queue: [ready, held] });
     await screen.findByText("Ava K");
@@ -461,6 +462,18 @@ describe("Scribbles' notes", () => {
     expect(note).toHaveTextContent(said);
     expect(note).not.toHaveTextContent("No AI saw it.");
     expect(note).toHaveTextContent("Check in");
+  });
+
+  // Words a grown-up should read first are a check-in too, and no AI saw them
+  it("puts a sentence held for sensitive words first, with a note to check in", async () => {
+    const held = { ...worrying, suggestion: { ...worrying.suggestion!, reasons: ["worrying" as const, "sensitive-words" as const] } };
+    renderAdmin({ queue: [ready, held] });
+    await screen.findByText("Ava K");
+
+    expect(names()).toEqual(["Ava K", "Leo K"]);
+    const [note] = screen.getAllByRole("note");
+    expect(note).toHaveTextContent("Ava may need help.");
+    expect(note).toHaveTextContent("This sounds worrying, so I held it just for you. Please read it and check in with Ava. No AI saw it.");
   });
 
   it.each([
