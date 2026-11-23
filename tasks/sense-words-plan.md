@@ -96,7 +96,8 @@ account. Each returns its sense words, each with a sense.
     Cloudflare secrets.
 - [x] **A2: The Gallery uses the saved tags** (S5):
   - **The data:** GET /Collections sends `senseTags`, but only while
-    `taggedShow` is still the sentence's words.
+    `taggedShow` is still the sentence's words, and only while "AI
+    highlights for kids" is on (A6).
   - **The website:** the cards, Scribbles' pick and the sense finder light
     the agreed words, plus what the list finds. A tagged word counts for its
     tagged sense only ("sweet perfume" is a smell, not a taste).
@@ -106,10 +107,16 @@ account. Each returns its sense words, each with a sense.
     `OWNER_EMAIL`, written to the backend's settings at deploy, so no email
     goes in the code. Test accounts never are. Other teachers get 403 from
     GET/PATCH `/Admin/owner`, and the panel doesn't show for them.
-  - **"AI highlights":** on or off, stored in the database
-    (`models/ownerSettings.ts`), read at each 10-minute run, so there's no
-    deploy. It shows today's count against the 150 limit, and says when
-    the Cloudflare keys aren't set.
+  - **Two feature flags,** both off until the owner turns them on, stored
+    in the database (`models/ownerSettings.ts`), so there's no deploy:
+    - **"AI reading"** (`senseTagger`): the tagger runs and saves tags, read
+      at each 10-minute run. It shows today's count against the 150 limit,
+      and says when the Cloudflare keys aren't set.
+    - **"AI highlights for kids"** (`showAiHighlights`): GET /Collections
+      sends the saved tags, from the next page load. Off, kids see the word
+      list only. So the tagger can run in production in the background, be
+      measured, and be released or taken back with one switch. If the
+      settings can't be read, the highlights stay hidden.
   - **Replaces the variables:** the `STAGING_SENSE_TAGGER` and
     `PRODUCTION_SENSE_TAGGER` variables are gone.
   - **Later switches in the same panel:** Stage B's "Scribbles suggests" and

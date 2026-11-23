@@ -11,6 +11,7 @@ import {
   SENTENCE_WRITES_PER_MINUTE,
   sentenceWritesPerMinuteStore,
 } from "../middlewares/rateLimit.js";
+import { saveOwnerSettings } from "../models/ownerSettings.js";
 import { DAY_ALREADY_WRITTEN } from "../controllers/routes.js";
 import {
   createSentence,
@@ -350,6 +351,9 @@ describe("POST /MyPage: one sentence per student per day", () => {
       { _id: created.body._id },
       { approved: true, senseTags: [{ word: "rang", sense: "hear" }], taggedShow: "The bell rang.", taggedAt: new Date() }
     );
+    // Sent only while the owner shows AI highlights to kids (models/ownerSettings.ts)
+    expect((await request(app).get("/Collections")).body[0]).not.toHaveProperty("senseTags");
+    await saveOwnerSettings({ showAiHighlights: true });
     const gallery = await request(app).get("/Collections");
     expect(gallery.body[0].senseTags).toEqual([{ word: "rang", sense: "hear" }]);
     expect(gallery.body[0]).not.toHaveProperty("taggedShow");

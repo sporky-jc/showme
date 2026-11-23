@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { OwnerSettings, OwnerSettingsBody } from "../contract/api.js";
-import { readOwnerSettings, setSenseTagger, type StoredOwnerSettings } from "../models/ownerSettings.js";
+import { readOwnerSettings, saveOwnerSettings, type StoredOwnerSettings } from "../models/ownerSettings.js";
 import { Sentence } from "../models/sentences.js";
 import { TAGS_PER_DAY, startOfToday } from "../tagger/queue.js";
 import { taggerSetup } from "../tagger/settings.js";
@@ -8,7 +8,8 @@ import { answer } from "../utils/answer.js";
 import { firstProblem, messageOf } from "../utils/errors.js";
 
 // The Owner settings on the Teacher page (GET and PATCH /Admin/owner), for
-// the site's owner only (middlewares/owner.ts). Who changed a setting, and
+// the site's owner only (middlewares/owner.ts): the two feature flags in
+// models/ownerSettings.ts. A PATCH changes the flags it names. Who changed a setting, and
 // when, is in the request's log line, as for the reviewer switch.
 
 const settingsAnswer = async (stored: StoredOwnerSettings) => {
@@ -28,6 +29,10 @@ const settingsAnswer = async (stored: StoredOwnerSettings) => {
       perDay: TAGS_PER_DAY,
       ...(last?.taggedAt ? { lastTaggedAt: last.taggedAt.toISOString() } : {}),
     },
+    showAiHighlights: {
+      on: stored.showAiHighlights,
+      ...(stored.showAiHighlightsChangedAt ? { changedAt: stored.showAiHighlightsChangedAt.toISOString() } : {}),
+    },
   };
 };
 
@@ -46,7 +51,7 @@ export const updateOwnerSettings = async (req: Request, res: Response) => {
     if (!body.success) {
       return res.status(400).json({ message: firstProblem(body.error) });
     }
-    answer(res, 200, OwnerSettings, await settingsAnswer(await setSenseTagger(body.data.senseTagger)));
+    answer(res, 200, OwnerSettings, await settingsAnswer(await saveOwnerSettings(body.data)));
   } catch (error) {
     res.locals.error = error;
     res.status(500).json({ message: messageOf(error) });
