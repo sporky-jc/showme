@@ -133,6 +133,37 @@ account. Each returns its sense words, each with a sense.
     Neurons used.
   - **Ready for production** means that with the AI, the Gallery finds more
     senses than the word list alone and is right at least as often.
+- [ ] **A7: Correct enough to automate, with no person deciding.** The
+  closed-question measure (tuning set): the Gallery found 95.8% of senses
+  but was right 83.5% of the time, below the word list's 93.0%. About half
+  the "wrong" ones were clear mistakes (a thing's name, "roses" as see);
+  the rest were judgment calls the labels leave out ("crunchy chips" is a
+  sound too). The owner doesn't want to rule on those by hand, so:
+  - [x] **1. "May" in the scoring** (`client/src/test/senseScoring.ts`): a
+    may sense lit counts neither right nor wrong, so a defensible extra
+    isn't a mistake and the bar for real mistakes stays as strict. The
+    labels stay the "must" senses, unchanged.
+  - [x] **2a. A held-out set** (`client/src/test/senseHeldOut.ts`): 40 more
+    made-up sentences, labeled the same way, never tuned on. The measure
+    runs on both sets; production needs both to pass. The word list scores
+    85.0% found, 94.4% right on it (84.2% and 93.0% on the tuning set).
+  - [ ] **2b. A judge panel decides the may senses**, once, then frozen
+    (`client/src/test/senseMay.ts`): three AI families other than the
+    tagger's (Gemma, Qwen, gpt-oss) are asked, for every sense a sentence's
+    labels leave out, whether most grade 4 to 7 teachers would accept it.
+    Only a unanimous yes counts; any doubt counts against the tagger.
+  - [ ] **3. The tagger says clear or maybe** for each label, and a word
+    lights up only when both models give the same sense and both say clear.
+    A better question: a thing's name alone is none, judge by the phrase,
+    with a few worked examples.
+  - [ ] **4. Only if 3 misses the bar:** a yes/no double-check of each
+    agreed word by the other model, then a third AI family.
+  - [ ] **5. Running it unattended:** a daily limit of about 100 sentences
+    (answers are longer now, about 33 Neurons each), the measure every week,
+    and the workflow turns "AI highlights for kids" off by itself if it
+    stops passing.
+  - [ ] **6. Production:** AI reading on and AI highlights for kids off for
+    about a week, then on.
 - [ ] **A5: The weekly word job learns from the agreed tags** (S3, reworked):
   a word goes on the list for the Write page (which can't call an AI on
   every keystroke) when both models tagged it with the same sense in at

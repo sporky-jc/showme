@@ -67,6 +67,7 @@ export const addAgreement = (a: Agreement, b: Agreement): Agreement => ({
 export const ready = (list: Score, withTags: Score) => withTags.recall > list.recall && withTags.precision >= list.precision;
 
 export function report({
+  name = "made-up sentences",
   sentences,
   list,
   aiOnly,
@@ -77,6 +78,8 @@ export function report({
   unreadable,
   neurons,
 }: {
+  // Which practice set
+  name?: string;
   sentences: number;
   list: Score;
   aiOnly: Score;
@@ -92,7 +95,7 @@ export function report({
   const named = agreed.agreed + agreed.differentSense + agreed.onlyOne;
   const row = (name: string, s: Score) => `| ${name} | ${percent(s.recall)} | ${percent(s.precision)} |`;
   return [
-    `## Sense tagger: ${sentences} made-up sentences`,
+    `## Sense tagger: ${name}, ${sentences} sentences`,
     "",
     "| Highlights from | Found (recall) | Right (precision) |",
     "|---|---|---|",
@@ -104,12 +107,13 @@ export function report({
     "",
     ...models.map(({ name, named }) => `- **${name}** named ${named} words in all (not counting blocked words).`),
     `- **The two AIs agreed** on ${agreed.agreed} of the ${named} words either named (${percent(agreed.agreed / Math.max(1, named))}); ${agreed.differentSense} got different senses, and ${agreed.onlyOne} only one named.`,
+    `- **Judgment calls lit:** ${withTags.allowed} (senses a teacher could fairly accept, counted neither right nor wrong).`,
     `- **Unreadable answers:** ${unreadable} of ${sentences} sentences.`,
     `- **Neurons used:** about ${Math.round(neurons)} of the 10,000 free a day.`,
     "",
     ready(list, withTags)
-      ? "**Ready for production:** the Gallery finds more senses with the AI than without it, and is right at least as often."
-      : "**Not ready for production yet:** with the AI, the Gallery must find more senses than the word list alone and be right at least as often.",
+      ? "**Passes:** the Gallery finds more senses with the AI than without it, and is right at least as often."
+      : "**Doesn't pass yet:** with the AI, the Gallery must find more senses than the word list alone and be right at least as often.",
     "",
     "<details><summary>The Gallery's mistakes, with the AI (made-up sentences)</summary>",
     "",

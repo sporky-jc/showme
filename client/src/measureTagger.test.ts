@@ -40,7 +40,7 @@ describe("the tagger's measure", () => {
   });
 
   it("isn't ready when the AI makes the Gallery wrong more often", () => {
-    const list = { recall: 0.84, precision: 0.93, bySense: {} as never, mistakes: [] };
+    const list = { recall: 0.84, precision: 0.93, bySense: {} as never, allowed: 0, mistakes: [] };
     expect(ready(list, { ...list, recall: 0.9, precision: 0.9 })).toBe(false);
     expect(ready(list, { ...list, recall: 0.84, precision: 0.95 })).toBe(false);
   });
@@ -58,7 +58,9 @@ describe("the tagger's measure", () => {
     expect(text).toContain("| **Gallery: word list + agreed words** | 100.0% | 100.0% |");
     expect(text).toContain("agreed** on 2 of the 4 words either named (50.0%)");
     expect(text).toContain("about 90 of the 10,000 free a day");
-    expect(text).toContain("**Ready for production:**");
+    expect(text).toContain("**Passes:**");
+    expect(text).toContain("## Sense tagger: made-up sentences, 3 sentences");
+    expect(text).toContain("**Judgment calls lit:** 0");
   });
 
   it("reports each model alone and either model's words, when given", () => {
