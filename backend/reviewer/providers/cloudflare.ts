@@ -53,12 +53,29 @@ export const isOutOfNeurons = (body: unknown) => {
 };
 export const statusOf = (errorBody: unknown, status: number) => (isOutOfNeurons(errorBody) ? 429 : status);
 
+// Cloudflare's own words for an error, for the logs: "3036: ..." for each
+// error it lists, so a refusal says which (out of Neurons, a busy model, a
+// token without permission). Cloudflare's error messages are about the
+// request, never the text sent; each is cut short anyway.
+export const errorDetail = (body: unknown): string | undefined => {
+  const errors = (body as { errors?: unknown } | null)?.errors;
+  if (!Array.isArray(errors)) return undefined;
+  const parts = errors
+    .map((error: { code?: unknown; message?: unknown } | null) =>
+      [error?.code, typeof error?.message === "string" ? error.message.slice(0, 160) : undefined]
+        .filter((part) => part !== undefined && part !== null)
+        .join(": ")
+    )
+    .filter(Boolean);
+  return parts.length ? parts.join("; ") : undefined;
+};
+
 // Workers AI wraps every answer: { success, result: { response } }
 const responseOf = (body: unknown): unknown => {
   const envelope = body as { success?: boolean; result?: { response?: unknown } } | null;
-  if (isOutOfNeurons(envelope)) throw new ProviderError("Out of free Neurons", 429);
+  if (isOutOfNeurons(envelope)) throw new ProviderError("Out of free Neurons", 429, false, errorDetail(envelope));
   if (!envelope || envelope.success === false || !envelope.result) {
-    throw new ProviderError("Unexpected answer from Workers AI");
+    throw new ProviderError("Unexpected answer from Workers AI", undefined, false, errorDetail(envelope));
   }
   return envelope.result.response;
 };
@@ -80,7 +97,7 @@ export const cloudflareReviewer = ({ accountId, token, model = CLOUDFLARE_REVIEW
         max_tokens: 40,
       },
       signal,
-      { statusOf }
+      { statusOf, detailOf: errorDetail }
     );
     return asJson(responseOf(body));
   },
@@ -99,7 +116,7 @@ export const cloudflareSafety = ({ accountId, token }: CloudflareSettings): Safe
       token,
       { messages: [{ role: "user", content: show }], temperature: 0, max_tokens: 20 },
       signal,
-      { statusOf }
+      { statusOf, detailOf: errorDetail }
     );
     return readSafetyAnswer(asJson(responseOf(body)));
   },
@@ -149,7 +166,7 @@ export const cloudflareWelfare = ({ accountId, token }: CloudflareSettings): Wel
         max_tokens: 20,
       },
       signal,
-      { statusOf }
+      { statusOf, detailOf: errorDetail }
     );
     return asJson(responseOf(body));
   },

@@ -5,7 +5,7 @@
 // trains on none (developers.cloudflare.com/workers-ai/platform/data-usage/,
 // read 2026-11-22).
 import { postJson, ProviderError } from "../reviewer/providers/http.js";
-import { isOutOfNeurons, runUrl, statusOf } from "../reviewer/providers/cloudflare.js";
+import { errorDetail, isOutOfNeurons, runUrl, statusOf } from "../reviewer/providers/cloudflare.js";
 import {
   ANSWER_AS_JSON,
   TAG_INSTRUCTIONS,
@@ -38,8 +38,9 @@ export const neuronsFor = (model: TagModel, usage: Usage | undefined) =>
   ((usage?.prompt_tokens ?? 0) * model.input + (usage?.completion_tokens ?? 0) * model.output) / 1_000_000;
 
 // The tags both models agree on, and the Neurons used. Throws a
-// ProviderError: with status 429 when today's free Neurons have run out (the
-// queue stops), and invalid when a model's answer can't be read (the
+// ProviderError: with status 429 when Workers AI turns requests away for now,
+// such as today's free Neurons running out or a busy model (the queue stops;
+// its detail says which), and invalid when a model's answer can't be read (the
 // sentence is tried again on a later run).
 export async function tagShow(
   show: string,
@@ -63,10 +64,12 @@ export async function tagShow(
         max_tokens: 300,
       },
       signal,
-      { statusOf }
+      { statusOf, detailOf: errorDetail }
     )) as { success?: boolean; result?: { response?: unknown; usage?: Usage } } | null;
-    if (isOutOfNeurons(body)) throw new ProviderError("Out of free Neurons", 429);
-    if (!body || body.success === false || !body.result) throw new ProviderError("Unexpected answer from Workers AI");
+    if (isOutOfNeurons(body)) throw new ProviderError("Out of free Neurons", 429, false, errorDetail(body));
+    if (!body || body.success === false || !body.result) {
+      throw new ProviderError("Unexpected answer from Workers AI", undefined, false, errorDetail(body));
+    }
     neurons += neuronsFor(model, body.result.usage);
     const tags = readTags(body.result.response, show);
     if (!tags) throw new ProviderError(`Couldn't read ${model.name}'s answer`, undefined, true);

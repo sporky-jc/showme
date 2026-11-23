@@ -72,10 +72,10 @@ export const reviewer = onSchedule(
     const started = Date.now();
     const tagger = taggerSetup();
     if (tagger && (await readOwnerSettings()).senseTagger) {
-      const { tagged, unreadable, stopped } = await tagApprovedSentences(tagger);
+      const { tagged, unreadable, stopped, detail } = await tagApprovedSentences(tagger);
       if (tagged > 0 || stopped) {
         logger.info(
-          `Sense tagger saved ${tagged} sentence(s)${unreadable ? `, ${unreadable} with unreadable answers` : ""}${stopped ? `, stopped: ${stopped}` : ""}`
+          `Sense tagger saved ${tagged} sentence(s)${unreadable ? `, ${unreadable} with unreadable answers` : ""}${stopped ? `, stopped: ${stopped}` : ""}${detail ? ` (Cloudflare: ${detail})` : ""}`
         );
       }
     }

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cloudflareReviewer,
+  errorDetail,
   cloudflareSafety,
   cloudflareWelfare,
   CLOUDFLARE_REVIEW_MODEL,
@@ -165,6 +166,17 @@ describe("the Cloudflare safety check", () => {
     const { suggestion, attempts } = await reviewSentence(INPUT, providers, { safety, welfare });
     expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["no-safety-check"] });
     expect(attempts).toEqual([{ provider: safety!.name, outcome, ms: expect.any(Number) }]);
+  });
+});
+
+describe("errorDetail", () => {
+  it("gives Cloudflare's codes and messages, for the logs", () => {
+    expect(errorDetail({ success: false, errors: [{ code: 3040, message: "Capacity temporarily exceeded" }, { code: 7000 }] })).toBe(
+      "3040: Capacity temporarily exceeded; 7000"
+    );
+    expect(errorDetail({ errors: [{ code: 1, message: "x".repeat(500) }] })).toHaveLength(3 + 160);
+    expect(errorDetail({ errors: [] })).toBeUndefined();
+    expect(errorDetail(null)).toBeUndefined();
   });
 });
 

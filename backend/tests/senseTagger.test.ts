@@ -135,7 +135,21 @@ describe("tagShow", () => {
       status: 429,
     });
     vi.stubGlobal("fetch", answering({ [LLAMA]: out }));
-    await expect(tagShow(SHOW, settings, AbortSignal.timeout(1000))).rejects.toMatchObject({ status: 429 });
+    await expect(tagShow(SHOW, settings, AbortSignal.timeout(1000))).rejects.toMatchObject({
+      status: 429,
+      detail: "3036: daily free allocation",
+    });
+  });
+
+  it("says what Cloudflare said when it turns a request away for another reason", async () => {
+    const busy = new Response(JSON.stringify({ success: false, errors: [{ code: 3040, message: "Capacity temporarily exceeded" }] }), {
+      status: 429,
+    });
+    vi.stubGlobal("fetch", answering({ [LLAMA]: busy }));
+    await expect(tagShow(SHOW, settings, AbortSignal.timeout(1000))).rejects.toMatchObject({
+      status: 429,
+      detail: "3040: Capacity temporarily exceeded",
+    });
   });
 
   it("says when a model's answer can't be read", async () => {
@@ -201,12 +215,16 @@ describe("the tagger's queue", () => {
     });
   });
 
-  it("stops the run when the free Neurons run out, saving nothing for that sentence", async () => {
+  it("stops the run when Workers AI turns requests away, saving nothing for that sentence and saying why", async () => {
     const sentence = await add({ approved: true });
     const out = vi.fn(async () => {
-      throw new ProviderError("Out of free Neurons", 429);
+      throw new ProviderError("HTTP 429", 429, false, "3040: Capacity temporarily exceeded");
     });
-    expect(await tagApprovedSentences(settings, { tag: out })).toMatchObject({ tagged: 0, stopped: "out-of-neurons" });
+    expect(await tagApprovedSentences(settings, { tag: out })).toMatchObject({
+      tagged: 0,
+      stopped: "rate-limited",
+      detail: "3040: Capacity temporarily exceeded",
+    });
     expect((await tagged(sentence._id))?.taggedShow).toBeUndefined();
   });
 
