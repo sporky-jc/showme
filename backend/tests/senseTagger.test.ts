@@ -30,16 +30,16 @@ describe("wordsToLabel", () => {
 describe("readLabels", () => {
   const WORDS = ["wind", "wailed", "trees", "bark", "felt", "rough"];
 
-  it("keeps the asked words with a sense, once each, and leaves out none and anything else", () => {
+  it("keeps the asked words with a clear sense, once each, and leaves out none and anything else", () => {
     const read = readLabels(
       {
         labels: [
-          { word: "Wailed", sense: "hear" },
-          { word: "wailed", sense: "see" }, // a second answer: the first counts
-          { word: "trees", sense: "none" },
-          { word: "howled", sense: "hear" }, // not asked about
-          { word: "rough", sense: "touch" }, // not a sense
-          { word: "bark", sense: "feel" },
+          { word: "Wailed", sense: "hear", clear: true },
+          { word: "wailed", sense: "see", clear: true }, // a second answer: the first counts
+          { word: "trees", sense: "none", clear: true },
+          { word: "howled", sense: "hear", clear: true }, // not asked about
+          { word: "rough", sense: "touch", clear: true }, // not a sense
+          { word: "bark", sense: "feel", clear: true },
         ],
       },
       WORDS
@@ -50,8 +50,23 @@ describe("readLabels", () => {
     ]);
   });
 
+  it("leaves out a judgment call: a sense the model isn't clearly sure of, or doesn't say", () => {
+    const read = readLabels(
+      {
+        labels: [
+          { word: "wailed", sense: "hear", clear: true },
+          { word: "rough", sense: "feel", clear: false },
+          { word: "bark", sense: "feel" },
+          { word: "wind", sense: "feel", clear: "yes" },
+        ],
+      },
+      WORDS
+    );
+    expect([...(read ?? [])]).toEqual([["wailed", "hear"]]);
+  });
+
   it("reads JSON text leniently, as a model told to answer in JSON writes it", () => {
-    const read = readLabels('Sure!\n```json\n{"labels": [{"word": "rough", "sense": "feel"}]}\n```', WORDS);
+    const read = readLabels('Sure!\n```json\n{"labels": [{"word": "rough", "sense": "feel", "clear": true}]}\n```', WORDS);
     expect([...(read ?? [])]).toEqual([["rough", "feel"]]);
   });
 
@@ -121,8 +136,16 @@ describe("tagShow", () => {
 
   it("asks two different model families, and returns what they agree on with the Neurons used", async () => {
     const fetch = answering({
-      [LLAMA]: { labels: [{ word: "wailed", sense: "hear" }, { word: "rough", sense: "feel" }, { word: "trees", sense: "none" }] },
-      [MISTRAL]: '{"labels": [{"word": "wailed", "sense": "hear"}, {"word": "rough", "sense": "none"}, {"word": "trees", "sense": "see"}]}',
+      [LLAMA]: {
+        labels: [
+          { word: "wailed", sense: "hear", clear: true },
+          { word: "rough", sense: "feel", clear: true },
+          { word: "trees", sense: "none", clear: true },
+          { word: "bark", sense: "feel", clear: false },
+        ],
+      },
+      [MISTRAL]:
+        '{"labels": [{"word": "wailed", "sense": "hear", "clear": true}, {"word": "rough", "sense": "none", "clear": true}, {"word": "trees", "sense": "see", "clear": true}, {"word": "bark", "sense": "feel", "clear": true}]}',
     });
     vi.stubGlobal("fetch", fetch);
 

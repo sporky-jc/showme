@@ -21,6 +21,13 @@ export type SenseTag = { word: string; sense: SenseKey };
 // 97 sentences and Mistral 178, so they agreed on almost nothing.) Same task,
 // same answer form; they're different model families (tagger.ts), which is
 // what makes agreement worth something.
+//
+// Each label also says whether it's clear (most teachers would mark it
+// without arguing) or a judgment call. The examples are never from the
+// practice sets (client/src/test/), so the measure stays fair. Only clear labels count (readLabels):
+// on the made-up set, the models' extra highlights were mostly judgment
+// calls ("crunchy chips" as a sound) or a thing's name ("the roses" as see),
+// and a missing highlight costs a kid less than a wrong one.
 export const LABEL_INSTRUCTIONS = `You help a writing app for kids in grades 4 to 7. A kid wrote a "show, don't tell" sentence. For each word in the list, say which of the five senses it shows in this sentence, the way a teacher would mark it, or none:
 - see: sight, colors, light, shapes, how something looks
 - hear: sounds, voices, noises
@@ -31,11 +38,19 @@ export const LABEL_INSTRUCTIONS = `You help a writing app for kids in grades 4 t
 
 Rules:
 - Give every word in the list one label, and only those words.
-- Decide each word by how it's used in this sentence: "sweet perfume" is smell, "sweet cake" is taste.
-- A word that only tells a feeling inside (happy, scared, proud, nervous) or only judges (good, nice, gross, delicious) is none.`;
+- Decide each word by how it's used in this sentence, with the words around it: "sweet perfume" is smell, "sweet cake" is taste.
+- Label the words that describe what's seen, heard, felt, smelled or tasted, not the thing itself. A thing's name or a body part alone is none: "the roses", "rain", "my chin", "the house".
+- A word that only tells a feeling inside (happy, scared, proud, nervous) or only judges (good, nice, gross, delicious) is none.
+- Say clear: true only when most teachers would mark it that way without arguing. If it's a judgment call, say clear: false.
+
+Examples:
+- "Sharp sleet stung my nose.": sharp feel (clear), sleet none, stung feel (clear), nose none.
+- "The lilacs gave off a sweet smell.": lilacs none, gave none, sweet smell (clear), smell smell (clear).
+- "The toast was buttery and crunchy.": toast none, buttery taste (clear), crunchy hear (not clear: it's mostly about the taste).
+- "Our dog snored on my feet.": dog none, snored hear (clear), feet none.`;
 
 // For a model without a JSON schema option: the answer form, in words
-export const ANSWER_AS_JSON = `\n\nAnswer only with JSON, nothing else, like this: {"labels": [{"word": "crunched", "sense": "hear"}, {"word": "door", "sense": "none"}]}`;
+export const ANSWER_AS_JSON = `\n\nAnswer only with JSON, nothing else, like this: {"labels": [{"word": "crunched", "sense": "hear", "clear": true}, {"word": "door", "sense": "none", "clear": true}]}`;
 
 export const LABEL_SCHEMA = {
   type: "object",
@@ -47,8 +62,9 @@ export const LABEL_SCHEMA = {
         properties: {
           word: { type: "string" },
           sense: { type: "string", enum: [...SENSE_KEYS, "none"] },
+          clear: { type: "boolean" },
         },
-        required: ["word", "sense"],
+        required: ["word", "sense", "clear"],
       },
     },
   },
@@ -95,8 +111,10 @@ export function wordsToLabel(show: string): string[] {
 }
 
 // One model's labels, as word → sense, keeping only the asked words with a
-// sense (none left out; the first answer for each word). Null when the
-// answer can't be read at all (not the same as "no sense words").
+// sense the model is clearly sure of (none, and judgment calls, left out;
+// so is a label that doesn't say clear: true). The first answer for each
+// word counts. Null when the answer can't be read at all (not the same as
+// "no sense words").
 export function readLabels(response: unknown, asked: readonly string[]): Map<string, SenseKey> | null {
   const parsed = typeof response === "string" ? lenientJson(response) : response;
   const labels = (parsed as { labels?: unknown } | null)?.labels;
@@ -104,11 +122,11 @@ export function readLabels(response: unknown, asked: readonly string[]): Map<str
   const askedWords = new Set(asked);
   const seen = new Set<string>();
   const found = new Map<string, SenseKey>();
-  for (const entry of labels as { word?: unknown; sense?: unknown }[]) {
+  for (const entry of labels as { word?: unknown; sense?: unknown; clear?: unknown }[]) {
     const word = typeof entry?.word === "string" ? entry.word.trim().toLowerCase().replace(/[’‘]/g, "'") : "";
     if (!askedWords.has(word) || seen.has(word)) continue;
     seen.add(word);
-    if (SENSE_KEYS.includes(entry.sense as SenseKey)) found.set(word, entry.sense as SenseKey);
+    if (SENSE_KEYS.includes(entry.sense as SenseKey) && entry.clear === true) found.set(word, entry.sense as SenseKey);
   }
   return found;
 }
