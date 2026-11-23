@@ -34,8 +34,10 @@ for (const { show } of SENSE_SET) {
     neurons += result.neurons;
     agreed = addAgreement(agreed, agreement(result.answers[0], result.answers[1]));
   } catch (error) {
-    if (error instanceof ProviderError && error.status === 429) {
-      console.error("Out of today's free Neurons: try again after 00:00 UTC.");
+    // Workers AI turned it away (out of Neurons, a busy model, a token
+    // without permission): say exactly what Cloudflare said
+    if (error instanceof ProviderError && error.status !== undefined) {
+      console.error(`Workers AI said no (${error.message}): ${error.detail ?? "no reason given"}.`);
       process.exit(1);
     }
     if (error instanceof ProviderError && error.invalid) {

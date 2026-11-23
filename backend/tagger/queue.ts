@@ -25,7 +25,9 @@ export const REQUEST_TIMEOUT_MS = 20_000;
 // seconds, plus one sentence's two requests (2 x 20 seconds).
 export const RUN_DEADLINE_MS = 45_000;
 
-export type TagStop = "out-of-neurons" | "credentials" | "daily-limit" | "deadline";
+// "rate-limited": Workers AI turned requests away for now (HTTP 429), such as
+// today's free Neurons running out or a busy model; `detail` says which
+export type TagStop = "rate-limited" | "credentials" | "daily-limit" | "deadline";
 
 type Tag = (show: string, settings: TaggerSettings, signal: AbortSignal) => Promise<{ tags: SenseTag[]; neurons: number }>;
 
@@ -40,7 +42,7 @@ export async function tagApprovedSentences(
     perDay?: number;
     deadlineMs?: number;
   }
-): Promise<{ tagged: number; unreadable: number; neurons: number; stopped?: TagStop }> {
+): Promise<{ tagged: number; unreadable: number; neurons: number; stopped?: TagStop; detail?: string }> {
   const started = now().getTime();
   const taggedToday = await Sentence.countDocuments({ taggedAt: { $gte: startOfToday(now()) } });
   const room = Math.min(limit, perDay - taggedToday);
@@ -70,9 +72,11 @@ export async function tagApprovedSentences(
       tags = result.tags;
       neurons += result.neurons;
     } catch (error) {
-      if (error instanceof ProviderError && error.status === 429) return { tagged, unreadable, neurons, stopped: "out-of-neurons" };
+      if (error instanceof ProviderError && error.status === 429) {
+        return { tagged, unreadable, neurons, stopped: "rate-limited", detail: error.detail };
+      }
       if (error instanceof ProviderError && (error.status === 401 || error.status === 403)) {
-        return { tagged, unreadable, neurons, stopped: "credentials" };
+        return { tagged, unreadable, neurons, stopped: "credentials", detail: error.detail };
       }
       // A model answered in a form that can't be read: saved with no AI
       // highlights (the word list still lights what it knows), so the same
