@@ -4,14 +4,11 @@ import { Sentence } from "../models/sentences.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
 import { reviewSentence, type ReviewProvider, type SafetyCheck, type WelfareCheck } from "../reviewer/reviewer.js";
 import { reviewWaitingSentences } from "../reviewer/queue.js";
-import { PRAISE } from "../reviewer/tips.js";
-import { backfillPraise, countWithoutPraise } from "../utils/backfillPraise.js";
 import { DEMO_SENTENCES, SAMPLE_SENTENCES, SAMPLE_STUDENTS, seedDemoAccount, seedSampleData } from "../utils/sampleData.js";
+import { PRAISE } from "../reviewer/tips.js";
 import { createSentence, createUser } from "./helpers.js";
 
-// The practice database's made-up sample data (utils/sampleData.ts), and the
-// one-time praise tip for sentences approved before tips existed
-// (utils/backfillPraise.ts)
+// The practice database's made-up sample data (utils/sampleData.ts)
 
 const safe: SafetyCheck = { name: "guard", check: async () => "safe" };
 const calm: WelfareCheck = { name: "welfare", check: async () => ({ concern: "no" }) };
@@ -140,33 +137,5 @@ describe("sample sentences for a real staging account", () => {
       expect(await review(show)).toMatchObject({ verdict: state.waiting === "ready" ? "approve" : "redo" });
     }
     expect((await review(DEMO_SENTENCES[3][1])).misspelled).toEqual(["potatos", "smeled"]);
-  });
-});
-
-describe("the praise tip for older approvals", () => {
-  it("is given to approved sentences without a tip, and nothing else", async () => {
-    const student = await createUser();
-    const old = await createSentence(student, { title: "day1", approved: true });
-    const praised = await createSentence(student, { title: "day2", approved: true, tip: PRAISE });
-    const redo = await createSentence(student, { title: "day3", toRedo: true, tip: "hear" });
-    const waiting = await createSentence(student, { title: "day4" });
-
-    expect(await countWithoutPraise()).toEqual({ approved: 2, withoutTip: 1 });
-    expect(await backfillPraise()).toBe(1);
-
-    const tipOf = async (id: unknown) => (await Sentence.findById(id).lean())?.tip;
-    expect(await tipOf(old._id)).toBe(PRAISE);
-    expect(await tipOf(praised._id)).toBe(PRAISE);
-    expect(await tipOf(redo._id)).toBe("hear");
-    expect(await tipOf(waiting._id)).toBeUndefined();
-  });
-
-  it("changes nothing when run again", async () => {
-    const student = await createUser();
-    await createSentence(student, { approved: true });
-
-    expect(await backfillPraise()).toBe(1);
-    expect(await backfillPraise()).toBe(0);
-    expect(await countWithoutPraise()).toEqual({ approved: 1, withoutTip: 0 });
   });
 });

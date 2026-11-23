@@ -415,7 +415,7 @@ The cards, Scribbles' pick and the sense finder light up list words plus
 saved tags.
 
 ### S6: Tag the sentences already approved (now Stage A3)
-A one-off script, like backfill-praise: a dry run on staging, then on
+A one-off script: a dry run on staging, then on
 production with approval, spread over days if it needs more than one
 day's free allowance.
 
