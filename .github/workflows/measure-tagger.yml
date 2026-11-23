@@ -10,6 +10,12 @@ name: Measure the sense tagger
 # tasks/sense-words-plan.md. Run it from the Actions tab with "Run workflow",
 # before showing AI highlights to kids in production: both sets must pass.
 # Uses about 4,500 of Cloudflare's 10,000 free daily Neurons per run.
+#
+# Runs on made-up sentences only, so it can use a separate test Cloudflare
+# account (secrets CLOUDFLARE_TEST_ACCOUNT_ID and CLOUDFLARE_TEST_AI_TOKEN,
+# a token with only the Workers AI permission), leaving the main account's
+# free Neurons to staging's tagger and Scribbles. Without both, it uses the
+# main account.
 on:
   workflow_dispatch:
 
@@ -44,9 +50,21 @@ jobs:
           npm ci --prefix backend
           npm ci --prefix client
 
+      # Which Cloudflare account this run uses (never its id)
+      - name: Say which Cloudflare account
+        env:
+          TEST_ACCOUNT: ${{ secrets.CLOUDFLARE_TEST_ACCOUNT_ID != '' && secrets.CLOUDFLARE_TEST_AI_TOKEN != '' }}
+        run: |
+          if [ "$TEST_ACCOUNT" = "true" ]; then
+            echo "Using the test Cloudflare account (CLOUDFLARE_TEST_ACCOUNT_ID): its own 10,000 free Neurons a day."
+          else
+            echo "Using the main Cloudflare account: its free Neurons are shared with staging's tagger and Scribbles."
+          fi
+
       - name: Measure
         working-directory: client
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}
+          # The test account when both its secrets are set, otherwise the main one
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_TEST_ACCOUNT_ID && secrets.CLOUDFLARE_TEST_AI_TOKEN && secrets.CLOUDFLARE_TEST_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_TEST_ACCOUNT_ID && secrets.CLOUDFLARE_TEST_AI_TOKEN && secrets.CLOUDFLARE_TEST_AI_TOKEN || secrets.CLOUDFLARE_AI_TOKEN }}
         run: npx tsx scripts/measure-tagger.ts
