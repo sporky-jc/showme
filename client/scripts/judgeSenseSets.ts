@@ -11,10 +11,12 @@
 import { SENSE_KEYS, type SenseKey } from "../src/senses";
 
 // Neurons per million tokens (developers.cloudflare.com/workers-ai/platform/pricing/,
-// read 2026-11-23). `noThinking`: Qwen 3 skips its long thinking when told.
+// read 2026-11-23). None marked deprecated in Cloudflare's model catalog
+// then (Qwen 3 was retired on 2026-11-20, while still listed: check the
+// model's own page before swapping one in).
 export const JUDGES = [
   { name: "@cf/google/gemma-4-26b-a4b-it", input: 9_091, output: 27_273 },
-  { name: "@cf/qwen/qwen3-30b-a3b-fp8", input: 4_625, output: 30_475, noThinking: true },
+  { name: "@cf/zai-org/glm-4.7-flash", input: 5_500, output: 36_400 },
   { name: "@cf/openai/gpt-oss-120b", input: 31_818, output: 68_182 },
 ] as const;
 export type Judge = (typeof JUDGES)[number];
