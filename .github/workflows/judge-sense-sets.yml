@@ -1,0 +1,63 @@
+name: Judge the sense practice sets
+
+# Decides the judgment calls in the sense practice sets
+# (client/src/test/senseSet.ts and senseHeldOut.ts, made-up sentences only):
+# senses a sentence isn't labeled with, but that most teachers would accept
+# ("crunchy chips" is a sound too). Three AI families other than the
+# tagger's each answer for every sense a sentence's labels leave out, and
+# only a unanimous yes counts (client/scripts/judgeSenseSets.ts). Stage A7
+# of tasks/sense-words-plan.md: no person decides, and the AI being measured
+# doesn't grade itself.
+#
+# Run it once from the Actions tab with "Run workflow", first with "try"
+# ticked (3 sentences, to check the models answer as expected), then for
+# real. The run's log ends with the new client/src/test/senseMay.ts, to be
+# committed in a pull request and frozen from then on. Uses up to about
+# 6,000 of Cloudflare's 10,000 free daily Neurons; best on a day nothing else
+# uses them.
+on:
+  workflow_dispatch:
+    inputs:
+      try:
+        description: Only 3 sentences, printing each judge's raw answer; writes nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: judge-sense-sets
+  cancel-in-progress: false
+
+jobs:
+  judge:
+    name: Judge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24' # keep in sync with "engines" in backend/package.json
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            client/package-lock.json
+
+      # It reuses the backend's Cloudflare helpers; their packages come from there
+      - name: Install Dependencies
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix client
+
+      - name: Judge
+        working-directory: client
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}
+          TRY: ${{ inputs.try && '--try' || '' }}
+        run: npx tsx scripts/judge-sense-sets.ts $TRY

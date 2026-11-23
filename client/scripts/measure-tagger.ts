@@ -16,8 +16,7 @@ import type { SenseTag } from "../src/senses";
 import { senseWords } from "../src/senses";
 import { SENSE_SET, type Labeled } from "../src/test/senseSet";
 import { SENSE_HELD_OUT } from "../src/test/senseHeldOut";
-import { withMay } from "../src/test/senseMay";
-import { score } from "../src/test/senseScoring";
+import { score, withMay } from "../src/test/senseScoring";
 import { type Agreement, addAgreement, agreement, eitherTags, gallery, ready, report, tagsOnly } from "./measureTagger";
 
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;

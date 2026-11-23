@@ -1,5 +1,6 @@
 import { SENSE_KEYS, type SenseKey } from "../senses";
 import type { Labeled } from "./senseSet";
+import { SENSE_MAY } from "./senseMay";
 
 // Scores a way of finding senses against a labeled set (test/senseSet.ts,
 // test/senseHeldOut.ts). For every sentence and sense:
@@ -61,3 +62,10 @@ export function score(set: readonly Labeled[], find: Finder): Score {
 }
 
 export const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+
+// A practice set with its may senses (never one a sentence must show)
+export const withMay = (set: readonly Labeled[], may: Readonly<Record<string, readonly SenseKey[]>> = SENSE_MAY): Labeled[] =>
+  set.map((labeled) => {
+    const extra = (may[labeled.show] ?? []).filter((sense) => !labeled.senses.includes(sense));
+    return extra.length ? { ...labeled, may: extra } : labeled;
+  });

@@ -1,5 +1,4 @@
 import type { SenseKey } from "../senses";
-import type { Labeled } from "./senseSet";
 
 // The judgment calls in the practice sets (test/senseSet.ts and
 // test/senseHeldOut.ts): senses a sentence doesn't mainly show, but that a
@@ -17,10 +16,3 @@ import type { Labeled } from "./senseSet";
 //
 // Empty until the panel has run: every sense left out counts as wrong.
 export const SENSE_MAY: Readonly<Record<string, readonly SenseKey[]>> = {};
-
-// A practice set with its may senses (never one a sentence must show)
-export const withMay = (set: readonly Labeled[], may: Readonly<Record<string, readonly SenseKey[]>> = SENSE_MAY): Labeled[] =>
-  set.map((labeled) => {
-    const extra = (may[labeled.show] ?? []).filter((sense) => !labeled.senses.includes(sense));
-    return extra.length ? { ...labeled, may: extra } : labeled;
-  });

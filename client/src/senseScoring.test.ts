@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SENSE_KEYS, type SenseKey } from "./senses";
-import { score, type Finder } from "./test/senseScoring";
+import { score, withMay, type Finder } from "./test/senseScoring";
 import { SENSE_HELD_OUT } from "./test/senseHeldOut";
 import { SENSE_SET } from "./test/senseSet";
-import { withMay } from "./test/senseMay";
 
 // How a way of finding senses is scored (test/senseScoring.ts): a "must"
 // sense found is right, missed is missed; a sense found that isn't there is
