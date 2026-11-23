@@ -53,6 +53,13 @@ export const isOutOfNeurons = (body: unknown) => {
 };
 export const statusOf = (errorBody: unknown, status: number) => (isOutOfNeurons(errorBody) ? 429 : status);
 
+// A model Workers AI no longer has: retired (HTTP 410, error 5028 "Model has
+// been deprecated", as Qwen 3 answered on 2026-11-23) or unknown (HTTP 404,
+// or error 5007 "No such model"). Every request to it will fail the same
+// way, so a run should stop, not try again sentence after sentence.
+export const isModelGone = (status: number | undefined, detail: string | undefined) =>
+  status === 404 || status === 410 || /(^|; )(5007|5028)\b/.test(detail ?? "");
+
 // Cloudflare's own words for an error, for the logs: "3036: ..." for each
 // error it lists, so a refusal says which (out of Neurons, a busy model, a
 // token without permission). Cloudflare's error messages are about the
