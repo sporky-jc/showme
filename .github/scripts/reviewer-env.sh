@@ -15,6 +15,10 @@
 #   OWNER_EMAIL             secret: the email of the site's owner, who sees
 #                           the Owner settings on the Teacher page (turning
 #                           the sense tagger on and off); nobody when unset
+#   TAGGER_NEURONS_PER_DAY  set by each deploy workflow: the sense tagger's
+#                           daily Neuron budget on that backend (staging and
+#                           production share the sense account); 4,000 when
+#                           unset
 #   REVIEWER_USE_GROQ       variable, optional: "yes" to add Groq (13+ only)
 #   CLOUDFLARE_REVIEW_MODEL variable, optional: another Workers AI model to
 #                           review with (e.g. @cf/meta/llama-3.1-8b-instruct-fast)
@@ -58,6 +62,14 @@ if [ -n "${CLOUDFLARE_SENSE_ACCOUNT_ID:-}" ] || [ -n "${CLOUDFLARE_SENSE_AI_TOKE
     line CLOUDFLARE_SENSE_AI_TOKEN "$CLOUDFLARE_SENSE_AI_TOKEN"
   else
     echo "::warning::CLOUDFLARE_SENSE_ACCOUNT_ID (32 letters 0-9 a-f) or CLOUDFLARE_SENSE_AI_TOKEN isn't in the expected shape; the sense tagger uses the main account" >&2
+  fi
+fi
+
+if [ -n "${TAGGER_NEURONS_PER_DAY:-}" ]; then
+  if [[ "$TAGGER_NEURONS_PER_DAY" =~ ^[0-9]{1,6}$ ]]; then
+    line TAGGER_NEURONS_PER_DAY "$TAGGER_NEURONS_PER_DAY"
+  else
+    echo "::warning::TAGGER_NEURONS_PER_DAY must be a whole number; the tagger's budget is 4,000" >&2
   fi
 fi
 

@@ -34,9 +34,13 @@ export interface TaggerSettings {
   token: string;
 }
 
-export type Usage = { prompt_tokens?: number; completion_tokens?: number };
+// Cloudflare's own count of the Neurons a request used, when its answer
+// gives one (usage.neurons); otherwise worked out from the tokens
+export type Usage = { prompt_tokens?: number; completion_tokens?: number; neurons?: number };
 export const neuronsFor = (model: TagModel, usage: Usage | undefined) =>
-  ((usage?.prompt_tokens ?? 0) * model.input + (usage?.completion_tokens ?? 0) * model.output) / 1_000_000;
+  typeof usage?.neurons === "number" && Number.isFinite(usage.neurons) && usage.neurons >= 0
+    ? usage.neurons
+    : ((usage?.prompt_tokens ?? 0) * model.input + (usage?.completion_tokens ?? 0) * model.output) / 1_000_000;
 
 // The tags both models agree on, and the Neurons used. Throws a
 // ProviderError: with status 429 when Workers AI turns requests away for now,
