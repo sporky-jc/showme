@@ -166,7 +166,7 @@ account. Each returns its sense words, each with a sense.
     - [x] **5a. A retired or unknown model stops the run** (`isModelGone`:
       HTTP 404 or 410, errors 5007 or 5028), instead of every sentence
       failing every 10 minutes.
-    - [ ] **5b. The tagger uses the sense account** (secrets
+    - [x] **5b. The tagger uses the sense account** (secrets
       `CLOUDFLARE_SENSE_ACCOUNT_ID`, `CLOUDFLARE_SENSE_AI_TOKEN`), falling back
       to the main one.
     - [ ] **5c. A Neuron budget per backend** (Cloudflare reports each

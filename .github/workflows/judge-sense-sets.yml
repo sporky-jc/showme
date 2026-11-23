@@ -18,11 +18,11 @@ name: Judge the sense practice sets
 # set's answers and the other's kept, to be committed in a pull request and
 # frozen from then on.
 #
-# Runs on made-up sentences only, so it can use a separate test Cloudflare
-# account (secrets CLOUDFLARE_TEST_ACCOUNT_ID and CLOUDFLARE_TEST_AI_TOKEN,
-# a token with only the Workers AI permission), leaving the main account's
-# free Neurons to staging's tagger and Scribbles. Without both, it uses the
-# main account.
+# Runs on made-up sentences only, on the sense Cloudflare account (secrets
+# CLOUDFLARE_SENSE_ACCOUNT_ID and CLOUDFLARE_SENSE_AI_TOKEN, a token with
+# only the Workers AI permission), the one the tagger uses, so Scribbles'
+# free Neurons are never touched. Without both, the test account (its
+# earlier name, CLOUDFLARE_TEST_*), else the main one.
 on:
   workflow_dispatch:
     inputs:
@@ -72,9 +72,12 @@ jobs:
       # Which Cloudflare account this run uses (never its id)
       - name: Say which Cloudflare account
         env:
+          SENSE_ACCOUNT: ${{ secrets.CLOUDFLARE_SENSE_ACCOUNT_ID != '' && secrets.CLOUDFLARE_SENSE_AI_TOKEN != '' }}
           TEST_ACCOUNT: ${{ secrets.CLOUDFLARE_TEST_ACCOUNT_ID != '' && secrets.CLOUDFLARE_TEST_AI_TOKEN != '' }}
         run: |
-          if [ "$TEST_ACCOUNT" = "true" ]; then
+          if [ "$SENSE_ACCOUNT" = "true" ]; then
+            echo "Using the sense Cloudflare account (CLOUDFLARE_SENSE_ACCOUNT_ID), shared with the tagger, not Scribbles."
+          elif [ "$TEST_ACCOUNT" = "true" ]; then
             echo "Using the test Cloudflare account (CLOUDFLARE_TEST_ACCOUNT_ID): its own 10,000 free Neurons a day."
           else
             echo "Using the main Cloudflare account: its free Neurons are shared with staging's tagger and Scribbles."
@@ -83,9 +86,10 @@ jobs:
       - name: Judge
         working-directory: client
         env:
-          # The test account when both its secrets are set, otherwise the main one
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_TEST_ACCOUNT_ID && secrets.CLOUDFLARE_TEST_AI_TOKEN && secrets.CLOUDFLARE_TEST_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_TEST_ACCOUNT_ID && secrets.CLOUDFLARE_TEST_AI_TOKEN && secrets.CLOUDFLARE_TEST_AI_TOKEN || secrets.CLOUDFLARE_AI_TOKEN }}
+          # The sense account when both its secrets are set, else the test
+          # account (the same thing, by its earlier name), else the main one
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_SENSE_ACCOUNT_ID && secrets.CLOUDFLARE_SENSE_AI_TOKEN && secrets.CLOUDFLARE_SENSE_ACCOUNT_ID || secrets.CLOUDFLARE_TEST_ACCOUNT_ID && secrets.CLOUDFLARE_TEST_AI_TOKEN && secrets.CLOUDFLARE_TEST_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_SENSE_ACCOUNT_ID && secrets.CLOUDFLARE_SENSE_AI_TOKEN && secrets.CLOUDFLARE_SENSE_AI_TOKEN || secrets.CLOUDFLARE_TEST_ACCOUNT_ID && secrets.CLOUDFLARE_TEST_AI_TOKEN && secrets.CLOUDFLARE_TEST_AI_TOKEN || secrets.CLOUDFLARE_AI_TOKEN }}
           SET: ${{ inputs.set }}
           TRY: ${{ inputs.try && '--try' || '' }}
         run: npx tsx scripts/judge-sense-sets.ts "--set=$SET" $TRY
