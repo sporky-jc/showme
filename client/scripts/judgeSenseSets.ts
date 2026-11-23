@@ -90,6 +90,20 @@ export function readVerdicts(text: string, asked: readonly SenseKey[]): Map<Sens
 export const unanimous = (asked: readonly SenseKey[], verdicts: readonly (Map<SenseKey, boolean> | null)[]): SenseKey[] =>
   asked.filter((sense) => verdicts.length > 0 && verdicts.every((judge) => judge?.get(sense) === true));
 
+// The may senses after judging one set: this run's answers for its own
+// sentences, the frozen ones for the rest, in the sets' order
+export const mergeMay = (
+  order: readonly string[],
+  before: Readonly<Record<string, readonly SenseKey[]>>,
+  judged: Readonly<Record<string, readonly SenseKey[]>>
+): Record<string, readonly SenseKey[]> =>
+  Object.fromEntries(
+    order.flatMap((show) => {
+      const senses = judged[show] ?? before[show];
+      return senses ? [[show, senses]] : [];
+    })
+  );
+
 // The frozen file (src/test/senseMay.ts), with when and by whom
 export function mayFile(may: Readonly<Record<string, readonly SenseKey[]>>, date: string): string {
   const entries = Object.entries(may).filter(([, senses]) => senses.length > 0);
@@ -108,7 +122,7 @@ export function mayFile(may: Readonly<Record<string, readonly SenseKey[]>>, date
 // the sense practice sets" workflow, scripts/judge-sense-sets.ts). Change it
 // only by running the panel again, never by hand.
 //
-// Decided ${date} by ${JUDGES.map(({ name }) => name).join(", ")}:
+// Last judged ${date}, by ${JUDGES.map(({ name }) => name).join(", ")}:
 // ${entries.length} sentences with judgment calls.
 export const SENSE_MAY: Readonly<Record<string, readonly SenseKey[]>> = {
 ${entries.map(([show, senses]) => `  ${JSON.stringify(show)}: [${senses.map((sense) => JSON.stringify(sense)).join(", ")}],`).join("\n")}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JUDGES, answerText, judgeMessage, mayFile, readVerdicts, sensesToAsk, unanimous } from "../scripts/judgeSenseSets";
+import { JUDGES, answerText, judgeMessage, mayFile, mergeMay, readVerdicts, sensesToAsk, unanimous } from "../scripts/judgeSenseSets";
 
 // The judge panel that decides the practice sets' may senses
 // (scripts/judgeSenseSets.ts): with stand-in answers, no real request.
@@ -72,9 +72,22 @@ describe("unanimous", () => {
 describe("mayFile", () => {
   it("writes the frozen may senses, with when and by whom, in the set's order", () => {
     const file = mayFile({ "The chips were salty and crunchy.": ["hear"], "Rain fell.": [] }, "2026-11-23");
-    expect(file).toContain("Decided 2026-11-23 by");
+    expect(file).toContain("Last judged 2026-11-23, by");
     expect(file).toContain('  "The chips were salty and crunchy.": ["hear"],');
     expect(file).not.toContain("Rain fell.");
     expect(file).toContain("export const SENSE_MAY");
+  });
+});
+
+describe("mergeMay", () => {
+  it("keeps the other set's frozen answers, takes this run's for its own sentences, in the sets' order", () => {
+    const order = ["A first.", "B second.", "C third."];
+    const before = { "A first.": ["hear"], "C third.": ["feel"] } as const;
+    const judged = { "C third.": [], "B second.": ["smell"] } as const;
+    expect(Object.entries(mergeMay(order, before, judged))).toEqual([
+      ["A first.", ["hear"]],
+      ["B second.", ["smell"]],
+      ["C third.", []],
+    ]);
   });
 });
