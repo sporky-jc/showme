@@ -5,7 +5,8 @@ import { TEST_ACCOUNT_PREFIX } from "../config/testAccounts.js";
 import { agreedTags, readLabels, wordsToLabel, type SenseKey } from "../tagger/senseTags.js";
 import { blockedWord } from "../tagger/blocked.js";
 import { TAG_MODELS, neuronsFor, tagShow } from "../tagger/tagger.js";
-import { TAGS_PER_RUN, tagApprovedSentences } from "../tagger/queue.js";
+import { TAGS_PER_RUN, neuronBudget, tagApprovedSentences } from "../tagger/queue.js";
+import { taggerNeuronsToday } from "../models/taggerUsage.js";
 import { taggerSetup } from "../tagger/settings.js";
 import { createUser } from "./helpers.js";
 
@@ -202,6 +203,22 @@ describe("tagShow", () => {
   });
 });
 
+describe("neuronsFor", () => {
+  it("is Cloudflare's own count when it gives one, otherwise worked out from the tokens", () => {
+    expect(neuronsFor(TAG_MODELS[1], { prompt_tokens: 300, completion_tokens: 40, neurons: 12.5 })).toBe(12.5);
+    expect(neuronsFor(TAG_MODELS[1], { prompt_tokens: 1_000_000, completion_tokens: 0 })).toBe(TAG_MODELS[1].input);
+  });
+});
+
+describe("neuronBudget", () => {
+  it("is TAGGER_NEURONS_PER_DAY when it's a whole number, otherwise 4,000", () => {
+    expect(neuronBudget({ TAGGER_NEURONS_PER_DAY: "1000" })).toBe(1000);
+    expect(neuronBudget({})).toBe(4000);
+    expect(neuronBudget({ TAGGER_NEURONS_PER_DAY: "lots" })).toBe(4000);
+    expect(neuronBudget({ TAGGER_NEURONS_PER_DAY: "-5" })).toBe(4000);
+  });
+});
+
 describe("taggerSetup", () => {
   it("uses the sense account when both its settings are there, otherwise the main one", () => {
     const main = { CLOUDFLARE_ACCOUNT_ID: "main", CLOUDFLARE_AI_TOKEN: "main-token" };
@@ -271,6 +288,24 @@ describe("the tagger's queue", () => {
       tagged: 0,
       stopped: "daily-limit",
     });
+  });
+
+  it("stops for the day at its Neuron budget, counted across runs", async () => {
+    for (let i = 0; i < 6; i++) await add({ approved: true, title: `day${i}` });
+    // 30 Neurons a sentence, a budget of 100: the fourth would go over
+    expect(await tagApprovedSentences(settings, { tag: agreeing, neuronsPerDay: 100 })).toMatchObject({
+      tagged: 4,
+      stopped: "neuron-budget",
+    });
+    expect(await taggerNeuronsToday(new Date())).toBe(120);
+    // The next run, the same day: nothing more
+    expect(await tagApprovedSentences(settings, { tag: agreeing, neuronsPerDay: 100 })).toMatchObject({
+      tagged: 0,
+      stopped: "neuron-budget",
+    });
+    // The next day starts again
+    const tomorrow = () => new Date(Date.now() + 24 * 60 * 60 * 1000);
+    expect((await tagApprovedSentences(settings, { tag: agreeing, neuronsPerDay: 100, now: tomorrow })).tagged).toBe(2);
   });
 
   it("stops the run when Workers AI turns requests away, saving nothing for that sentence and saying why", async () => {

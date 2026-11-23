@@ -169,9 +169,13 @@ account. Each returns its sense words, each with a sense.
     - [x] **5b. The tagger uses the sense account** (secrets
       `CLOUDFLARE_SENSE_ACCOUNT_ID`, `CLOUDFLARE_SENSE_AI_TOKEN`), falling back
       to the main one.
-    - [ ] **5c. A Neuron budget per backend** (Cloudflare reports each
+    - [x] **5c. A Neuron budget per backend** (Cloudflare reports each
       request's Neurons), with the sentence count as a backstop, leaving room
-      for the weekly measure.
+      for the weekly measure (`TAGGER_NEURONS_PER_DAY`, set in each deploy
+      workflow, counted in `models/taggerUsage.ts` per UTC day). Caps, not
+      reservations: while nobody uses production, staging 5,000 and
+      production 500; when production goes live, staging 1,000 and
+      production 4,500.
     - [ ] **5d. The measure every week, and a switch that only turns off:**
       if a finished measure misses the bar, or a model is gone, it turns "AI
       highlights for kids" off and the run fails (GitHub emails the owner).
