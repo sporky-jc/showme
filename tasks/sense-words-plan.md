@@ -152,10 +152,12 @@ account. Each returns its sense words, each with a sense.
     tagger's (Gemma 4, GLM-4.7-flash, gpt-oss-120b) are asked, for every sense a sentence's
     labels leave out, whether most grade 4 to 7 teachers would accept it.
     Only a unanimous yes counts; any doubt counts against the tagger.
-  - [ ] **3. The tagger says clear or maybe** for each label, and a word
+  - [x] **3. The tagger says clear or maybe** for each label, and a word
     lights up only when both models give the same sense and both say clear.
     A better question: a thing's name alone is none, judge by the phrase,
-    with a few worked examples.
+    with four worked examples. The examples are never practice sentences,
+    nor close to one (`client/src/taggerPromptFair.test.ts`), so the measure
+    stays fair. Measured once the judge panel's answers are in.
   - [ ] **4. Only if 3 misses the bar:** a yes/no double-check of each
     agreed word by the other model, then a third AI family.
   - [ ] **5. Running it unattended:** a daily limit of about 100 sentences
