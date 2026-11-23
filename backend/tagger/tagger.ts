@@ -45,7 +45,7 @@ export async function tagShow(
   show: string,
   { accountId, token }: TaggerSettings,
   signal: AbortSignal
-): Promise<{ tags: SenseTag[]; neurons: number }> {
+): Promise<{ tags: SenseTag[]; neurons: number; answers: Map<string, SenseKey>[] }> {
   let neurons = 0;
   const answers: Map<string, SenseKey>[] = [];
   for (const model of TAG_MODELS) {
@@ -72,5 +72,6 @@ export async function tagShow(
     if (!tags) throw new ProviderError(`Couldn't read ${model.name}'s answer`, undefined, true);
     answers.push(tags);
   }
-  return { tags: agreedTags(show, answers[0], answers[1]), neurons };
+  // Each model's own answer too, for the weekly measure (Stage A4)
+  return { tags: agreedTags(show, answers[0], answers[1]), neurons, answers };
 }

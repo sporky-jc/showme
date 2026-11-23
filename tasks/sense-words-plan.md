@@ -110,8 +110,15 @@ account. Each returns its sense words, each with a sense.
     Stage C's "Let Scribbles approve".
 - [ ] **A3: Tag the sentences already approved** (S6), a few each run until
   done: about 3,300 Neurons for production's 113, spread over days.
-- [ ] **A4: A weekly measure** (not on every PR): the two models on the S2
-  test set, reporting how often they agree and how often they're right.
+- [x] **A4: The measure** (not on every PR): the workflow "Measure the sense
+  tagger", run from the Actions tab.
+  - It runs the two models on S2's 97 made-up sentences, about 3,000 free
+    Neurons a run.
+  - It reports three scores: the word list alone, the AI tags alone, and the
+    Gallery with both. It also reports how often the models agree, any
+    unreadable answers, and the Neurons used.
+  - **Ready for production** means that with the AI, the Gallery finds more
+    senses than the word list alone and is right at least as often.
 - [ ] **A5: The weekly word job learns from the agreed tags** (S3, reworked):
   a word goes on the list for the Write page (which can't call an AI on
   every keystroke) when both models tagged it with the same sense in at

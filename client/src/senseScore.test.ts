@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { SENSE_KEYS, type SenseKey, senseWords } from "./senses";
+import { SENSE_KEYS, senseWords } from "./senses";
 import { SENSE_SET } from "./test/senseSet";
+import { percent, score as scoreSet } from "./test/senseScoring";
 
 // How well the sense words do on a made-up test set (S2 of
 // tasks/sense-words-plan.md). Each sentence has the senses a teacher would see
@@ -18,45 +19,7 @@ import { SENSE_SET } from "./test/senseSet";
 const RECALL_AT_LEAST = 0.842;
 const PRECISION_AT_LEAST = 0.93;
 
-function score() {
-  let right = 0;
-  let wrong = 0;
-  let missed = 0;
-  const bySense = Object.fromEntries(SENSE_KEYS.map((sense) => [sense, { right: 0, wrong: 0, missed: 0 }])) as Record<
-    SenseKey,
-    { right: number; wrong: number; missed: number }
-  >;
-  const mistakes: string[] = [];
-  for (const { show, senses } of SENSE_SET) {
-    const found = senseWords(show);
-    for (const sense of SENSE_KEYS) {
-      const lit = found[sense] !== null;
-      const labeled = senses.includes(sense);
-      if (lit && labeled) bySense[sense].right += 1;
-      if (lit && !labeled) {
-        bySense[sense].wrong += 1;
-        mistakes.push(`lit ${sense} (${found[sense]}): ${show}`);
-      }
-      if (!lit && labeled) {
-        bySense[sense].missed += 1;
-        mistakes.push(`missed ${sense}: ${show}`);
-      }
-    }
-  }
-  for (const sense of SENSE_KEYS) {
-    right += bySense[sense].right;
-    wrong += bySense[sense].wrong;
-    missed += bySense[sense].missed;
-  }
-  return {
-    recall: right / (right + missed),
-    precision: right / (right + wrong),
-    bySense,
-    mistakes,
-  };
-}
-
-const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+const score = () => scoreSet(SENSE_SET, (show) => senseWords(show));
 
 describe("sense word score", () => {
   it("has about 100 sentences, some that only tell", () => {
