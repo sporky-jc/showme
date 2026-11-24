@@ -50,13 +50,17 @@ export const markRefresherSeen =
   };
 
 // Logout User. The backend cancels the login and deletes the httpOnly cookie
-// (JavaScript can't). Whatever happens, forget the user on screen too.
-export const logoutUser = (): AppThunk => async (dispatch) => {
+// (JavaScript can't). Only once it has said so is the user forgotten on
+// screen: if it never got the message, the cookie still works, and a screen
+// that looked logged out would sign the next person in as this user on the
+// next reload. Answers whether the user is now logged out.
+export const logoutUser = (): AppThunk<Promise<boolean>> => async (dispatch) => {
   try {
     await api.logoutUser();
   } catch (error) {
     console.error((error as Error).message);
-  } finally {
-    dispatch({ type: "LOGOUT" });
+    return false;
   }
+  dispatch({ type: "LOGOUT" });
+  return true;
 };

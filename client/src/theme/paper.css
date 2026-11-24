@@ -179,6 +179,20 @@ h3,
   gap: 12px;
 }
 
+/* Under the top bar: Log out was pressed, but it didn't work
+   (NavbarComp.tsx). The same colors as the Teacher page's "didn't save". */
+.paper-nav__failed {
+  /* The top bar's width, less its 20px side padding */
+  width: calc(100% - 40px);
+  max-width: 1120px;
+  margin: 0 auto 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--paper-retry-bg);
+  color: var(--paper-retry-ink);
+  font-weight: 800;
+}
+
 .paper-nav__logo {
   display: inline-flex;
   margin-right: auto;

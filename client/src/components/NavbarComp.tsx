@@ -198,6 +198,8 @@ function NavbarComp() {
 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Log out was pressed, but the server couldn't be told (see authService)
+  const [logOutFailed, setLogOutFailed] = useState(false);
 
   // In the app the navbar never goes away, but in tests each one is removed
   // after its test; a download still waiting then would land in a later test
@@ -217,7 +219,7 @@ function NavbarComp() {
   }, []);
 
   // Sign out whoever is signed in, or open the sign-in pop-up
-  const signInorOut = () => authService(user, setLoading, handleShowLoginModal);
+  const signInorOut = () => authService(user, setLoading, handleShowLoginModal, setLogOutFailed);
 
   // On a phone the main links are a bar along the bottom of the screen. It
   // steps aside on the Write page, where the keyboard needs the room (the
@@ -268,6 +270,11 @@ function NavbarComp() {
             </button>
           )}
         </header>
+        {logOutFailed && signedIn && (
+          <p className="paper-nav__failed" role="alert">
+            We couldn&apos;t log you out. Check your internet, then press Log out again.
+          </p>
+        )}
         <main className={pageClass}>
           <PageErrorBoundary resetKey={location.pathname}>
             <Suspense fallback={<PageLoading />}>
