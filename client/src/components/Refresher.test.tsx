@@ -167,7 +167,9 @@ describe("Refresher", () => {
 
       Object.defineProperty(video, "currentTime", { value: 2, configurable: true });
       fireEvent.timeUpdate(video);
-      expect(screen.getByText("It was raining.")).toBeInTheDocument();
+      // Twice: on the picture (wide screens) and in the strip (phones);
+      // the stylesheet shows one
+      expect(screen.getAllByText("It was raining.")).toHaveLength(2);
 
       Object.defineProperty(video, "currentTime", { value: 5, configurable: true });
       fireEvent.timeUpdate(video);

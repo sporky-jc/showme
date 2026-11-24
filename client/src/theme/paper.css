@@ -4533,6 +4533,36 @@ h3,
   line-height: 1.3;
 }
 
+/* On a phone the picture is too small to cover: the words go in a strip
+   under it. Tall enough for three rows, so the page doesn't jump as lines
+   change. */
+.paper-film__strip {
+  display: none;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: var(--paper-sky);
+  color: var(--paper-ink);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .paper-film__words {
+    display: none;
+  }
+
+  .paper-film__captions {
+    flex-direction: column;
+  }
+
+  .paper-film__strip {
+    display: block;
+    align-self: stretch;
+    min-height: 4.6em;
+  }
+}
+
 .paper-refresher__example mark {
   padding: 1px 4px;
   border-radius: 6px;

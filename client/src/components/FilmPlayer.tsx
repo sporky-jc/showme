@@ -11,9 +11,11 @@ import type { Film } from "../films";
 // and the keyboard moves onto the video.
 //
 // Captions are ours: a Captions button under the film, off until pressed,
-// shows the words being said on the picture, near the bottom. While the
-// film is stopped they sit higher, clear of the video's own controls. (No
-// <track> element: iPhones won't load a video that has one.) If the video can't
+// shows the words being said. On a phone they go in a strip under the
+// picture, which is too small to cover; on wider screens they go on the
+// picture, near the bottom (higher while the film is stopped, clear of the
+// video's own controls). Both are here and paper.css shows one. (No <track>
+// element: iPhones won't load a video that has one.) If the video can't
 // play, a link opens it by itself. Styled in src/theme/paper.css.
 function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
   const [started, setStarted] = useState(false);
@@ -87,6 +89,7 @@ function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
         <button type="button" className="paper-film__captions-button" aria-pressed={captions} onClick={toggleCaptions}>
           Captions <span aria-hidden>{captions ? "on" : "off"}</span>
         </button>
+        {captions && <p className="paper-film__strip">{shown}</p>}
       </div>
     </div>
   );
