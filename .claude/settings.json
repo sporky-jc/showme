@@ -1,4 +1,16 @@
 {
+  "extraKnownMarketplaces": {
+    "lemolab": {
+      "source": {
+        "source": "github",
+        "repo": "lemomo-ai/lemo-opuscar",
+        "ref": "8ca0dd805e214bcc1d30714cd5b9d21cc02a454b"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "lemo-opuscar@lemolab": true
+  },
   "permissions": {
     "allow": [
       "mcp__QA_Wolf",
