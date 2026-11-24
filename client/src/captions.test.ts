@@ -24,7 +24,7 @@ describe("addCaptions", () => {
     const cues: unknown[] = [];
     const track = { mode: "hidden", addCue: (cue: unknown) => cues.push(cue) };
     const video = { addTextTrack: vi.fn(() => track) } as unknown as HTMLVideoElement;
-    vi.stubGlobal("VTTCue", class { constructor(public startTime: number, public endTime: number, public text: string) {} });
+    vi.stubGlobal("VTTCue", function (this: object, startTime: number, endTime: number, text: string) { Object.assign(this, { startTime, endTime, text }); });
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => "WEBVTT\n\n00:01.000 --> 00:02.000\nHello.\n" })));
     await addCaptions(video, "/films/x/x.vtt");
     expect(video.addTextTrack).toHaveBeenCalledWith("captions", "English", "en");
