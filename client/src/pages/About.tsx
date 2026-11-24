@@ -151,6 +151,9 @@ const About = () => {
         >
           Start writing
         </a>
+        <Link to="/Films" className="paper-btn paper-about__more">
+          Watch the films
+        </Link>
       </section>
 
       {/* Phones have no footer (the main links sit there), so it's here */}

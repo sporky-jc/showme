@@ -3,7 +3,8 @@ import type { Technique } from "./api/types";
 // The explainer films: half a minute each, made in the showme-films repo
 // (github.com/sporky-jc/showme-films) and copied into public/films/<name>/
 // as a small video, its captions and the picture shown before it plays.
-// A refresher with a film here offers it on its first step (Refresher.tsx).
+// A refresher with a film here offers it on its first step (Refresher.tsx),
+// and the Films page (pages/Films.tsx) lists them all.
 // Adding a film means adding its three files and a line here, not code.
 
 export interface Film {
@@ -13,6 +14,8 @@ export interface Film {
   video: string;
   captions: string;
   poster: string;
+  // A smaller copy of the picture, for the Films page's cards
+  smallPoster: string;
 }
 
 const film = (name: string, title: string, seconds: number): Film => ({
@@ -21,6 +24,7 @@ const film = (name: string, title: string, seconds: number): Film => ({
   video: `/films/${name}/${name}.mp4`,
   captions: `/films/${name}/${name}.vtt`,
   poster: `/films/${name}/poster.jpg`,
+  smallPoster: `/films/${name}/poster-small.jpg`,
 });
 
 export const FILMS: Partial<Record<Technique, Film>> = {

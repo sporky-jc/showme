@@ -21,6 +21,7 @@ const loadWrite = () => import("../pages/Write");
 const loadAdmin = () => import("../pages/Admin");
 const loadCollection = () => import("../pages/Collection");
 const loadFrame = () => import("../pages/Frame");
+const loadFilms = () => import("../pages/Films");
 
 const About = lazy(loadAbout);
 const Login = lazy(loadLogin);
@@ -29,12 +30,13 @@ const Write = lazy(loadWrite);
 const Admin = lazy(loadAdmin);
 const Collection = lazy(loadCollection);
 const Frame = lazy(loadFrame);
+const Films = lazy(loadFilms);
 
 // Once the first page is showing and the browser has nothing else to do,
 // download the other pages' files in the background, so opening them later
 // is instant instead of waiting for the download at the moment of the click.
 const prefetchPages = () => {
-  [loadAbout, loadLogin, loadMyPage, loadWrite, loadAdmin, loadCollection, loadFrame].forEach(
+  [loadAbout, loadLogin, loadMyPage, loadWrite, loadAdmin, loadCollection, loadFrame, loadFilms].forEach(
     (load) => load().catch(() => {}) // a failure here is retried on the click
   );
 };
@@ -287,6 +289,8 @@ function NavbarComp() {
                   <Route path="/Write/:id?" element={<Write />} />
                   {/* The frame an approved sentence has in the gallery */}
                   <Route path="/Frame/:id" element={<Frame />} />
+                  {/* Every explainer film, for anyone */}
+                  <Route path="/Films" element={<Films />} />
                   <Route path="/" element={<Home />} />
                 </Routes>
               </OpenLoginContext.Provider>

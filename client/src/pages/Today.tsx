@@ -203,6 +203,16 @@ function Today() {
           })}
         </ul>
       </section>
+
+      <section className="paper-card paper-today__films" aria-labelledby="today-films">
+        <div>
+          <h2 id="today-films">Films</h2>
+          <p className="paper-book__hint">Short films about ways to show, not tell.</p>
+        </div>
+        <Link to="/Films" className="paper-btn">
+          Watch a film
+        </Link>
+      </section>
     </div>
   );
 }
