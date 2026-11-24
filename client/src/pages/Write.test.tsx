@@ -97,6 +97,9 @@ const renderWrite = ({
 const box = () => screen.findByLabelText("Now show it");
 const sendButton = () => screen.getByRole("button", { name: "Ask Scribbles" });
 const bubble = () => document.querySelector(".paper-bubble")!;
+// Help (the refresher's button and the sense buttons) sits behind this button
+const ideasButton = () => screen.getByRole("button", { name: "Need an idea?" });
+const openIdeas = () => act(() => ideasButton().click());
 
 describe("Write", () => {
   it("asks a visitor who isn't signed in to sign in, without asking the server", async () => {
@@ -142,6 +145,7 @@ describe("Write", () => {
     list[2] = { ...list[2], technique: "simile", tell: "He dodged all the traps with ease. (Use a Simile)" };
     renderWrite({ mine: shows(2), tellList: list });
     await box();
+    await openIdeas();
 
     const what = screen.getByRole("button", { name: "What’s a simile?" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -156,6 +160,7 @@ describe("Write", () => {
   it("offers the senses refresher on a Tell that asks for the senses", async () => {
     renderWrite({ mine: shows(2) });
     await box();
+    await openIdeas();
 
     expect(screen.getByRole("button", { name: "What’s a sense?" })).toBeInTheDocument();
     expect(screen.queryByText(/This Tell asks for/)).not.toBeInTheDocument();
@@ -168,11 +173,20 @@ describe("Write", () => {
     await waitFor(() =>
       expect(requests.some((r) => r.method === "put" && r.url === "/Login/refreshers/senses")).toBe(true)
     );
+    // The help is open under it, so its button is there when it closes
+    await userEvent.keyboard("{Escape}");
+    expect(ideasButton()).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => expect(screen.getByRole("button", { name: "What’s a sense?" })).toHaveFocus());
   });
 
   it("doesn't open a refresher by itself once it's been seen", async () => {
     const { requests } = renderWrite({ mine: [], student: { ...ada, seenRefreshers: ["senses"] } });
     await box();
+    // Closed until asked for
+    expect(ideasButton()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "What’s a sense?" })).not.toBeInTheDocument();
+    await openIdeas();
+    expect(ideasButton()).toHaveAttribute("aria-expanded", "true");
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "What’s a sense?" })).toBeInTheDocument();
@@ -252,7 +266,8 @@ describe("Write", () => {
     const user = userEvent.setup();
     renderWrite();
     await box();
-    expect(bubble()).toHaveTextContent("Tap a sense and I'll help you think!");
+    expect(bubble()).toHaveTextContent("Stuck? Tap “Need an idea?” and I'll help you think!");
+    await openIdeas();
 
     const hear = screen.getByRole("button", { name: "Hear" });
     expect(hear).toHaveAttribute("aria-pressed", "false");
@@ -304,6 +319,7 @@ describe("Write", () => {
     const user = userEvent.setup();
     renderWrite();
     await user.type(await box(), "His tail thumped the floor like a drum and he licked my salty cheek.");
+    await openIdeas();
 
     const hear = screen.getByRole("button", { name: "Hear" });
     expect(hear).toHaveAccessibleDescription("Used: thumped");
@@ -322,6 +338,7 @@ describe("Write", () => {
     const user = userEvent.setup();
     renderWrite();
     await user.type(await box(), "He was tired and bored and seemed furious today");
+    await openIdeas();
 
     for (const name of ["See", "Hear", "Feel", "Smell", "Taste"]) {
       expect(screen.getByRole("button", { name })).not.toHaveAccessibleDescription();
@@ -348,6 +365,7 @@ describe("Write", () => {
     const user = userEvent.setup();
     renderWrite();
     const input = await box();
+    await openIdeas();
     await user.click(screen.getByRole("button", { name: "Smell" }));
     expect(bubble()).toHaveTextContent(/sniff/);
 
@@ -384,6 +402,7 @@ describe("Write", () => {
     expect(screen.queryByText("2 · Scribbles checks")).not.toBeInTheDocument();
     // In the page's order, the button comes right after the box, before the senses
     const send = screen.getByRole("button", { name: "Ask Scribbles" });
+    await openIdeas();
     const senses = screen.getByRole("group", { name: "Senses" });
     expect(input.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(send.compareDocumentPosition(senses) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

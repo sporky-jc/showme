@@ -2062,6 +2062,19 @@ h3,
   grid-area: ideas;
 }
 
+/* "Need an idea?" and the help it opens */
+.paper-write__idea {
+  min-height: 48px;
+}
+
+.paper-write__idea-box:not([hidden]) {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
 .paper-write__hint {
   margin: 0 0 10px;
   font-weight: 700;
