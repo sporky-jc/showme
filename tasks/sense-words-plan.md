@@ -176,6 +176,12 @@ account. Each returns its sense words, each with a sense.
       reservations: while nobody uses production, staging 5,000 and
       production 500; when production goes live, staging 1,000 and
       production 4,500.
+      Failed sentences count too: the Neurons of every answer that came
+      back, and a worst case for one that timed out; a sentence that fails 3
+      times with the same words is saved with no AI highlights instead of
+      being tried every 10 minutes (`MAX_TAG_FAILURES`). Note: Cloudflare's
+      free Neurons seem to run over a rolling 24 hours, not from 00:00 UTC
+      (refused on 2026-11-24 with 3,670 used that day, 12,300 in 24 hours).
     - [x] **5d. The measure every week, and a switch that only turns off:**
       if a finished measure misses the bar, or a model is gone, it turns "AI
       highlights for kids" off and the run fails (GitHub emails the owner).
