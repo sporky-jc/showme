@@ -37,3 +37,10 @@ export const FILMS: Partial<Record<Technique, Film>> = {
   alliteration: film("alliteration", "The alliteration film", 35),
   allusion: film("allusion", "The allusion film", 37),
 };
+
+// The Welcome film: what Show ME is and how it works. On the Welcome page
+// (components/WelcomeFilm.tsx) and first on the Films page.
+export const WELCOME_FILM = film("show-dont-tell", "How Show ME works", 39);
+
+// Every film, for checks
+export const ALL_FILMS: Record<string, Film> = { welcome: WELCOME_FILM, ...FILMS };

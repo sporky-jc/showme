@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { lineAt, loadCaptions, readCaptions } from "./captions";
-import { FILMS } from "./films";
+import { ALL_FILMS } from "./films";
 
 describe("readCaptions", () => {
   it("reads each line with its start and end in seconds", () => {
@@ -12,10 +12,10 @@ describe("readCaptions", () => {
     ]);
   });
 
-  it.each(Object.entries(FILMS))("%s has captions it can read", (_name, film) => {
-    const lines = readCaptions(readFileSync(`public${film!.captions}`, "utf8"));
+  it.each(Object.entries(ALL_FILMS))("%s has captions it can read", (_name, film) => {
+    const lines = readCaptions(readFileSync(`public${film.captions}`, "utf8"));
     expect(lines.length).toBeGreaterThan(3);
-    expect(lines[lines.length - 1].end).toBeLessThanOrEqual(film!.seconds + 1);
+    expect(lines[lines.length - 1].end).toBeLessThanOrEqual(film.seconds + 1);
   });
 });
 
