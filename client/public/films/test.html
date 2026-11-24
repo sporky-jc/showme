@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Film test</title>
+<style>
+  body { font: 16px/1.4 system-ui, sans-serif; margin: 16px; background: #effff6; color: #20304a; }
+  h2 { font-size: 18px; margin: 22px 0 6px; }
+  video { display: block; width: 100%; max-width: 480px; background: #cfe9dc; }
+  .wrap { max-width: 480px; aspect-ratio: 16 / 9; border-radius: 20px; overflow: hidden; }
+  .wrap video { height: 100%; object-fit: contain; }
+  pre { margin: 6px 0 0; padding: 8px; background: #fff; white-space: pre-wrap; font-size: 13px; }
+  button { font: inherit; font-weight: 700; padding: 12px 16px; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h1>Film test</h1>
+<p>Press play on each video (or its button). Then send a screenshot of the whole page. Each box under a video says what happened.</p>
+
+<h2>1 · Plain video</h2>
+<video id="v1" src="/films/senses/senses.mp4" controls playsinline></video><pre id="l1"></pre>
+
+<h2>2 · With preload="none"</h2>
+<video id="v2" src="/films/senses/senses.mp4" controls playsinline preload="none"></video><pre id="l2"></pre>
+
+<h2>3 · With a picture first (poster)</h2>
+<video id="v3" src="/films/senses/senses.mp4" controls playsinline preload="none" poster="/films/senses/poster.jpg"></video><pre id="l3"></pre>
+
+<h2>4 · With captions (track)</h2>
+<video id="v4" src="/films/senses/senses.mp4" controls playsinline preload="none">
+  <track kind="captions" src="/films/senses/senses.vtt" srclang="en" label="English">
+</video><pre id="l4"></pre>
+
+<h2>5 · With a source element</h2>
+<video id="v5" controls playsinline preload="none">
+  <source src="/films/senses/senses.mp4" type="video/mp4">
+</video><pre id="l5"></pre>
+
+<h2>6 · Like the app: button starts it</h2>
+<div class="wrap">
+<video id="v6" playsinline preload="none" poster="/films/senses/poster.jpg" tabindex="-1" aria-label="Show it with your senses">
+  <source src="/films/senses/senses.mp4" type="video/mp4">
+  <track kind="captions" src="/films/senses/senses.vtt" srclang="en" label="English">
+</video>
+</div>
+<button id="b6" type="button">Watch the film</button><pre id="l6"></pre>
+
+<pre id="ua"></pre>
+<script>
+  var NET = ["EMPTY", "IDLE", "LOADING", "NO_SOURCE"];
+  function watch(n) {
+    var v = document.getElementById("v" + n), log = document.getElementById("l" + n), lines = [];
+    function say(text) { lines.push(text); log.textContent = lines.slice(-8).join("\n"); }
+    ["loadstart", "loadedmetadata", "canplay", "playing", "stalled", "abort", "emptied"].forEach(function (name) {
+      v.addEventListener(name, function () { say(name + " (network " + NET[v.networkState] + ", ready " + v.readyState + ", length " + v.duration + ")"); });
+    });
+    v.addEventListener("error", function () {
+      say("VIDEO ERROR code " + (v.error && v.error.code) + ": " + (v.error && v.error.message));
+    });
+    Array.prototype.forEach.call(v.querySelectorAll("source"), function (s) {
+      s.addEventListener("error", function () { say("SOURCE ERROR (network " + NET[v.networkState] + ", video error " + (v.error && v.error.code) + ")"); });
+    });
+    Array.prototype.forEach.call(v.querySelectorAll("track"), function (t) {
+      t.addEventListener("error", function () { say("TRACK ERROR"); });
+      t.addEventListener("load", function () { say("track loaded"); });
+    });
+    say("ready to test");
+    return { v: v, say: say };
+  }
+  for (var i = 1; i <= 6; i++) var last = watch(i);
+  document.getElementById("b6").addEventListener("click", function () {
+    var v = last.v, p = v.play();
+    v.controls = true;
+    if (p && p.then) p.then(function () { last.say("play() worked"); }, function (e) { last.say("play() REFUSED: " + e.name + ": " + e.message); });
+  });
+  document.getElementById("ua").textContent = navigator.userAgent + "\nmp4: " + document.createElement("video").canPlayType("video/mp4") + " · avc1.64001F: " + document.createElement("video").canPlayType('video/mp4; codecs="avc1.64001F, mp4a.40.2"');
+</script>
+</body>
+</html>
