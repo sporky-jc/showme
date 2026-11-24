@@ -4,6 +4,7 @@ import Refresher from "./Refresher";
 import { markRefresherSeen } from "../actions/user";
 import type { Technique } from "../api/types";
 import type { AppDispatch } from "../reducers/types";
+import { FILMS } from "../films";
 import { REFRESHERS } from "../refreshers";
 
 // "What's a simile?": opens the refresher for what the Tell asks for (see
@@ -48,7 +49,7 @@ function RefresherButton({ technique, firstTime }: { technique: Technique; first
         </span>
         {words.ask}
       </button>
-      {open && <Refresher words={words} onClose={close} />}
+      {open && <Refresher words={words} film={FILMS[technique]} onClose={close} />}
     </>
   );
 }

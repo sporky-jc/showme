@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Refresher from "./Refresher";
+import { FILMS } from "../films";
 import { REFRESHERS } from "../refreshers";
 
 // The refresher pop-up: five short steps, from refreshers.ts
@@ -106,5 +107,55 @@ describe("Refresher", () => {
 
     await user.tab({ shift: true });
     expect(last).toHaveFocus();
+  });
+
+  // A technique with a film (films.ts): the film takes the example's place on
+  // the first step, and only plays when it's asked for
+  describe("with a film", () => {
+    const senses = REFRESHERS.senses;
+    const film = FILMS.senses!;
+    const renderWithFilm = () => {
+      render(<Refresher words={senses} film={film} onClose={vi.fn()} />);
+      return userEvent.setup();
+    };
+
+    it("offers the film on the first step, without loading or playing it", () => {
+      const { container } = render(<Refresher words={senses} film={film} onClose={vi.fn()} />);
+
+      expect(screen.getByRole("button", { name: /^Watch the film/ })).toBeInTheDocument();
+      expect(container.querySelector("video")).toBeNull();
+      // The written example waits for the last step
+      expect(screen.queryByText(senses.phrase)).not.toBeInTheDocument();
+      expect(screen.getByText(`Clue: ${senses.clue}`)).toBeInTheDocument();
+    });
+
+    it("plays it in place when Watch is pressed, with captions on", async () => {
+      const user = renderWithFilm();
+      await user.click(screen.getByRole("button", { name: /^Watch the film/ }));
+
+      const video = screen.getByLabelText(film.title) as HTMLVideoElement;
+      expect(video.tagName).toBe("VIDEO");
+      expect(video).toHaveAttribute("src", film.video);
+      expect(video).toHaveAttribute("controls");
+      expect(video).toHaveFocus();
+      const track = video.querySelector("track")!;
+      expect(track).toHaveAttribute("kind", "captions");
+      expect(track).toHaveAttribute("src", film.captions);
+      expect(track).toHaveAttribute("default");
+    });
+
+    it("stops the film when the step is left, and shows the written example at the end", async () => {
+      const user = renderWithFilm();
+      await user.click(screen.getByRole("button", { name: /^Watch the film/ }));
+      await user.click(screen.getByRole("button", { name: "Let’s try it" }));
+      expect(document.querySelector("video")).toBeNull();
+
+      for (const step of [senses.spot, senses.finish, senses.check]) {
+        await user.click(screen.getByRole("button", { name: step.choices[step.answer] }));
+        await user.click(screen.getByRole("button", { name: "Next" }));
+      }
+      expect(screen.getByRole("heading", { name: "You’ve got it!" })).toBeInTheDocument();
+      expect(screen.getByText(senses.phrase).tagName).toBe("MARK");
+    });
   });
 });
