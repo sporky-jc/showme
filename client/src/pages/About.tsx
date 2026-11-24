@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router";
 import Scribbles from "../components/Scribbles";
 import { useOpenLogin } from "../components/loginPopup";
+import { useFeature } from "../features";
 import { phonePhotoMedia } from "../config";
 import type { RootState } from "../reducers/types";
 import examples from "../tellData";
@@ -18,6 +19,9 @@ const About = () => {
   const navigate = useNavigate();
   const openLogin = useOpenLogin();
   const user = useSelector((state: RootState) => state.user);
+  // Sense tips are a feature that can be off (see features.ts). Where it is
+  // off, this page doesn't promise them.
+  const senseCoach = useFeature("senseCoach");
 
   // Join Us: a signed-in student goes straight to their sentences; anyone else
   // gets the sign-in pop-up first (signing in then opens Today, their home)
@@ -75,7 +79,11 @@ const About = () => {
           </h2>
           <div className="paper-about__scribbles">
             <Scribbles mood="happy" prop="note" size={88} decorative />
-            <p className="paper-bubble">Stuck? Tap a sense and I'll give you a tip!</p>
+            <p className="paper-bubble">
+              {senseCoach
+                ? "Stuck? Tap a sense and I'll give you a tip!"
+                : "Write your sentence. I'll try to picture it!"}
+            </p>
           </div>
         </div>
         <ol className="paper-about__steps">
@@ -91,12 +99,17 @@ const About = () => {
               2
             </span>
             <h3>Show it your way</h3>
-            <p>Write your own version. Need an idea? Scribbles has a tip for every sense.</p>
-            <ul className="paper-about__senses" aria-label="The five senses">
-              {SENSES.map((sense) => (
-                <li key={sense}>{sense}</li>
-              ))}
-            </ul>
+            <p>
+              Write your own version, so the reader can picture it.
+              {senseCoach && " Need an idea? Scribbles has a tip for every sense."}
+            </p>
+            {senseCoach && (
+              <ul className="paper-about__senses" aria-label="The five senses">
+                {SENSES.map((sense) => (
+                  <li key={sense}>{sense}</li>
+                ))}
+              </ul>
+            )}
           </li>
           <li className="paper-about__step paper-about__step--done">
             <span className="paper-about__number" aria-hidden>
@@ -126,17 +139,6 @@ const About = () => {
           <p className="paper-about__honest">
             Right now, a Show ME teacher reads every sentence as Scribbles.
           </p>
-        </div>
-        {/* A picture of Scribbles' review desk, not the real thing */}
-        <div className="paper-about__review" aria-hidden>
-          <p className="paper-about__review-label">Scribbles&apos; desk</p>
-          <p className="paper-about__review-sentence">
-            Steam curled from my cocoa while the window fogged with my breath.
-          </p>
-          <div className="paper-about__review-buttons">
-            <span className="paper-about__approve">Approve</span>
-            <span className="paper-about__redo">Try again</span>
-          </div>
         </div>
       </section>
 

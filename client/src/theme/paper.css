@@ -929,24 +929,6 @@ h3,
   font-size: 1rem;
 }
 
-.paper-welcome__steps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-weight: 800;
-  font-size: 0.95rem;
-}
-
-.paper-welcome__steps li {
-  background: var(--paper-white);
-  border-radius: 12px;
-  padding: 8px 12px;
-  box-shadow: 0 4px 0 var(--paper-edge);
-}
-
 .paper-welcome__examples {
   display: flex;
   flex-direction: column;
@@ -3379,12 +3361,8 @@ h3,
   font-size: 0.9rem;
 }
 
-/* Who checks my sentence (Scribbles), with a small picture of the review page */
+/* Who checks my sentence (Scribbles) */
 .paper-about__reviewer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 28px;
-  align-items: center;
   border-radius: 32px;
   padding: 28px 24px;
   box-shadow: 0 8px 0 var(--paper-edge);
@@ -3414,60 +3392,6 @@ h3,
   font-size: 1rem;
   font-weight: 700;
   color: var(--paper-muted);
-}
-
-.paper-about__review {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: var(--paper-sky);
-  border-radius: 24px;
-  padding: 20px 22px;
-}
-
-.paper-about__review-label {
-  margin: 0;
-  font-weight: 800;
-  font-size: 0.85rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--paper-muted);
-}
-
-.paper-about__review-sentence {
-  margin: 0;
-  font-family: var(--paper-font-display);
-  font-weight: 700;
-  font-size: 1.35rem;
-  line-height: 1.3;
-}
-
-.paper-about__review-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.paper-about__approve,
-.paper-about__redo {
-  flex: 1;
-  border-radius: 14px;
-  padding: 10px;
-  text-align: center;
-  font-family: var(--paper-font-display);
-  font-weight: 800;
-  font-size: 1.1rem;
-}
-
-/* The same colors as the real buttons on the review page */
-.paper-about__approve {
-  background: var(--paper-done-ink);
-  box-shadow: 0 4px 0 #0f4d35;
-  color: var(--paper-white);
-}
-
-.paper-about__redo {
-  background: var(--paper-retry-bg);
-  box-shadow: 0 4px 0 var(--paper-retry-edge);
 }
 
 .paper-about__closing {
@@ -3503,10 +3427,6 @@ h3,
     height: 220px;
   }
 
-  .paper-about__reviewer {
-    grid-template-columns: minmax(0, 1fr) 420px;
-    gap: 48px;
-  }
 }
 
 /* ---- The sign-in pop-up (pages/Login.tsx) ----
