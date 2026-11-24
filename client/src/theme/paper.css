@@ -4466,6 +4466,68 @@ h3,
   font-weight: 700;
 }
 
+/* The film, then its Captions button and the words being said */
+.paper-film-set {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paper-film__captions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.paper-film__captions-button {
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--paper-control-edge);
+  border-radius: 14px;
+  background: var(--paper-white);
+  color: var(--paper-ink);
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.paper-film__captions-button[aria-pressed="true"] {
+  border-color: var(--paper-ink);
+  background: var(--paper-ink);
+  color: var(--paper-white);
+}
+
+.paper-film__captions-button:focus-visible {
+  outline: 3px solid var(--paper-ink);
+  outline-offset: 2px;
+}
+
+/* Tall enough for two rows, so the page doesn't jump as lines change */
+.paper-film__words {
+  flex: 1;
+  min-height: 3.4em;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: var(--paper-sky);
+  color: var(--paper-ink);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+@media (max-width: 480px) {
+  .paper-film__captions {
+    flex-direction: column;
+  }
+
+  .paper-film__words {
+    align-self: stretch;
+    min-height: 4.6em;
+  }
+}
+
 .paper-refresher__example mark {
   padding: 1px 4px;
   border-radius: 6px;

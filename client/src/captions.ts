@@ -1,8 +1,9 @@
 // Captions for a film, read from its .vtt file.
 //
-// The player doesn't use a <track> element: on iPhones a video with one
-// would not load at all. So the film's lines are read here and handed to
-// the video once it is playing (see FilmPlayer).
+// The player shows them itself, in a strip under the picture (see
+// FilmPlayer), not with a <track> element: on iPhones a video with one
+// would not load at all, and the phone's own captions menu shows captions
+// it makes up from the sound, not ours.
 
 export interface CaptionLine {
   start: number;
@@ -29,20 +30,17 @@ export function readCaptions(vtt: string): CaptionLine[] {
   return lines;
 }
 
-// Adds the film's captions to a video, turned off until the viewer turns
-// them on in the video's own controls. Does nothing, quietly, where the
-// browser can't do it or the file can't be read: the film still plays.
-export async function addCaptions(video: HTMLVideoElement, url: string): Promise<void> {
-  if (typeof video.addTextTrack !== "function" || typeof VTTCue === "undefined") return;
+// Reads a film's captions file. An empty list if it can't be read: the
+// film still plays.
+export async function loadCaptions(url: string): Promise<CaptionLine[]> {
   try {
     const answer = await fetch(url);
-    if (!answer.ok) return;
-    const lines = readCaptions(await answer.text());
-    if (lines.length === 0) return;
-    const track = video.addTextTrack("captions", "English", "en");
-    track.mode = "disabled";
-    for (const line of lines) track.addCue(new VTTCue(line.start, line.end, line.text));
+    return answer.ok ? readCaptions(await answer.text()) : [];
   } catch {
-    // no captions this time
+    return [];
   }
 }
+
+// The line being said at this moment of the film, if any
+export const lineAt = (lines: CaptionLine[], time: number): string =>
+  lines.find((line) => time >= line.start && time < line.end)?.text ?? "";

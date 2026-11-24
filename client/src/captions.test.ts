@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { addCaptions, readCaptions } from "./captions";
+import { lineAt, loadCaptions, readCaptions } from "./captions";
 import { FILMS } from "./films";
 
 describe("readCaptions", () => {
@@ -19,26 +19,28 @@ describe("readCaptions", () => {
   });
 });
 
-describe("addCaptions", () => {
-  it("adds the lines to the video, turned off", async () => {
-    const cues: unknown[] = [];
-    const track = { mode: "hidden", addCue: (cue: unknown) => cues.push(cue) };
-    const video = { addTextTrack: vi.fn(() => track) } as unknown as HTMLVideoElement;
-    vi.stubGlobal("VTTCue", function (this: object, startTime: number, endTime: number, text: string) { Object.assign(this, { startTime, endTime, text }); });
+describe("loadCaptions", () => {
+  it("reads the lines from the file", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => "WEBVTT\n\n00:01.000 --> 00:02.000\nHello.\n" })));
-    await addCaptions(video, "/films/x/x.vtt");
-    expect(video.addTextTrack).toHaveBeenCalledWith("captions", "English", "en");
-    expect(track.mode).toBe("disabled");
-    expect(cues).toEqual([{ startTime: 1, endTime: 2, text: "Hello." }]);
+    expect(await loadCaptions("/films/x/x.vtt")).toEqual([{ start: 1, end: 2, text: "Hello." }]);
     vi.unstubAllGlobals();
   });
 
-  it("leaves the video alone when the captions can't be read", async () => {
-    const video = { addTextTrack: vi.fn() } as unknown as HTMLVideoElement;
-    vi.stubGlobal("VTTCue", class {});
+  it("gives no lines when the file can't be read", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
-    await expect(addCaptions(video, "/films/x/x.vtt")).resolves.toBeUndefined();
-    expect(video.addTextTrack).not.toHaveBeenCalled();
+    expect(await loadCaptions("/films/x/x.vtt")).toEqual([]);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, text: async () => "<html>" })));
+    expect(await loadCaptions("/films/x/x.vtt")).toEqual([]);
     vi.unstubAllGlobals();
+  });
+});
+
+describe("lineAt", () => {
+  it("finds the line being said, or nothing between lines", () => {
+    const lines = [{ start: 1, end: 2, text: "One." }, { start: 3, end: 4, text: "Two." }];
+    expect(lineAt(lines, 0.5)).toBe("");
+    expect(lineAt(lines, 1)).toBe("One.");
+    expect(lineAt(lines, 2.5)).toBe("");
+    expect(lineAt(lines, 3.9)).toBe("Two.");
   });
 });

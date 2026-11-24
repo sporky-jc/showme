@@ -4,9 +4,6 @@ import userEvent from "@testing-library/user-event";
 import Refresher from "./Refresher";
 import { FILMS } from "../films";
 import { REFRESHERS } from "../refreshers";
-import { addCaptions } from "../captions";
-
-vi.mock("../captions", () => ({ addCaptions: vi.fn() }));
 
 // The refresher pop-up: five short steps, from refreshers.ts
 
@@ -150,11 +147,35 @@ describe("Refresher", () => {
       expect(video).toHaveAttribute("controls");
       expect(video).toHaveFocus();
       expect(screen.queryByRole("button", { name: /^Watch the film/ })).not.toBeInTheDocument();
-      // No <track> element (iPhones won't load a video that has one): the
-      // captions are added once it starts, turned off
+      // No <track> element (iPhones won't load a video that has one)
       expect(video.querySelector("track")).toBeNull();
-      expect(addCaptions).toHaveBeenCalledWith(video, film.captions);
       play.mockRestore();
+    });
+
+    it("shows the words being said once Captions is pressed, and hides them again", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => "WEBVTT\n\n00:01.000 --> 00:03.000\nIt was raining.\n" })));
+      const user = renderWithFilm();
+      const video = screen.getByLabelText(film.title) as HTMLVideoElement;
+      const button = screen.getByRole("button", { name: /^Captions/ });
+      expect(button).toHaveAttribute("aria-pressed", "false");
+      expect(fetch).not.toHaveBeenCalled();
+
+      await user.click(button);
+      expect(button).toHaveAttribute("aria-pressed", "true");
+      expect(fetch).toHaveBeenCalledWith(film.captions);
+      expect(screen.queryByText("It was raining.")).not.toBeInTheDocument();
+
+      Object.defineProperty(video, "currentTime", { value: 2, configurable: true });
+      fireEvent.timeUpdate(video);
+      expect(screen.getByText("It was raining.")).toBeInTheDocument();
+
+      Object.defineProperty(video, "currentTime", { value: 5, configurable: true });
+      fireEvent.timeUpdate(video);
+      expect(screen.queryByText("It was raining.")).not.toBeInTheDocument();
+
+      await user.click(button);
+      expect(button).toHaveAttribute("aria-pressed", "false");
+      vi.unstubAllGlobals();
     });
 
     it("offers a link to the film if it can’t play", async () => {
