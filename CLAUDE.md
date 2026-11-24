@@ -9,6 +9,12 @@ A "show, don't tell" writing app for kids in grades 4–7. The client is in
   workspace for Show ME, and never touch any other QA Wolf workspace.
 - Add the `qa-wolf` label to a pull request to have QA Wolf test its Netlify
   preview.
+- No QA Wolf pull request runs on weekdays from 8:30am to 5:30pm Pacific time.
+  In those hours don't add the `qa-wolf` label, don't push to a pull request
+  that already has it (a push starts a run too: take the label off first), and
+  don't start a run by hand. Add the label after 5:30pm PT or on a weekend.
+  Check the time first: `TZ=America/Los_Angeles date`. Only the owner can lift
+  this, one pull request at a time.
 - Flows find things by their names (headings, "Start showing", "Ask
   Scribbles", sense buttons, labels). Keep those names the same, or say in the
   pull request which ones changed.
