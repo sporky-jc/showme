@@ -48,3 +48,21 @@ A "show, don't tell" writing app for kids in grades 4–7. The client is in
   Captions are there but off until the viewer turns them on.
 - Don't use the Clawd character or the Mascot Screencast style (Anthropic's,
   not licensed), or the narration from Lemo Opuscar's own demo films.
+
+## Security scans
+
+- Free checks run on every pull request (tests, CodeQL, Dependabot, the plugin
+  scan). They are the everyday net.
+- Claude Security (`/claude-security`) costs a lot of tokens, so use the
+  smallest scan that fits:
+  - A pull request that changes logins or sessions (`backend/controllers`,
+    `backend/middlewares`, `backend/config`), the reviewer's safety checks
+    (`backend/reviewer`), or a workflow's tokens (`.github/workflows`): run
+    "scan changes" on the branch at `low` effort before asking for a merge,
+    and put the result in the pull request.
+  - Every three months a scheduled task scans `backend` and `.github` at
+    `low` effort.
+  - A whole-repo scan at `medium` took about 3 hours and 10 million tokens
+    (November 2026). Only run one when asked, such as before a big launch.
+- Never commit a `CLAUDE-SECURITY-*` folder. Fix findings in small pull
+  requests, one problem each.
