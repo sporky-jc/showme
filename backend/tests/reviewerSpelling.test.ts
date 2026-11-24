@@ -29,6 +29,10 @@ describe("the spelling check", () => {
     "Brrrr, my teeth chattered. Wheee, down the hill!",
     "Ok, the snow went crunch, crunch, crunch.",
     "The Show sentence’s apostrophe isn’t a mistake.",
+    // A name can start a sentence too
+    "Aisha giggled as the snow tickled her nose.",
+    "Priya's scarf flapped in the wind.",
+    "Mateo and I built a snow fort.",
   ])("finds nothing in: %s", (show) => {
     expect(misspelledWords(show)).toEqual([]);
   });
@@ -74,6 +78,10 @@ describe("the spelling check", () => {
     ["The slime went blorrrp.", ["blorrrp"]],
     // Echoes, but neither half is a word
     ["The frog went zorp-zarp.", ["zorp", "zarp"]],
+    // Only a listed name with its capital: a misspelling at the start, or a
+    // name without its capital, is still found
+    ["Becuz it was cold, I ran.", ["Becuz"]],
+    ["Me and priya ran.", ["priya"]],
   ])("still finds the misspelled words: %s", (show, words) => {
     expect(misspelledWords(show)).toEqual(words);
   });
