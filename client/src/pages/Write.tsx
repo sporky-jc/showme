@@ -283,11 +283,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
       ? "Ooh, getting there! Can you add a second sense?"
       : `I can picture it! You used ${used.length} senses.`;
 
-  // Scribbles' picture of the sentence: the Tell's photo, foggy and gray
-  // until the sentence has enough words and senses to see it clearly
+  // The Tell's photo: small beside the Tell on a phone, in a frame of its
+  // own on a wide screen (paper.css shows one of the two)
   const image = tellEntry?.image;
-  const blur = tellWord ? 6 : Math.max(0, WORD_GOAL - words) * 1.2;
-  const gray = !senseCoach || found.see || used.length >= 2 ? 0 : used.length === 1 ? 0.5 : 1;
 
   const askAbout = (index: number) => {
     setSense((now) => ({ index, turn: now?.index === index ? now.turn + 1 : 0 }));
@@ -342,22 +340,20 @@ function WriteSentence({ id }: { id: string | undefined }) {
         <Link to="/" className="paper-write__back">
           <span aria-hidden>←</span> Back home
         </Link>
-        <ol className="paper-write__steps" aria-label="Steps">
-          <li aria-current="step">1 · Write it</li>
-          <li>2 · Scribbles checks</li>
-          <li>3 · Join the gallery</li>
-        </ol>
       </div>
 
       <div className="paper-stack">
         <form className="paper-stack__card paper-write__card" onSubmit={send}>
           <div className="paper-write__head">
-            <h1 className="paper-write__tell">
-              <span className="paper-status paper-status--retry">
-                {editing ? (day ? `Sentence ${day} · Tell` : "Sentence · Tell") : "Your next Tell"}
-              </span>
-              <span className="paper-write__sentence">{tell}</span>
-            </h1>
+            <div className="paper-write__about">
+              {image && <img className="paper-write__thumb" src={image} alt="" width={84} height={84} />}
+              <h1 className="paper-write__tell">
+                <span className="paper-status paper-status--retry">
+                  {editing ? (day ? `Sentence ${day} · Tell` : "Sentence · Tell") : "Your next Tell"}
+                </span>
+                <span className="paper-write__sentence">{tell}</span>
+              </h1>
+            </div>
             {technique && (
               <div className="paper-write__asks">
                 {ask && <p className="paper-status paper-status--turn paper-write__ask">{ask}</p>}
@@ -402,7 +398,30 @@ function WriteSentence({ id }: { id: string | undefined }) {
             </p>
           </div>
 
-          {/* Scribbles' picture of the sentence, and what he thinks of it */}
+          {/* Right after the box, in the page's order too, so the keyboard
+              reaches the button before Scribbles' help */}
+          <div className="paper-write__foot">
+            <button
+              type="submit"
+              className="paper-btn paper-btn--action paper-write__send"
+              disabled={saving || text.trim() === ""}
+            >
+              {saving ? "Sending…" : "Ask Scribbles"}
+            </button>
+            {problem && (
+              <p className="paper-write__failed" role="alert">
+                {problem.message}
+                {problem.open && (
+                  <>
+                    {" "}
+                    <Link to={`/Write/${problem.open}`}>Open my sentence</Link>
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+
+          {/* The Tell's picture, and what Scribbles thinks of the sentence */}
           <div className="paper-write__coach">
             <div className="paper-write__frame">
               <div className="paper-write__window">
@@ -413,7 +432,6 @@ function WriteSentence({ id }: { id: string | undefined }) {
                     alt=""
                     width={800}
                     height={500}
-                    style={{ filter: `blur(${blur.toFixed(1)}px) grayscale(${gray})` }}
                   />
                 )}
               </div>
@@ -463,26 +481,6 @@ function WriteSentence({ id }: { id: string | undefined }) {
             </div>
           )}
 
-          <div className="paper-write__foot">
-            <button
-              type="submit"
-              className="paper-btn paper-btn--action paper-write__send"
-              disabled={saving || text.trim() === ""}
-            >
-              {saving ? "Sending…" : "Ask Scribbles"}
-            </button>
-            {problem && (
-              <p className="paper-write__failed" role="alert">
-                {problem.message}
-                {problem.open && (
-                  <>
-                    {" "}
-                    <Link to={`/Write/${problem.open}`}>Open my sentence</Link>
-                  </>
-                )}
-              </p>
-            )}
-          </div>
         </form>
       </div>
     </div>

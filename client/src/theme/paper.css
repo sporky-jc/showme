@@ -2243,40 +2243,37 @@ h3,
   background: var(--paper-white);
 }
 
-/* Where the sentence is on its way to the gallery */
-.paper-write__steps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.paper-write__steps li {
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
-  color: var(--paper-muted);
-  font-weight: 800;
-  font-size: 0.9rem;
-}
-
-.paper-write__steps li[aria-current="step"] {
-  background: var(--paper-action);
-  color: var(--paper-action-ink);
-}
-
-/* The card holds, in order: the Tell, the box, Scribbles' picture and what
-   he says, the senses, and the button. On a phone that's one column, so
-   the box comes first and his answer sits right under it. On a wide screen
-   his picture moves to a column of its own beside the rest. */
+/* The card holds: the Tell, the box, the button, what Scribbles says, and
+   (with the sense coach on) the senses. On a phone that's one column, with
+   the button right under the box so it stays near the keyboard, and the
+   Tell's picture small beside the Tell. On a wide screen the picture has a
+   column of its own beside the rest, with Scribbles under it. */
 .paper-write__card {
   padding: 18px 16px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "head" "writing" "coach" "ideas" "foot";
+  grid-template-areas: "head" "writing" "foot" "coach" "ideas";
   gap: 18px;
+}
+
+/* The Tell with its small picture (phones only; see the wide screen below) */
+.paper-write__about {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.paper-write__thumb {
+  flex: none;
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 16px;
+  background: var(--paper-sky);
+}
+
+.paper-write__about .paper-write__tell {
+  min-width: 0;
 }
 
 .paper-write__head {
@@ -2456,9 +2453,10 @@ h3,
   gap: 16px;
 }
 
-/* The Tell's photo in a violet frame: foggy and gray until the sentence
-   paints it (the filter is set on the photo by Write.tsx) */
+/* The Tell's photo in a violet frame, on a wide screen only: a phone shows
+   the small picture beside the Tell */
 .paper-write__frame {
+  display: none;
   position: relative;
   padding: 10px;
   border-radius: 26px;
@@ -2466,7 +2464,6 @@ h3,
   box-shadow: 0 8px 0 var(--paper-brand-shadow);
 }
 
-/* Keeps the blur inside the frame */
 .paper-write__window {
   overflow: hidden;
   aspect-ratio: 16 / 10;
@@ -2479,7 +2476,6 @@ h3,
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: filter 0.5s ease-out;
 }
 
 .paper-write__talk {
@@ -2576,7 +2572,7 @@ h3,
   .paper-write__card {
     padding: 28px 32px;
     grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
-    grid-template-areas: "head coach" "writing coach" "ideas coach" "foot coach";
+    grid-template-areas: "head coach" "writing coach" "foot coach" "ideas coach";
     grid-template-rows: auto auto auto 1fr;
     column-gap: 36px;
     align-items: start;
@@ -2591,6 +2587,14 @@ h3,
   .paper-write__coach {
     position: sticky;
     top: 16px;
+  }
+
+  .paper-write__frame {
+    display: block;
+  }
+
+  .paper-write__thumb {
+    display: none;
   }
 
   .paper-write__talk .scribbles {
@@ -2793,11 +2797,6 @@ h3,
   .paper-mine__edit:hover {
     transition: none;
     transform: none;
-  }
-
-  /* The photo clears without fading */
-  .paper-write__photo {
-    transition: none;
   }
 }
 
