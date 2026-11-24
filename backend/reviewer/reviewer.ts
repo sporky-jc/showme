@@ -6,7 +6,9 @@
 //      plain case, a copy of the Tell. The one exception: a sentence held
 //      only for rude or unkind words is read by the welfare check (step 3),
 //      then either goes to a person as a Check in or back to the student
-//      with the kind-words tip (RUDE_ONLY below).
+//      with the kind-words tip (RUDE_ONLY below); and one held because the
+//      word lists can't read it well (another language, far too long) is
+//      read by the welfare check before it's left held (UNREADABLE below).
 //   2. The AI safety check: a model that only judges whether the sentence is
 //      safe. Unsafe, and it's held for a person as worrying ("Check in"); no
 //      answer (not set up, failed, too slow, out of free requests), and it's
@@ -108,6 +110,15 @@ const REWRITE_TIPS = new Set<TipId>(["onTopic", "ownWords"]);
 // it calls rude words themselves unsafe, which since that means "Check in"
 // would flag every one.
 const RUDE_ONLY = new Set<Reason>(["unsafe-words", "unkind", "names-someone"]);
+
+// Rule holds where the word lists can't read the sentence well: mostly in
+// another language (they're English lists, with only a few words in other
+// languages), or far longer than a Show sentence. The worrying list may not
+// see a worrying sentence written that way, so the welfare check reads it
+// (it reads other languages) before it's left for a person, held. Together
+// with rude or unkind words only; never with personal details or the
+// sensitive or worrying lists, which go to no AI.
+const UNREADABLE = new Set<Reason>(["not-english", "too-long"]);
 
 // How long one provider may take before the next one is asked
 export const PROVIDER_TIMEOUT_MS = 10_000;
@@ -213,6 +224,24 @@ const suggest = async (
     if (held) return { suggestion: { ...held, reasons: [...held.reasons, ...rules.reasons] }, attempts };
     return {
       suggestion: { verdict: "redo", tip: "kindWords", reasons: rules.reasons, decidedBy: "rules" },
+      attempts,
+    };
+  }
+  // Held because the word lists can't read it well: mostly not in English, or
+  // far too long. A worrying sentence written that way would otherwise sit
+  // with the other holds, unflagged, so the welfare check reads it too (see
+  // UNREADABLE). Worried (or no clear "no"), and it's a Check in; otherwise
+  // it stays held for a person, as before.
+  if (
+    rules.outcome === "hold" &&
+    rules.reasons.some((reason) => UNREADABLE.has(reason)) &&
+    rules.reasons.every((reason) => UNREADABLE.has(reason) || RUDE_ONLY.has(reason))
+  ) {
+    const attempts: ProviderAttempt[] = [];
+    const held = await checkWelfare(shown, welfare, timeoutMs, attempts);
+    if (held) return { suggestion: { ...held, reasons: [...held.reasons, ...rules.reasons] }, attempts };
+    return {
+      suggestion: { verdict: "unsure", tip: null, reasons: rules.reasons, decidedBy: "rules" },
       attempts,
     };
   }
