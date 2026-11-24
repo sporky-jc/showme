@@ -1,12 +1,12 @@
 import React from "react";
 import { Link } from "react-router";
 import FilmPlayer from "../components/FilmPlayer";
-import { FILMS } from "../films";
+import { FILMS, WELCOME_FILM } from "../films";
 import { REFRESHERS } from "../refreshers";
 import type { Technique } from "../api/types";
 
 // The Films page: every explainer film in one place, to watch again. Open to
-// everyone, signed in or not. Each card is the film's name, what it's about
+// everyone, signed in or not. The Welcome film comes first. Each card is the film's name, what it's about
 // (the refresher's own words) and the player. Nothing downloads until a
 // film's play button is pressed, and the pictures here are the small copies.
 // The films are listed in the order of films.ts.
@@ -26,6 +26,15 @@ function Films() {
         </p>
       </div>
       <ul className="paper-films__list">
+        <li className="paper-card paper-films__card">
+          <h2>{WELCOME_FILM.title}</h2>
+          <p className="paper-films__about">Don’t just tell it. Show it! See what that means.</p>
+          <FilmPlayer
+            film={{ ...WELCOME_FILM, poster: WELCOME_FILM.smallPoster }}
+            about={WELCOME_FILM.title}
+            quiet
+          />
+        </li>
         {films.map(({ technique, film, words }) => (
           <li key={technique} className="paper-card paper-films__card">
             <h2>{words.name}</h2>

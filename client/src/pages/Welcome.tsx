@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Scribbles from "../components/Scribbles";
+import WelcomeFilm from "../components/WelcomeFilm";
 import { useOpenLogin } from "../components/loginPopup";
 import { phonePhotoMedia } from "../config";
 import examples from "../tellData";
@@ -100,6 +101,7 @@ function Welcome() {
           </span>
           Sign in with Google
         </button>
+        <WelcomeFilm onSignIn={openLogin} />
         <ol className="paper-welcome__steps">
           <li>1 · Write it</li>
           <li>2 · Scribbles checks</li>

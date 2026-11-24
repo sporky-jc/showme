@@ -13,8 +13,9 @@ describe("Films", () => {
   it("shows a card for every film, with its own play button", () => {
     renderFilms();
     expect(screen.getByRole("heading", { level: 1, name: "Films" })).toBeInTheDocument();
-    const names = Object.keys(FILMS).map((technique) => REFRESHERS[technique as keyof typeof REFRESHERS].name);
+    const names: string[] = Object.keys(FILMS).map((technique) => REFRESHERS[technique as keyof typeof REFRESHERS].name);
     expect(names).toHaveLength(8);
+    names.unshift("How Show ME works");
     for (const name of names) {
       const card = screen.getByRole("heading", { level: 2, name }).closest("li")!;
       expect(within(card).getByRole("button", { name: new RegExp(`^Watch the film: ${name}, \\d+ seconds$`) })).toBeInTheDocument();
@@ -24,7 +25,7 @@ describe("Films", () => {
   it("uses the small pictures, and downloads no film until asked", () => {
     const { container } = renderFilms();
     const videos = [...container.querySelectorAll("video")];
-    expect(videos).toHaveLength(8);
+    expect(videos).toHaveLength(9);
     for (const video of videos) {
       expect(video).toHaveAttribute("preload", "none");
       expect(video.getAttribute("poster")).toMatch(/poster-small\.jpg$/);
@@ -43,9 +44,9 @@ describe("Films", () => {
     expect(screen.getAllByRole("button", { name: /^Captions/ })).toHaveLength(1);
 
     const videos = [...container.querySelectorAll("video")];
-    fireEvent.play(videos[1]);
-    expect(pause).toHaveBeenCalledTimes(7);
-    expect(pause.mock.contexts).not.toContain(videos[1]);
+    fireEvent.play(videos[2]);
+    expect(pause).toHaveBeenCalledTimes(8);
+    expect(pause.mock.contexts).not.toContain(videos[2]);
     play.mockRestore();
     pause.mockRestore();
   });

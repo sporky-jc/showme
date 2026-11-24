@@ -882,6 +882,41 @@ h3,
   border-radius: 18px;
 }
 
+/* "Watch how it works": a white button with a small play mark */
+.paper-welcome__watch {
+  min-height: 48px;
+}
+
+.paper-welcome__watch-mark {
+  width: 14px;
+  height: 16px;
+  background: var(--paper-ink);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+/* The Welcome film's pop-up (WelcomeFilm.tsx), in a refresher's box */
+.paper-welcome-film__top {
+  justify-content: space-between;
+}
+
+.paper-welcome-film__top h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.paper-welcome-film__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.paper-welcome-film__next p {
+  margin: 0;
+  font-weight: 800;
+}
+
 .paper-welcome__g {
   display: grid;
   place-items: center;
