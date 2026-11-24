@@ -29,7 +29,9 @@ describe("addCaptions", () => {
     await addCaptions(video, "/films/x/x.vtt");
     expect(video.addTextTrack).toHaveBeenCalledWith("captions", "English", "en");
     expect(track.mode).toBe("disabled");
-    expect(cues).toEqual([{ startTime: 1, endTime: 2, text: "Hello." }]);
+    expect(cues).toEqual([
+      { startTime: 1, endTime: 2, text: "Hello.", align: "center", position: 50, positionAlign: "center", size: 80 },
+    ]);
     vi.unstubAllGlobals();
   });
 

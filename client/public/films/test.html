@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Captions test</title>
+<style>
+  body { font: 16px/1.4 system-ui, sans-serif; margin: 16px; background: #effff6; color: #20304a; }
+  h2 { font-size: 18px; margin: 22px 0 6px; }
+  .wrap { max-width: 480px; aspect-ratio: 16 / 9; border-radius: 20px; overflow: hidden; background: #cfe9dc; }
+  video { display: block; width: 100%; height: 100%; object-fit: contain; }
+  pre { margin: 6px 0 0; padding: 8px; background: #fff; white-space: pre-wrap; font-size: 13px; }
+  button { font: inherit; font-weight: 700; padding: 12px 16px; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h1>Captions test</h1>
+<p>Press each button. Captions are already on here. Which video shows the words in the middle, with nothing cut off?</p>
+
+<h2>A · As it is now</h2>
+<div class="wrap"><video id="vA" playsinline preload="none" poster="/films/senses/poster.jpg"><source src="/films/senses/senses.mp4" type="video/mp4"></video></div>
+<button id="bA" type="button">Watch A</button><pre id="lA"></pre>
+
+<h2>B · In the middle, narrower</h2>
+<div class="wrap"><video id="vB" playsinline preload="none" poster="/films/senses/poster.jpg"><source src="/films/senses/senses.mp4" type="video/mp4"></video></div>
+<button id="bB" type="button">Watch B</button><pre id="lB"></pre>
+
+<h2>C · From the left edge, narrower</h2>
+<div class="wrap"><video id="vC" playsinline preload="none" poster="/films/senses/poster.jpg"><source src="/films/senses/senses.mp4" type="video/mp4"></video></div>
+<button id="bC" type="button">Watch C</button><pre id="lC"></pre>
+
+<h2>D · In the middle, narrower (a second way)</h2>
+<div class="wrap"><video id="vD" playsinline preload="none" poster="/films/senses/poster.jpg"><source src="/films/senses/senses.mp4" type="video/mp4"></video></div>
+<button id="bD" type="button">Watch D</button><pre id="lD"></pre>
+
+<script>
+  var secs = function (t) { return t.split(":").reduce(function (a, b) { return a * 60 + Number(b); }, 0); };
+  function set(cue, name, value, notes) { try { cue[name] = value; if (cue[name] !== value) notes[name] = "ignored (" + cue[name] + ")"; } catch (e) { notes[name] = "failed"; } }
+  var PLACE = {
+    A: function () {},
+    B: function (cue, notes) { set(cue, "align", "center", notes); set(cue, "position", 50, notes); set(cue, "positionAlign", "center", notes); set(cue, "size", 80, notes); },
+    C: function (cue, notes) { set(cue, "align", "center", notes); set(cue, "positionAlign", "line-left", notes); set(cue, "position", 10, notes); set(cue, "size", 80, notes); },
+    D: function (cue, notes) { set(cue, "align", "center", notes); set(cue, "position", 50, notes); set(cue, "size", 80, notes); }
+  };
+  Object.keys(PLACE).forEach(function (k) {
+    var v = document.getElementById("v" + k), log = document.getElementById("l" + k);
+    document.getElementById("b" + k).addEventListener("click", function () {
+      v.play(); v.controls = true;
+      fetch("/films/senses/senses.vtt").then(function (r) { return r.text(); }).then(function (vtt) {
+        var track = v.addTextTrack("captions", "English", "en"), notes = {}, first = null;
+        vtt.replace(/\r/g, "").split(/\n{2,}/).forEach(function (block) {
+          var rows = block.split("\n"), at = -1;
+          rows.forEach(function (row, i) { if (at < 0 && row.indexOf("-->") >= 0) at = i; });
+          if (at < 0) return;
+          var times = rows[at].split("-->");
+          var cue = new VTTCue(secs(times[0].trim()), secs(times[1].trim().split(/\s/)[0]), rows.slice(at + 1).join("\n"));
+          PLACE[k](cue, notes);
+          track.addCue(cue); first = first || cue;
+        });
+        track.mode = "showing";
+        log.textContent = "align " + first.align + " · position " + first.position + " · positionAlign " + first.positionAlign + " · size " + first.size + " · line " + first.line + "\n" + JSON.stringify(notes);
+      }).catch(function (e) { log.textContent = "CAPTIONS FAILED: " + e.message; });
+    });
+  });
+</script>
+</body>
+</html>

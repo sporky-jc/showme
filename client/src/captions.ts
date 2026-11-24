@@ -41,7 +41,17 @@ export async function addCaptions(video: HTMLVideoElement, url: string): Promise
     if (lines.length === 0) return;
     const track = video.addTextTrack("captions", "English", "en");
     track.mode = "disabled";
-    for (const line of lines) track.addCue(new VTTCue(line.start, line.end, line.text));
+    for (const line of lines) {
+      const cue = new VTTCue(line.start, line.end, line.text);
+      // In the middle and a little narrower than the picture, so the
+      // film's round corners don't cut the words. (Left to itself, Safari
+      // starts the words at the middle and runs them off the right side.)
+      cue.align = "center";
+      cue.position = 50;
+      cue.positionAlign = "center";
+      cue.size = 80;
+      track.addCue(cue);
+    }
   } catch {
     // no captions this time
   }
