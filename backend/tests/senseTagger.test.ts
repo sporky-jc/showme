@@ -197,6 +197,29 @@ describe("tagShow", () => {
     });
   });
 
+  it("says what a failed sentence spent: the answers that came back, and a worst case for one that didn't", async () => {
+    // Llama answers (Cloudflare says 12 Neurons), then Mistral's answer can't be read (8 more)
+    vi.stubGlobal(
+      "fetch",
+      answering({ [LLAMA]: { labels: [] }, [MISTRAL]: "Sorry, I can't." }, { prompt_tokens: 300, completion_tokens: 40, neurons: 10 } as never)
+    );
+    await expect(tagShow(SHOW, settings, AbortSignal.timeout(1000))).rejects.toMatchObject({ invalid: true, neuronsSpent: 20 });
+
+    // Llama answers, then Mistral never does (a timeout): its worst case is counted
+    const timedOut = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).endsWith(MISTRAL)) throw new DOMException("The operation timed out.", "TimeoutError");
+      return new Response(JSON.stringify({ success: true, result: { response: { labels: [] }, usage: { neurons: 10 } } }));
+    });
+    vi.stubGlobal("fetch", timedOut);
+    const error = (await tagShow(SHOW, settings, AbortSignal.timeout(1000)).catch((e: unknown) => e)) as { neuronsSpent?: number };
+    expect(error.neuronsSpent).toBeGreaterThan(10 + 20);
+
+    // Turned away before answering (HTTP 429): nothing is charged for it
+    const busy = new Response(JSON.stringify({ success: false, errors: [{ code: 3040, message: "busy" }] }), { status: 429 });
+    vi.stubGlobal("fetch", answering({ [LLAMA]: busy }));
+    await expect(tagShow(SHOW, settings, AbortSignal.timeout(1000))).rejects.toMatchObject({ status: 429, neuronsSpent: 0 });
+  });
+
   it("says when a model's answer can't be read", async () => {
     vi.stubGlobal("fetch", answering({ [LLAMA]: { labels: [] }, [MISTRAL]: "Sorry, I can't." }));
     await expect(tagShow(SHOW, settings, AbortSignal.timeout(1000))).rejects.toMatchObject({ invalid: true });
@@ -261,7 +284,7 @@ describe("the tagger's queue", () => {
 
     const result = await tagApprovedSentences(settings, { tag: agreeing });
 
-    expect(result).toEqual({ tagged: 1, unreadable: 0, neurons: 30 });
+    expect(result).toEqual({ tagged: 1, unreadable: 0, gaveUp: 0, neurons: 30 });
     expect(await tagged(approved._id)).toMatchObject({ senseTags: [{ word: "wailed", sense: "hear" }], taggedShow: SHOW });
     expect((await tagged(waiting._id))?.taggedShow).toBeUndefined();
     expect((await tagged(qa._id))?.taggedShow).toBeUndefined();
@@ -306,6 +329,42 @@ describe("the tagger's queue", () => {
     // The next day starts again
     const tomorrow = () => new Date(Date.now() + 24 * 60 * 60 * 1000);
     expect((await tagApprovedSentences(settings, { tag: agreeing, neuronsPerDay: 100, now: tomorrow })).tagged).toBe(2);
+  });
+
+  it("counts what a failed sentence spent towards the day's budget", async () => {
+    await add({ approved: true });
+    const failing = vi.fn(async () => {
+      throw Object.assign(new Error("timed out"), { neuronsSpent: 50 });
+    });
+    expect(await tagApprovedSentences(settings, { tag: failing })).toMatchObject({ tagged: 0, neurons: 50 });
+    expect(await taggerNeuronsToday(new Date())).toBe(50);
+  });
+
+  it("gives up on a sentence after 3 failures with the same words, so it isn't tried every run", async () => {
+    const sentence = await add({ approved: true });
+    const failing = vi.fn(async () => {
+      throw Object.assign(new Error("timed out"), { neuronsSpent: 5 });
+    });
+    await tagApprovedSentences(settings, { tag: failing });
+    await tagApprovedSentences(settings, { tag: failing });
+    expect((await tagged(sentence._id))?.taggedShow).toBeUndefined();
+    // The third failure: saved with no AI highlights (the word list still lights what it knows)
+    expect(await tagApprovedSentences(settings, { tag: failing })).toMatchObject({ gaveUp: 1 });
+    expect(await tagged(sentence._id)).toMatchObject({ senseTags: [], taggedShow: SHOW });
+    await tagApprovedSentences(settings, { tag: failing });
+    expect(failing).toHaveBeenCalledTimes(3);
+  });
+
+  it("starts counting failures again when the words change", async () => {
+    const sentence = await add({ approved: true });
+    const failing = vi.fn(async () => {
+      throw Object.assign(new Error("timed out"), { neuronsSpent: 5 });
+    });
+    await tagApprovedSentences(settings, { tag: failing });
+    await tagApprovedSentences(settings, { tag: failing });
+    await Sentence.updateOne({ _id: sentence._id }, { $set: { show: "The bell rang." } });
+    await tagApprovedSentences(settings, { tag: failing });
+    expect((await tagged(sentence._id))?.taggedShow).toBeUndefined();
   });
 
   it("stops the run when Workers AI turns requests away, saving nothing for that sentence and saying why", async () => {

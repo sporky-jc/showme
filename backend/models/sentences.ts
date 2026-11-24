@@ -99,6 +99,12 @@ const sentenceSchema = new mongoose.Schema({
   taggedShow: { type: String, select: false },
   // When the tagger last saved highlights, for its daily limit
   taggedAt: { type: Date, select: false },
+  // How many times in a row the tagger failed on `tagFailedShow` (a timeout,
+  // a network error): after 3 it gives up on those words (tagger/queue.ts),
+  // so a sentence that always fails isn't tried every 10 minutes. New words
+  // start again from 0.
+  tagFailures: { type: Number, select: false },
+  tagFailedShow: { type: String, select: false },
   reviewedAt: { type: Date, select: false },
   // The words the safety check (or the welfare check) last gave an invalid
   // answer about: a second invalid answer for the same words is saved as a

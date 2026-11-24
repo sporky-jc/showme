@@ -28,6 +28,8 @@ export const REQUEST_TIMEOUT_MS = 20_000;
 // what's left (index.ts), so the tagger keeps its share small: at most 45
 // seconds, plus one sentence's two requests (2 x 20 seconds).
 export const RUN_DEADLINE_MS = 45_000;
+// Failures in a row with the same words before the tagger gives up on them
+export const MAX_TAG_FAILURES = 3;
 
 // The day's Neuron budget: TAGGER_NEURONS_PER_DAY when it's a whole number,
 // otherwise 4,000 (a sentence costs about 33)
@@ -65,13 +67,13 @@ export async function tagApprovedSentences(
     neuronsPerDay?: number;
     deadlineMs?: number;
   }
-): Promise<{ tagged: number; unreadable: number; neurons: number; stopped?: TagStop; detail?: string }> {
+): Promise<{ tagged: number; unreadable: number; gaveUp: number; neurons: number; stopped?: TagStop; detail?: string }> {
   const started = now().getTime();
   const taggedToday = await Sentence.countDocuments({ taggedAt: { $gte: startOfToday(now()) } });
   const room = Math.min(limit, perDay - taggedToday);
-  if (room <= 0) return { tagged: 0, unreadable: 0, neurons: 0, stopped: "daily-limit" };
+  if (room <= 0) return { tagged: 0, unreadable: 0, gaveUp: 0, neurons: 0, stopped: "daily-limit" };
   const spentBefore = await taggerNeuronsToday(now());
-  if (spentBefore >= neuronsPerDay) return { tagged: 0, unreadable: 0, neurons: 0, stopped: "neuron-budget" };
+  if (spentBefore >= neuronsPerDay) return { tagged: 0, unreadable: 0, gaveUp: 0, neurons: 0, stopped: "neuron-budget" };
 
   // Approved, not a test account's, and no highlights for these exact words
   const waiting = await Sentence.find(
@@ -80,18 +82,19 @@ export async function tagApprovedSentences(
       GID: { $not: TEST_SENTENCES },
       $expr: { $ne: ["$taggedShow", "$show"] },
     },
-    { _id: 1, show: 1 }
+    { _id: 1, show: 1, tagFailures: 1, tagFailedShow: 1 }
   )
     .sort({ decidedAt: -1, createdAt: -1 })
     .limit(room)
-    .lean<{ _id: mongoose.Types.ObjectId; show: string }[]>();
+    .lean<{ _id: mongoose.Types.ObjectId; show: string; tagFailures?: number; tagFailedShow?: string }[]>();
 
   let tagged = 0;
   let unreadable = 0;
+  let gaveUp = 0;
   let neurons = 0;
   for (const sentence of waiting) {
-    if (now().getTime() - started > deadlineMs) return { tagged, unreadable, neurons, stopped: "deadline" };
-    if (spentBefore + neurons >= neuronsPerDay) return { tagged, unreadable, neurons, stopped: "neuron-budget" };
+    if (now().getTime() - started > deadlineMs) return { tagged, unreadable, gaveUp, neurons, stopped: "deadline" };
+    if (spentBefore + neurons >= neuronsPerDay) return { tagged, unreadable, gaveUp, neurons, stopped: "neuron-budget" };
     let tags: SenseTag[];
     try {
       const result = await tag(sentence.show, settings, AbortSignal.timeout(REQUEST_TIMEOUT_MS));
@@ -99,22 +102,42 @@ export async function tagApprovedSentences(
       neurons += result.neurons;
       await addTaggerNeurons(now(), result.neurons);
     } catch (error) {
+      // What the failed sentence spent still counts towards the day's budget
+      const spent = (error as { neuronsSpent?: unknown } | null)?.neuronsSpent;
+      if (typeof spent === "number" && spent > 0) {
+        neurons += spent;
+        await addTaggerNeurons(now(), spent);
+      }
       if (error instanceof ProviderError && error.status === 429) {
-        return { tagged, unreadable, neurons, stopped: "rate-limited", detail: error.detail };
+        return { tagged, unreadable, gaveUp, neurons, stopped: "rate-limited", detail: error.detail };
       }
       if (error instanceof ProviderError && (error.status === 401 || error.status === 403)) {
-        return { tagged, unreadable, neurons, stopped: "credentials", detail: error.detail };
+        return { tagged, unreadable, gaveUp, neurons, stopped: "credentials", detail: error.detail };
       }
       if (error instanceof ProviderError && isModelGone(error.status, error.detail)) {
-        return { tagged, unreadable, neurons, stopped: "model-gone", detail: error.detail };
+        return { tagged, unreadable, gaveUp, neurons, stopped: "model-gone", detail: error.detail };
       }
       // A model answered in a form that can't be read: saved with no AI
       // highlights (the word list still lights what it knows), so the same
-      // sentence doesn't use Neurons every run. Anything else (a timeout, a
-      // network error) is tried again next run.
-      if (!(error instanceof ProviderError && error.invalid)) continue;
-      tags = [];
-      unreadable += 1;
+      // sentence doesn't use Neurons every run
+      if (error instanceof ProviderError && error.invalid) {
+        tags = [];
+        unreadable += 1;
+      } else {
+        // Anything else (a timeout, a network error) is tried again next
+        // run, up to MAX_TAG_FAILURES times with the same words; then it's
+        // saved with no AI highlights too
+        const failures = (sentence.tagFailedShow === sentence.show ? (sentence.tagFailures ?? 0) : 0) + 1;
+        if (failures < MAX_TAG_FAILURES) {
+          await Sentence.updateOne(
+            { _id: sentence._id, show: { $eq: sentence.show } },
+            { $set: { tagFailures: failures, tagFailedShow: sentence.show } }
+          );
+          continue;
+        }
+        tags = [];
+        gaveUp += 1;
+      }
     }
     // Only if the words are still the ones tagged: an edit in the meantime
     // wins, and is tagged once it's approved again
@@ -124,5 +147,5 @@ export async function tagApprovedSentences(
     );
     if (modifiedCount === 1) tagged += 1;
   }
-  return { tagged, unreadable, neurons };
+  return { tagged, unreadable, gaveUp, neurons };
 }
