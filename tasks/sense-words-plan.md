@@ -147,11 +147,17 @@ account. Each returns its sense words, each with a sense.
     made-up sentences, labeled the same way, never tuned on. The measure
     runs on both sets; production needs both to pass. The word list scores
     85.0% found, 94.4% right on it (84.2% and 93.0% on the tuning set).
-  - [ ] **2b. A judge panel decides the may senses**, once, then frozen
+  - [x] **2b. A judge panel decides the may senses**, once, then frozen
     (`client/src/test/senseMay.ts`): three AI families other than the
     tagger's (Gemma 4, GLM-4.7-flash, gpt-oss-120b) are asked, for every sense a sentence's
     labels leave out, whether most grade 4 to 7 teachers would accept it.
     Only a unanimous yes counts; any doubt counts against the tagger.
+    Judged 2026-11-24 (Gemma 4, GLM-4.7-flash, gpt-oss-120b, every answer
+    read): one judgment call in 137 sentences ("The fire alarm screeched,
+    and we covered our ears." may also show feel), so the bar is almost
+    exactly the labels. The free Neurons run over a rolling 24 hours: the
+    held-out set was refused at 02:52 UTC and ran at 05:40, once the day
+    before's big run was 24 hours old.
   - [x] **3. The tagger says clear or maybe** for each label, and a word
     lights up only when both models give the same sense and both say clear.
     A better question: a thing's name alone is none, judge by the phrase,
