@@ -39,7 +39,6 @@ describe("the rule checks: held for a person, never sent to an AI", () => {
     "It is so damn cold my fingers are freezing.",
     "The sh1t froze solid on the sidewalk outside.",
     "It is f.u.c.k.i.n.g freezing out here today.",
-    "The $ex ed teacher wore a cold blue coat.",
   ])("holds bad language, however it is spelled: %s", (show) => {
     expect(isUnsafe(show)).toBe(true);
     expect(checkRules(COLD, show)).toMatchObject({ outcome: "hold", reasons: ["unsafe-words"] });
@@ -495,9 +494,13 @@ describe("the reviewer", () => {
 
   it("still holds a sentence the rules held before any request, a copy of the Tell or not", async () => {
     const safety = safetyCheck("safe");
-    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, damn." }, [provider("ai", {})], { safety, welfare: calm() });
+    const welfare = calm();
+    const ai = provider("ai", {});
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside. Call 555-123-4567." }, [ai], { safety, welfare });
     expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "rules" });
     expect(safety.check).not.toHaveBeenCalled();
+    expect(welfare.check).not.toHaveBeenCalled();
+    expect(ai.review).not.toHaveBeenCalled();
   });
 
   it("records how long each request took", async () => {
@@ -941,5 +944,81 @@ describe("the welfare check's answer", () => {
 
   it.each([["yes"], [{ concern: "YES" }], [{ concern: "no", why: "fine" }], [{}], [null]])("is refused as %o", (answer) => {
     expect(WelfareAnswer.safeParse(answer).success).toBe(false);
+  });
+});
+
+// Held only for rude or unkind words (RUDE_ONLY, reviewer.ts): the welfare
+// check reads it, then it's a Check in or a "Try again" with kindWords
+describe("rude or unkind words", () => {
+  it.each([
+    ["It is cold outside, damn.", ["unsafe-words"]],
+    ["You suck dicks.", ["unsafe-words", "unkind"]],
+    ["Liam is so fat and stupid.", ["unkind", "names-someone"]],
+  ])("go back to the student with the kind-words tip when the welfare check sees nothing: %s", async (show, reasons) => {
+    const safety = safetyCheck("safe");
+    const welfare = calm();
+    const ai = provider("ai", { verdict: "approve", tip: "great" });
+
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show }, [ai], { safety, welfare });
+
+    expect(suggestion).toEqual({ verdict: "redo", tip: "kindWords", reasons, decidedBy: "rules" });
+    expect(outcomes(attempts)).toEqual([{ provider: "welfare", outcome: "no-concern" }]);
+    // Not the safety check (it calls rude words unsafe) and no reviewer
+    expect(safety.check).not.toHaveBeenCalled();
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it("are a Check in when the welfare check is worried, with the words still listed", async () => {
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "He made me suck his dick." }, [], {
+      safety: safetyCheck("safe"),
+      welfare: welfareCheck({ concern: "yes" }),
+    });
+    expect(suggestion).toEqual({
+      verdict: "unsure",
+      tip: null,
+      reasons: ["worrying", "welfare-check", "unsafe-words"],
+      decidedBy: "welfare",
+    });
+  });
+
+  it.each([
+    ["fails", welfareCheck(new Error("down"))],
+    ["gives an invalid answer", welfareCheck({ concern: "maybe" })],
+    ["isn't set up", undefined],
+  ])("are held as worrying when the welfare check %s: never sent back unread", async (_, welfare) => {
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, damn." }, [], {
+      safety: safetyCheck("safe"),
+      welfare,
+    });
+    expect(suggestion).toMatchObject({ verdict: "unsure", tip: null, reasons: ["worrying", "no-welfare-check", "unsafe-words"] });
+  });
+
+  it("never sends anything else the rules held to an AI: personal details, sensitive or worrying words", async () => {
+    for (const show of [
+      "My brother does sex stuff to me.",
+      "Damn, call me at 555-123-4567.",
+      "I want to kill myself.",
+    ]) {
+      const welfare = calm();
+      const { suggestion } = await reviewSentence({ tell: COLD, show }, [], { safety: safetyCheck("safe"), welfare });
+      expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "rules" });
+      expect(welfare.check).not.toHaveBeenCalled();
+    }
+  });
+
+  it("\"sex\" and \"sexual\" are a Check in on their own", () => {
+    for (const show of ["My brother does sex stuff to me.", "He does sexual things to me.", "The $ex ed teacher wore a cold blue coat."]) {
+      const result = checkRules(COLD, show);
+      expect(result.outcome === "hold" && result.reasons.includes("worrying")).toBe(true);
+    }
+  });
+
+  it("still count towards the limit of two send-backs", async () => {
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "It is cold outside, damn." }, [], {
+      safety: safetyCheck("safe"),
+      welfare: calm(),
+      sentBack: 2,
+    });
+    expect(suggestion).toMatchObject({ verdict: "unsure", tip: null, reasons: ["unsafe-words", "redo-limit"] });
   });
 });

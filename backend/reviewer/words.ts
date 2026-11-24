@@ -10,7 +10,7 @@ export const UNSAFE_WORDS = [
   "fuc", "fking", "fkn", "sht", "shit", "shitty", "biatch",
   "bullshit", "bitch", "bitches", "bastard", "asshole", "ass", "arse", "dick", "dickhead",
   "cunt", "pussy", "piss", "pissed", "damn", "dammit", "damnit", "goddamn", "crap", "hell",
-  "wtf", "stfu", "omfg", "slut", "whore", "porn", "porno", "sex", "sexy", "nude", "nudes",
+  "wtf", "stfu", "omfg", "slut", "whore", "porn", "porno", "sexy", "nude", "nudes",
   "boobs", "tits", "penis", "vagina", "horny", "dildo", "condom", "cocaine", "meth",
   "heroin", "vodka", "whiskey", "vape", "vaping", "vapes", "phuck", "paki", "dumbass", "humping",
 ];
@@ -199,6 +199,9 @@ export const FOREIGN_SENSITIVE = ["muerte", "drogas", "droga", "desnudo", "desnu
 // AI does or it's sent back: held for a person (a "sensitive" hold, quieter
 // than "worrying"). Always held, wherever they are.
 export const SENSITIVE_WORDS = [
+  // "sex" from a child is about someone, more often than not: a Check in
+  // (moved from the bad-language list), with "sexual" for the same reason
+  "sex", "sexual",
   "suicide", "abuse", "abused", "abusing", "hopeless", "worthless",
   // (Not "bully": only with "me" near it, rules.ts)
   "pregnant", "cigarette", "cigarettes", "cigs", "cigar", "alcohol",
