@@ -68,7 +68,9 @@ const renderToday = ({
   return { ...view, requests };
 };
 
-const notes = () => within(screen.getByRole("region", { name: "My sentences" })).getAllByRole("link");
+// The sentence notes in "My sentences" (not its "See all" link)
+const notes = () =>
+  within(within(screen.getByRole("region", { name: "My sentences" })).getByRole("list")).getAllByRole("link");
 
 describe("Today", () => {
   it("greets the student by first name", async () => {
@@ -315,6 +317,18 @@ describe("Today", () => {
     expect(document.querySelector(".paper-today__tip")).toBeNull();
     expect(screen.queryByText(/Try See today/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Start showing/ })).toBeInTheDocument();
+  });
+
+  it("links to all of the student's sentences, and keeps the sense tip under the button", async () => {
+    renderToday({ mine: shows(2) });
+    await screen.findByText("“Tell 3”");
+
+    const all = await screen.findByRole("link", { name: /^See all/ });
+    expect(all).toHaveAttribute("href", "/MySentences");
+    // Start showing comes before the tip, so it stays on a phone's first screen
+    const start = screen.getByRole("link", { name: /Start showing/ });
+    const tip = document.querySelector(".paper-today__tip")!;
+    expect(start.compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("has no sticker book", async () => {
