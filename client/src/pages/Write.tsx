@@ -113,6 +113,11 @@ function WriteSentence({ id }: { id: string | undefined }) {
   // server already has for this day.)
   const [problem, setProblem] = useState<{ message: string; open?: string } | null>(null);
   const [sent, setSent] = useState<{ sentence: Sent; again: boolean } | null>(null);
+  // "Need an idea?": whether the help under the button is open. Null until
+  // the student presses it; until then it's open only if a refresher opened
+  // by itself (below), so its button is there when the refresher closes.
+  const [ideasPressed, setIdeasPressed] = useState<boolean | null>(null);
+  const [metRefresher, setMetRefresher] = useState(false);
 
   // Once sent, the page changes under the reader: move them to its heading
   const sentHeading = useRef<HTMLHeadingElement>(null);
@@ -210,6 +215,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
   const technique = tellEntry?.technique;
   const seen = user.seenRefreshers;
   const firstTime = !editing && technique !== undefined && seen !== undefined && !seen.includes(technique);
+  // (It stops being the first time as soon as the profile remembers it.)
+  if (firstTime && !metRefresher) setMetRefresher(true);
+  const ideasOpen = ideasPressed ?? metRefresher;
 
   if (id && !editing) {
     return (
@@ -265,13 +273,13 @@ function WriteSentence({ id }: { id: string | undefined }) {
       : editing?.toRedo && typed === null
       ? // A sentence sent back for another try, before any change
         senseCoach
-        ? "Let's make it even better. Tap a sense for an idea!"
+        ? "Let's make it even better. Tap “Need an idea?” for a tip!"
         : "Let's make it even better!"
       : tellWord
       ? `“${tellWord}” is the Tell word. Can you show it instead?`
       : words === 0
       ? senseCoach
-        ? "Tap a sense and I'll help you think!"
+        ? "Stuck? Tap “Need an idea?” and I'll help you think!"
         : "Write your sentence. I'll try to picture it!"
       : words < WORD_GOAL
       ? "It's getting clearer! Add a detail."
@@ -354,10 +362,9 @@ function WriteSentence({ id }: { id: string | undefined }) {
                 <span className="paper-write__sentence">{tell}</span>
               </h1>
             </div>
-            {technique && (
+            {ask && (
               <div className="paper-write__asks">
-                {ask && <p className="paper-status paper-status--turn paper-write__ask">{ask}</p>}
-                <RefresherButton technique={technique} firstTime={firstTime} />
+                <p className="paper-status paper-status--turn paper-write__ask">{ask}</p>
               </div>
             )}
 
@@ -449,34 +456,52 @@ function WriteSentence({ id }: { id: string | undefined }) {
             </div>
           </div>
 
-          {/* The sense buttons and their tips: the senseCoach feature */}
-          {senseCoach && (
+          {/* All the help, behind one button: the Tell's refresher (with its
+              film) and, with the senseCoach feature, the sense buttons and
+              their tips */}
+          {(technique || senseCoach) && (
             <div className="paper-write__ideas">
-              <p className="paper-write__hint" id="senses-hint">
-                Tap a sense for an idea. It lights up when your sentence uses it.
-              </p>
-              <div className="paper-write__senses" role="group" aria-label="Senses">
-                {SENSES.map(({ key, name }, index) => {
-                  const word = found[key];
-                  return (
-                    <button
-                      type="button"
-                      key={key}
-                      className={word ? "paper-write__sense paper-write__sense--used" : "paper-write__sense"}
-                      style={{ "--sense-color": `var(--paper-sense-${key})` } as React.CSSProperties}
-                      aria-pressed={sense?.index === index}
-                      aria-describedby={word ? `sense-${key}-word` : undefined}
-                      onClick={() => askAbout(index)}
-                    >
-                      {name}
-                      {word && (
-                        <span className="paper-write__sense-word" id={`sense-${key}-word`} aria-hidden>
-                          Used: {word}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+              <button
+                type="button"
+                className="paper-btn paper-write__idea"
+                aria-expanded={ideasOpen}
+                aria-controls="write-ideas"
+                onClick={() => setIdeasPressed(!ideasOpen)}
+              >
+                Need an idea?
+              </button>
+              <div id="write-ideas" className="paper-write__idea-box" hidden={!ideasOpen}>
+                {technique && <RefresherButton technique={technique} firstTime={firstTime} />}
+                {senseCoach && (
+                  <div>
+                    <p className="paper-write__hint" id="senses-hint">
+                      Tap a sense for an idea. It lights up when your sentence uses it.
+                    </p>
+                    <div className="paper-write__senses" role="group" aria-label="Senses">
+                      {SENSES.map(({ key, name }, index) => {
+                        const word = found[key];
+                        return (
+                          <button
+                            type="button"
+                            key={key}
+                            className={word ? "paper-write__sense paper-write__sense--used" : "paper-write__sense"}
+                            style={{ "--sense-color": `var(--paper-sense-${key})` } as React.CSSProperties}
+                            aria-pressed={sense?.index === index}
+                            aria-describedby={word ? `sense-${key}-word` : undefined}
+                            onClick={() => askAbout(index)}
+                          >
+                            {name}
+                            {word && (
+                              <span className="paper-write__sense-word" id={`sense-${key}-word`} aria-hidden>
+                                Used: {word}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
