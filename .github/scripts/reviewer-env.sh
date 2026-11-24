@@ -19,6 +19,10 @@
 #                           daily Neuron budget on that backend (staging and
 #                           production share the sense account); 4,000 when
 #                           unset
+#   FEATURES                set by each deploy workflow: the features being
+#                           tried out that are on for that backend
+#                           (backend/config/features.ts), names with commas
+#                           between them; none when unset or empty
 #   REVIEWER_USE_GROQ       variable, optional: "yes" to add Groq (13+ only)
 #   CLOUDFLARE_REVIEW_MODEL variable, optional: another Workers AI model to
 #                           review with (e.g. @cf/meta/llama-3.1-8b-instruct-fast)
@@ -70,6 +74,14 @@ if [ -n "${TAGGER_NEURONS_PER_DAY:-}" ]; then
     line TAGGER_NEURONS_PER_DAY "$TAGGER_NEURONS_PER_DAY"
   else
     echo "::warning::TAGGER_NEURONS_PER_DAY must be a whole number; the tagger's budget is 4,000" >&2
+  fi
+fi
+
+if [ -n "${FEATURES:-}" ]; then
+  if [[ "$FEATURES" =~ ^[A-Za-z]+(,[A-Za-z]+)*$ ]]; then
+    line FEATURES "$FEATURES"
+  else
+    echo "::warning::FEATURES must be names with commas between them (letters only); every feature stays off" >&2
   fi
 fi
 

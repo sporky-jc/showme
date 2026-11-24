@@ -160,6 +160,10 @@ jobs:
           # While nobody uses production: staging 5,000, production 500.
           # When production goes live: staging 1,000, production 4,500.
           TAGGER_NEURONS_PER_DAY: "500"
+          # The features being tried out that are on for production (see
+          # backend/config/features.ts): none, to keep production simple.
+          # Add a name here only once it has been tried on staging.
+          FEATURES: ""
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           REVIEWER_MODE: ${{ vars.PRODUCTION_REVIEWER_MODE }}
           # Who sees the Owner settings on the Teacher page (the sense tagger switch)

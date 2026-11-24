@@ -1,6 +1,7 @@
 import axios from "axios";
 import type {
   EditSentenceBody,
+  Features,
   GallerySentence,
   LoginBody,
   Look,
@@ -30,6 +31,9 @@ import type {
 // Because the browser only ever talks to this site, it automatically sends the
 // httpOnly login cookie with each request; no code here touches the token.
 export const API = axios.create({ baseURL: "/api" });
+
+// Which features being tried out are on for this site's backend
+export const fetchFeatures = () => API.get<Features>("/features");
 
 // retrieve tell sentences
 export const fetchTellSentences = () => API.get<TellSentence[]>("/");
