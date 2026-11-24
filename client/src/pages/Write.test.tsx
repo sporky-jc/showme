@@ -284,8 +284,6 @@ describe("Write", () => {
     // Scribbles praises a full sentence without counting senses
     expect(bubble()).toHaveTextContent("I can picture it!");
     expect(bubble()).not.toHaveTextContent("senses");
-    // The picture clears with the words alone
-    expect((document.querySelector(".paper-write__photo") as HTMLElement).style.filter).toBe("blur(0px) grayscale(0)");
     // Sending still works the same
     expect(screen.getByRole("button", { name: "Ask Scribbles" })).toBeEnabled();
   });
@@ -359,17 +357,36 @@ describe("Write", () => {
     expect(screen.getByRole("button", { name: "Smell" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("shows the day's photo, foggy and gray until the sentence paints it", async () => {
+  it("shows the day's photo clear from the start: small by the Tell, and in its frame", async () => {
     const user = userEvent.setup();
     renderWrite();
     await box();
-    const photo = document.querySelector<HTMLImageElement>(".paper-write__photo")!;
-    expect(photo).toHaveAttribute("src", "/day3.jpg");
-    expect(photo).toHaveAttribute("alt", "");
-    expect(photo.style.filter).toBe("blur(9.6px) grayscale(1)");
+    // Both are here; paper.css shows the small one on a phone, the framed one on a wide screen
+    const photos = [
+      document.querySelector<HTMLImageElement>(".paper-write__thumb")!,
+      document.querySelector<HTMLImageElement>(".paper-write__photo")!,
+    ];
+    for (const photo of photos) {
+      expect(photo).toHaveAttribute("src", "/day3.jpg");
+      expect(photo).toHaveAttribute("alt", "");
+      expect(photo.style.filter).toBe("");
+    }
 
     await user.type(await box(), "Bright snow crunched under my boots and stung my cold cheeks");
-    expect(photo.style.filter).toBe("blur(0px) grayscale(0)");
+    for (const photo of photos) expect(photo.style.filter).toBe("");
+  });
+
+  it("has no step chips, and keeps the button right after the writing box", async () => {
+    renderWrite();
+    const input = await box();
+
+    expect(screen.queryByRole("list", { name: "Steps" })).not.toBeInTheDocument();
+    expect(screen.queryByText("2 · Scribbles checks")).not.toBeInTheDocument();
+    // In the page's order, the button comes right after the box, before the senses
+    const send = screen.getByRole("button", { name: "Ask Scribbles" });
+    const senses = screen.getByRole("group", { name: "Senses" });
+    expect(input.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(send.compareDocumentPosition(senses) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("sending saves the sentence for the right day, then says Scribbles is checking", async () => {
