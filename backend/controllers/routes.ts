@@ -287,17 +287,26 @@ export const markRefresherSeen = async (req: Request, res: Response) => {
 };
 
 export const logoutUser = async (req: Request, res: Response) => {
+  // Always tell the browser to delete its cookie: even if the token was
+  // missing or already expired, and even if cancelling it below fails. The
+  // options must match the ones it was set with.
+  res.clearCookie(SESSION_COOKIE, sessionCookieOptions);
   try {
-    // If the request carries a valid login, bump the user's token version so
-    // that token, and every copy of it, stops working.
+    // If the request carries the user's current login, bump their token
+    // version so that token, and every copy of it, stops working. Only the
+    // current one: a copy an earlier logout already cancelled (its version
+    // is behind) must not log the user out again wherever they have signed
+    // in since. (A profile from before versions existed has none stored,
+    // and its tokens say 0.)
     const session = readSession(req);
     if (session) {
-      await Profile.updateOne({ id: session.id }, { $inc: { tokenVersion: 1 } });
+      const version = session.v ?? 0;
+      await Profile.updateOne(
+        { id: session.id, tokenVersion: version === 0 ? { $in: [0, null] } : version },
+        { $inc: { tokenVersion: 1 } }
+      );
     }
 
-    // Always tell the browser to delete its cookie, even if the token was
-    // missing or already expired. The options must match the ones it was set with.
-    res.clearCookie(SESSION_COOKIE, sessionCookieOptions);
     res.status(200).json({ message: "Logged out" });
   } catch (error) {
     res.locals.error = error;

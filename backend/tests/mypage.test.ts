@@ -481,6 +481,24 @@ describe("saving sentences is limited per user", () => {
     expect((await request(app).post("/MyPage").send({ title: "day1", show: "Brr." })).status).toBe(401);
   });
 
+  // A copy of the cookie cancelled by a logout gets 401 from auth: those
+  // requests must not use up the student's own saves
+  it("doesn't count requests with a cancelled login against the student", async () => {
+    const ada = await createUser();
+    const cancelled = sessionCookie(ada);
+    await Profile.updateOne({ _id: ada._id }, { $inc: { tokenVersion: 1 } });
+    for (let n = 0; n < SENTENCE_WRITES_PER_MINUTE + 5; n++) {
+      expect((await write(cancelled, n)).status).toBe(401);
+    }
+
+    const res = await request(app)
+      .post("/MyPage")
+      .set("Cookie", sessionCookie({ id: ada.id, tokenVersion: 1 }))
+      .send({ title: "day1", show: "Frost bit my fingers." });
+
+    expect(res.status).toBe(201);
+  });
+
   it("counts each user on their own", async () => {
     const ada = await createUser();
     const alan = await otherUser();
