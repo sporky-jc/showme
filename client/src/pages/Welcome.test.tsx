@@ -34,8 +34,8 @@ describe("Welcome", () => {
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Don't just tell it. Show it!");
     expect(screen.getByText(/Turn boring sentences into pictures made of words/)).toBeInTheDocument();
-    expect(screen.getByText("2 · Scribbles checks")).toBeInTheDocument();
-    expect(screen.getByText("3 · Join the gallery")).toBeInTheDocument();
+    // The three step chips are gone: the lead says the same thing
+    expect(screen.queryByText("2 · Scribbles checks")).not.toBeInTheDocument();
   });
 
   it("opens the sign-in pop-up from its button", () => {

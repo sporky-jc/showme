@@ -102,11 +102,6 @@ function Welcome() {
           Sign in with Google
         </button>
         <WelcomeFilm onSignIn={openLogin} />
-        <ol className="paper-welcome__steps">
-          <li>1 · Write it</li>
-          <li>2 · Scribbles checks</li>
-          <li>3 · Join the gallery</li>
-        </ol>
       </section>
 
       <section

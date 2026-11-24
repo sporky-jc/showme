@@ -16,14 +16,17 @@ const Where = () => <div data-testid="where">{useLocation().pathname}</div>;
 
 // Draw the About page for `user` ({} = not signed in), with a pretend
 // "open the sign-in pop-up" that records each call
-const renderAbout = (user: UserState) => {
+const renderAbout = (user: UserState, senseCoach = false) => {
   const openLogin = vi.fn();
   renderWithApp(
     <OpenLoginContext.Provider value={openLogin}>
       <About />
       <Where />
     </OpenLoginContext.Provider>,
-    { state: { user }, route: "/about" }
+    {
+      state: { user, features: { senseHighlights: false, senseCoach } },
+      route: "/about",
+    }
   );
   return openLogin;
 };
@@ -70,5 +73,28 @@ describe("About", () => {
     // Honest about who reads them today
     expect(screen.getByText("Right now, a Show ME teacher reads every sentence as Scribbles.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See the gallery" })).toHaveAttribute("href", "/Gallery");
+  });
+
+  it("doesn't promise sense tips where the senseCoach feature is off", () => {
+    renderAbout({});
+
+    expect(screen.queryByRole("list", { name: "The five senses" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/tip for every sense/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tap a sense/)).not.toBeInTheDocument();
+    expect(screen.getByText("Write your sentence. I'll try to picture it!")).toBeInTheDocument();
+  });
+
+  it("tells about sense tips where the senseCoach feature is on", () => {
+    renderAbout({}, true);
+
+    expect(screen.getByRole("list", { name: "The five senses" })).toBeInTheDocument();
+    expect(screen.getByText(/Scribbles has a tip for every sense/)).toBeInTheDocument();
+    expect(screen.getByText("Stuck? Tap a sense and I'll give you a tip!")).toBeInTheDocument();
+  });
+
+  it("has no pretend review desk", () => {
+    renderAbout({});
+
+    expect(screen.queryByText("Approve")).not.toBeInTheDocument();
   });
 });
