@@ -8,6 +8,7 @@ import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
 import { nextDay } from "../days";
 import { askOf, classicId, hintFor, tellById, withoutAsk } from "../tells";
+import { useFeature } from "../features";
 import { SENSE_NAMES, SENSE_TIPS, leastUsedSense, senseCounts } from "../senses";
 
 // How many of the student's latest sentences to show under their next Tell
@@ -22,6 +23,8 @@ function Today() {
   // The next Tell is the one after the student's last sentence, so it's only
   // known once their list and the Tell sentences have arrived. Without both,
   // say so: a guess would show the wrong day, or "all done".
+  // Scribbles' sense tip is part of the senseCoach feature (see features.ts)
+  const senseCoach = useFeature("senseCoach");
   const { loaded, retry } = useStudentData();
 
   if (loaded === "loading") return <PageLoading />;
@@ -88,17 +91,19 @@ function Today() {
               <p className="paper-today__sentence">“{withoutAsk(today.tell)}”</p>
               {ask && <span className="paper-status paper-status--turn">{ask}</span>}
               <p className="paper-today__hint">{hintFor(today.technique)}</p>
-              <p
-                className="paper-today__tip"
-                style={{ "--tip-color": `var(--paper-sense-${tipSense})` } as CSSProperties}
-              >
-                <strong className="paper-today__tip-try">
-                  {used[tipSense] === 0
-                    ? `Try ${tipName} today!`
-                    : `You use ${tipName} the least. Try it today!`}
-                </strong>{" "}
-                {tip}
-              </p>
+              {senseCoach && (
+                <p
+                  className="paper-today__tip"
+                  style={{ "--tip-color": `var(--paper-sense-${tipSense})` } as CSSProperties}
+                >
+                  <strong className="paper-today__tip-try">
+                    {used[tipSense] === 0
+                      ? `Try ${tipName} today!`
+                      : `You use ${tipName} the least. Try it today!`}
+                  </strong>{" "}
+                  {tip}
+                </p>
+              )}
               <Link to="/Write" className="paper-btn paper-btn--action paper-today__start">
                 Start showing
                 <svg

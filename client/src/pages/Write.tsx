@@ -13,12 +13,15 @@ import { askOf, classicId, tellById, withoutAsk } from "../tells";
 import RefresherButton from "../components/RefresherButton";
 import { standing } from "../components/standing";
 import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, repeatedTellWord, senseWords } from "../senses";
+import { useFeature } from "../features";
 import type { OwnSentence } from "../api/types";
 import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 
 // The five senses in order, each with the questions Scribbles asks (see
 // SENSE_TIPS in senses.ts). Pressing a sense again asks its next question.
 const SENSES = SENSE_KEYS.map((key) => ({ key, name: SENSE_NAMES[key], tips: SENSE_TIPS[key] }));
+// What senseWords finds in a sentence that uses no sense
+const NO_SENSES = senseWords("");
 
 // A sentence this long has room for a detail
 const WORD_GOAL = 8;
@@ -89,6 +92,8 @@ function WriteSentence({ id }: { id: string | undefined }) {
   const user = useSelector((state: RootState) => state.user);
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
   const userSentences = useSelector((state: RootState) => state.usersentences);
+  // The sense buttons, their tips and the sense hints (see features.ts)
+  const senseCoach = useFeature("senseCoach");
   const dispatch = useDispatch<AppDispatch>();
   const signedIn = Object.keys(user).length !== 0;
 
@@ -245,11 +250,12 @@ function WriteSentence({ id }: { id: string | undefined }) {
       ? "Keep going, add a detail!"
       : "Nice and vivid!";
   // Which senses the sentence uses (a hint, see senses.ts), and whether it
-  // repeats the Tell's telling word
-  const found = senseWords(text);
+  // repeats the Tell's telling word. Without the senseCoach feature (see
+  // features.ts) the page doesn't look for senses at all.
+  const found = senseCoach ? senseWords(text) : NO_SENSES;
   const used = SENSES.filter(({ key }) => found[key]);
   const tellWord = repeatedTellWord(text, tell);
-  const clear = words >= WORD_GOAL && used.length >= 2 && !tellWord;
+  const clear = words >= WORD_GOAL && (!senseCoach || used.length >= 2) && !tellWord;
 
   // What Scribbles says. It changes when the sentence reaches a new stage,
   // not with every letter, so a screen reader isn't talked over.
@@ -258,13 +264,19 @@ function WriteSentence({ id }: { id: string | undefined }) {
       ? SENSES[sense.index].tips[sense.turn % SENSES[sense.index].tips.length]
       : editing?.toRedo && typed === null
       ? // A sentence sent back for another try, before any change
-        "Let's make it even better. Tap a sense for an idea!"
+        senseCoach
+        ? "Let's make it even better. Tap a sense for an idea!"
+        : "Let's make it even better!"
       : tellWord
       ? `“${tellWord}” is the Tell word. Can you show it instead?`
       : words === 0
-      ? "Tap a sense and I'll help you think!"
+      ? senseCoach
+        ? "Tap a sense and I'll help you think!"
+        : "Write your sentence. I'll try to picture it!"
       : words < WORD_GOAL
       ? "It's getting clearer! Add a detail."
+      : !senseCoach
+      ? "I can picture it!"
       : used.length === 0
       ? "I see shapes, but no details yet. What would you see or hear?"
       : used.length === 1
@@ -275,7 +287,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
   // until the sentence has enough words and senses to see it clearly
   const image = tellEntry?.image;
   const blur = tellWord ? 6 : Math.max(0, WORD_GOAL - words) * 1.2;
-  const gray = found.see || used.length >= 2 ? 0 : used.length === 1 ? 0.5 : 1;
+  const gray = !senseCoach || found.see || used.length >= 2 ? 0 : used.length === 1 ? 0.5 : 1;
 
   const askAbout = (index: number) => {
     setSense((now) => ({ index, turn: now?.index === index ? now.turn + 1 : 0 }));
@@ -419,34 +431,37 @@ function WriteSentence({ id }: { id: string | undefined }) {
             </div>
           </div>
 
-          <div className="paper-write__ideas">
-            <p className="paper-write__hint" id="senses-hint">
-              Tap a sense for an idea. It lights up when your sentence uses it.
-            </p>
-            <div className="paper-write__senses" role="group" aria-label="Senses">
-              {SENSES.map(({ key, name }, index) => {
-                const word = found[key];
-                return (
-                  <button
-                    type="button"
-                    key={key}
-                    className={word ? "paper-write__sense paper-write__sense--used" : "paper-write__sense"}
-                    style={{ "--sense-color": `var(--paper-sense-${key})` } as React.CSSProperties}
-                    aria-pressed={sense?.index === index}
-                    aria-describedby={word ? `sense-${key}-word` : undefined}
-                    onClick={() => askAbout(index)}
-                  >
-                    {name}
-                    {word && (
-                      <span className="paper-write__sense-word" id={`sense-${key}-word`} aria-hidden>
-                        Used: {word}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+          {/* The sense buttons and their tips: the senseCoach feature */}
+          {senseCoach && (
+            <div className="paper-write__ideas">
+              <p className="paper-write__hint" id="senses-hint">
+                Tap a sense for an idea. It lights up when your sentence uses it.
+              </p>
+              <div className="paper-write__senses" role="group" aria-label="Senses">
+                {SENSES.map(({ key, name }, index) => {
+                  const word = found[key];
+                  return (
+                    <button
+                      type="button"
+                      key={key}
+                      className={word ? "paper-write__sense paper-write__sense--used" : "paper-write__sense"}
+                      style={{ "--sense-color": `var(--paper-sense-${key})` } as React.CSSProperties}
+                      aria-pressed={sense?.index === index}
+                      aria-describedby={word ? `sense-${key}-word` : undefined}
+                      onClick={() => askAbout(index)}
+                    >
+                      {name}
+                      {word && (
+                        <span className="paper-write__sense-word" id={`sense-${key}-word`} aria-hidden>
+                          Used: {word}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="paper-write__foot">
             <button

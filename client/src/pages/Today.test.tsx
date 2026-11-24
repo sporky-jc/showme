@@ -44,7 +44,10 @@ const renderToday = ({
   mine = [],
   answer,
   respond,
+  coach = true,
 }: {
+  // The senseCoach feature (see features.ts), on unless a test turns it off
+  coach?: boolean;
   tellCount?: number;
   remembered?: number;
   mine?: Sentence[];
@@ -53,7 +56,7 @@ const renderToday = ({
 } = {}) => {
   const requests: string[] = [];
   const view = renderWithApp(<Today />, {
-    state: { user: ada, tellsentences: tells(remembered) },
+    state: { user: ada, tellsentences: tells(remembered), features: { senseHighlights: false, senseCoach: coach } },
     respond: (config) => {
       requests.push(`${config.method} ${config.url}`);
       if (respond) return respond(config);
@@ -303,6 +306,15 @@ describe("Today", () => {
 
     expect(screen.queryByText(/Come back later/)).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Scribbles the pencil" })).toHaveClass("scribbles--idle");
+  });
+
+  it("has no sense tip when the sense coach is off", async () => {
+    renderToday({ coach: false });
+    await screen.findByText("“Tell 1”");
+
+    expect(document.querySelector(".paper-today__tip")).toBeNull();
+    expect(screen.queryByText(/Try See today/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start showing/ })).toBeInTheDocument();
   });
 
   it("has no sticker book", async () => {

@@ -47,7 +47,10 @@ const renderWrite = ({
   mine = shows(2),
   list,
   save,
+  coach = true,
 }: {
+  // The senseCoach feature (see features.ts), on unless a test turns it off
+  coach?: boolean;
   route?: string;
   tellCount?: number;
   tellList?: TellSentence[];
@@ -63,7 +66,12 @@ const renderWrite = ({
       <Route path="*" element={<p>Another page</p>} />
     </Routes>,
     {
-      state: { user: student, tellsentences: tellList ?? tells(tellCount), usersentences: [] },
+      state: {
+        user: student,
+        tellsentences: tellList ?? tells(tellCount),
+        usersentences: [],
+        features: { senseHighlights: false, senseCoach: coach },
+      },
       route,
       respond: (config) => {
         requests.push(config);
@@ -261,6 +269,37 @@ describe("Write", () => {
     expect(bubble()).toHaveTextContent(/sniff/);
     // The senses never send the sentence
     expect(screen.getByRole("button", { name: "Smell" })).toHaveAttribute("type", "button");
+  });
+
+  it("has no sense buttons or sense hints when the sense coach is off", async () => {
+    const user = userEvent.setup();
+    renderWrite({ coach: false });
+    const field = await box();
+    expect(bubble()).toHaveTextContent("Write your sentence. I'll try to picture it!");
+    await user.type(field, "His tail thumped the floor like a drum and he licked my salty cheek.");
+
+    expect(screen.queryByRole("group", { name: "Senses" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hear" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tap a sense/)).not.toBeInTheDocument();
+    // Scribbles praises a full sentence without counting senses
+    expect(bubble()).toHaveTextContent("I can picture it!");
+    expect(bubble()).not.toHaveTextContent("senses");
+    // The picture clears with the words alone
+    expect((document.querySelector(".paper-write__photo") as HTMLElement).style.filter).toBe("blur(0px) grayscale(0)");
+    // Sending still works the same
+    expect(screen.getByRole("button", { name: "Ask Scribbles" })).toBeEnabled();
+  });
+
+  it("still warns about the Tell word when the sense coach is off", async () => {
+    const user = userEvent.setup();
+    const mine = shows(2);
+    mine[0].tell = "The dog was happy.";
+    renderWrite({ route: "/Write/s1", mine, coach: false });
+    const input = await box();
+
+    await user.clear(input);
+    await user.type(input, "His tail thumped the floor because he was happy");
+    expect(bubble()).toHaveTextContent("“happy” is the Tell word. Can you show it instead?");
   });
 
   it("lights up the senses the sentence uses, and keeps their names", async () => {
