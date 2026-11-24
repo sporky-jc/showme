@@ -10,9 +10,11 @@ import type { SenseKey } from "../senses";
 // Nobody picks these by hand, and the AI being scored doesn't either: a
 // panel of three other AI families decides, each asked about every sense a
 // sentence's labels leave out, and only a unanimous yes counts (the "Judge
-// the sense practice sets" workflow, scripts/judge-sense-sets.ts). It runs
-// once; its answer is pasted here and frozen before the tagger is tuned
-// again. Change it only by running the panel again, never by hand.
+// the sense practice sets" workflow, scripts/judge-sense-sets.ts). Change it
+// only by running the panel again, never by hand.
 //
-// Empty until the panel has run: every sense left out counts as wrong.
-export const SENSE_MAY: Readonly<Record<string, readonly SenseKey[]>> = {};
+// Last judged 2026-11-24, by @cf/google/gemma-4-26b-a4b-it, @cf/zai-org/glm-4.7-flash, @cf/openai/gpt-oss-120b:
+// 1 sentences with judgment calls.
+export const SENSE_MAY: Readonly<Record<string, readonly SenseKey[]>> = {
+  "The fire alarm screeched, and we covered our ears.": ["feel"],
+};

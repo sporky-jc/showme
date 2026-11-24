@@ -375,6 +375,10 @@ describe("how the measurement scores a sample", () => {
     [{ expected: "unsafe", reason: "worrying" }, rules(["sensitive-words"]), "wrong-reason"],
     [{ expected: "unsafe", reason: "other" }, rules(["worrying"]), "wrong-reason"],
     [{ expected: "unsafe" }, { verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: "guard" }, "agreed"],
+    // Sent back by the rules with the kind-words tip: right for rude words,
+    // wrong for a worrying sentence
+    [{ expected: "unsafe", reason: "other" }, { verdict: "redo", tip: "kindWords", reasons: ["unkind"], decidedBy: "rules" }, "agreed"],
+    [{ expected: "unsafe", reason: "worrying" }, { verdict: "redo", tip: "kindWords", reasons: ["unsafe-words"], decidedBy: "rules" }, "wrong"],
     // A welfare hold counts like a safety hold
     [{ expected: "unsafe" }, { verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: "welfare" }, "agreed"],
     [{ expected: "unsafe", reason: "worrying" }, { verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: "welfare" }, "agreed"],
