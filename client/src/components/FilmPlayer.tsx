@@ -17,7 +17,18 @@ import type { Film } from "../films";
 // video's own controls). Both are here and paper.css shows one. (No <track>
 // element: iPhones won't load a video that has one.) If the video can't
 // play, a link opens it by itself. Styled in src/theme/paper.css.
-function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
+//
+// On the Films page, where there are many: `about` names the film in the
+// play button ("Watch the film: Simile"), the Captions button waits until
+// the film has started (`quiet`), and starting one film stops the others.
+interface Props {
+  film: Film;
+  onStart?: () => void;
+  about?: string;
+  quiet?: boolean;
+}
+
+function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const [started, setStarted] = useState(false);
   const [broken, setBroken] = useState(false);
   const [captions, setCaptions] = useState(false);
@@ -60,14 +71,26 @@ function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
           preload="none"
           // So the keyboard can land on it in every browser, once it's playing
           tabIndex={started ? 0 : -1}
-          onPlay={() => setPlaying(true)}
+          onPlay={(event) => {
+            setPlaying(true);
+            // One film at a time
+            const mine = event.currentTarget;
+            document.querySelectorAll("video").forEach((other) => {
+              if (other !== mine) other.pause();
+            });
+          }}
           onPause={() => setPlaying(false)}
           onTimeUpdate={(event) => lines && setWords(lineAt(lines, event.currentTarget.currentTime))}
         >
           <source src={film.video} type="video/mp4" onError={() => setBroken(true)} />
         </video>
         {!started && (
-          <button type="button" className="paper-film__start" onClick={start}>
+          <button
+            type="button"
+            className="paper-film__start"
+            aria-label={about ? `Watch the film: ${about}, ${film.seconds} seconds` : undefined}
+            onClick={start}
+          >
             <span className="paper-film__play" aria-hidden />
             <span className="paper-film__label">
               Watch the film <span className="paper-film__time">· {film.seconds} seconds</span>
@@ -85,12 +108,14 @@ function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
           </p>
         )}
       </div>
-      <div className="paper-film__captions">
-        <button type="button" className="paper-film__captions-button" aria-pressed={captions} onClick={toggleCaptions}>
-          Captions <span aria-hidden>{captions ? "on" : "off"}</span>
-        </button>
-        {captions && <p className="paper-film__strip">{shown}</p>}
-      </div>
+      {(started || !quiet) && (
+        <div className="paper-film__captions">
+          <button type="button" className="paper-film__captions-button" aria-pressed={captions} onClick={toggleCaptions}>
+            Captions <span aria-hidden>{captions ? "on" : "off"}</span>
+          </button>
+          {captions && <p className="paper-film__strip">{shown}</p>}
+        </div>
+      )}
     </div>
   );
 }

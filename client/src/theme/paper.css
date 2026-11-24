@@ -4563,6 +4563,87 @@ h3,
   }
 }
 
+/* The Films page (pages/Films.tsx): a card per film, one column on a phone,
+   two from 768px */
+.paper-films {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 20px 20px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  text-align: left;
+}
+
+.paper-films h1,
+.paper-films h2 {
+  margin: 0;
+}
+
+.paper-films__lead {
+  margin: 6px 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--paper-muted);
+}
+
+.paper-films__list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paper-films__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+}
+
+.paper-films__card h2 {
+  font-size: 1.5rem;
+}
+
+/* Pushes the film to the bottom, so the pictures in a row line up */
+.paper-films__about {
+  flex: 1;
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: var(--paper-muted);
+}
+
+.paper-films__back {
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .paper-films__list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* The Films card on Today: words, then the link */
+.paper-today__films {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+}
+
+.paper-today__films h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.paper-today__films .paper-book__hint {
+  margin-bottom: 0;
+}
+
 .paper-refresher__example mark {
   padding: 1px 4px;
   border-radius: 6px;
