@@ -354,6 +354,46 @@ describe("POST /Logout", () => {
     expect(res.status).toBe(200);
   });
 
+  // A copy of the cookie that a logout has already cancelled must not be
+  // able to log the user out again, wherever they have signed in since
+  it("does nothing more with a token that was already cancelled", async () => {
+    const user = await createUser();
+    const copied = sessionCookie(user);
+    await request(app).post("/Logout").set("Cookie", copied);
+    const fresh = await Profile.findById(user._id).orFail(); // signed in again: version 1
+    const signedInAgain = sessionCookie(fresh);
+
+    const res = await request(app).post("/Logout").set("Cookie", copied);
+
+    expect(res.status).toBe(200);
+    expect(clearsSessionCookie(res)).toBe(true);
+    expect((await Profile.findById(user._id).orFail()).tokenVersion).toBe(1);
+    expect((await request(app).get("/Login").set("Cookie", signedInAgain)).status).toBe(200);
+  });
+
+  // A profile saved before token versions existed has none stored
+  it("cancels the token of a profile with no token version stored yet", async () => {
+    const user = await createUser();
+    await Profile.collection.updateOne({ _id: user._id }, { $unset: { tokenVersion: "" } });
+
+    await request(app).post("/Logout").set("Cookie", sessionCookie(user));
+
+    expect((await request(app).get("/Login").set("Cookie", sessionCookie(user))).status).toBe(401);
+  });
+
+  it("still tells the browser to delete the cookie when the database fails", async () => {
+    const user = await createUser();
+    const failing = vi.spyOn(Profile, "updateOne").mockImplementationOnce(() => {
+      throw new Error("database down");
+    });
+
+    const res = await request(app).post("/Logout").set("Cookie", sessionCookie(user));
+    failing.mockRestore();
+
+    expect(res.status).toBe(500);
+    expect(clearsSessionCookie(res)).toBe(true);
+  });
+
   it("still succeeds and clears the cookie with no token or an expired one", async () => {
     const user = await createUser();
     const expired = `session=${tokenFor(user, { expiresIn: -10 })}`;
