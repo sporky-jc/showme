@@ -47,6 +47,14 @@
 </div>
 <button id="b6" type="button">Watch the film</button><pre id="l6"></pre>
 
+<h2>7 · The fix: captions added after it starts</h2>
+<div class="wrap">
+<video id="v7" playsinline preload="none" poster="/films/senses/poster.jpg" tabindex="-1" aria-label="Show it with your senses">
+  <source src="/films/senses/senses.mp4" type="video/mp4">
+</video>
+</div>
+<button id="b7" type="button">Watch the film</button><pre id="l7"></pre>
+<p>If video 7 plays: open its menu (the ⋯ or speech bubble) and turn on English captions. Do the words show?</p>
 <pre id="ua"></pre>
 <script>
   var NET = ["EMPTY", "IDLE", "LOADING", "NO_SOURCE"];
@@ -70,6 +78,26 @@
     return { v: v, say: say };
   }
   for (var i = 1; i <= 6; i++) var last = watch(i);
+  var fix = watch(7);
+  document.getElementById("b7").addEventListener("click", function () {
+    var v = fix.v, p = v.play();
+    v.controls = true;
+    if (p && p.then) p.then(function () { fix.say("play() worked"); }, function (e) { fix.say("play() REFUSED: " + e.name + ": " + e.message); });
+    fetch("/films/senses/senses.vtt").then(function (r) { return r.text(); }).then(function (vtt) {
+      var secs = function (t) { return t.split(":").reduce(function (a, b) { return a * 60 + Number(b); }, 0); };
+      var track = v.addTextTrack("captions", "English", "en"), n = 0;
+      track.mode = "disabled";
+      vtt.replace(/\r/g, "").split(/\n{2,}/).forEach(function (block) {
+        var rows = block.split("\n"), at = -1;
+        rows.forEach(function (row, i) { if (at < 0 && row.indexOf("-->") >= 0) at = i; });
+        if (at < 0) return;
+        var times = rows[at].split("-->");
+        track.addCue(new VTTCue(secs(times[0].trim()), secs(times[1].trim().split(/\s/)[0]), rows.slice(at + 1).join("\n")));
+        n++;
+      });
+      fix.say("captions added: " + n + " lines");
+    }).catch(function (e) { fix.say("CAPTIONS FAILED: " + e.message); });
+  });
   document.getElementById("b6").addEventListener("click", function () {
     var v = last.v, p = v.play();
     v.controls = true;

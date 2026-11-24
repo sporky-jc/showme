@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import Refresher from "./Refresher";
 import { FILMS } from "../films";
 import { REFRESHERS } from "../refreshers";
+import { addCaptions } from "../captions";
+
+vi.mock("../captions", () => ({ addCaptions: vi.fn() }));
 
 // The refresher pop-up: five short steps, from refreshers.ts
 
@@ -147,10 +150,10 @@ describe("Refresher", () => {
       expect(video).toHaveAttribute("controls");
       expect(video).toHaveFocus();
       expect(screen.queryByRole("button", { name: /^Watch the film/ })).not.toBeInTheDocument();
-      const track = video.querySelector("track")!;
-      expect(track).toHaveAttribute("kind", "captions");
-      expect(track).toHaveAttribute("src", film.captions);
-      expect(track).not.toHaveAttribute("default");
+      // No <track> element (iPhones won't load a video that has one): the
+      // captions are added once it starts, turned off
+      expect(video.querySelector("track")).toBeNull();
+      expect(addCaptions).toHaveBeenCalledWith(video, film.captions);
       play.mockRestore();
     });
 
