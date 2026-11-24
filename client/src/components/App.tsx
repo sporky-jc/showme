@@ -3,6 +3,7 @@ import NavbarComp from "./NavbarComp";
 import Footer from "./Footer";
 import { useDispatch } from "react-redux";
 import { getTellSentences } from "../actions/tellsentences";
+import { getFeatures } from "../actions/features";
 import { BrowserRouter } from "react-router";
 import { checkSession } from "../actions/user";
 import type { AppDispatch } from "../reducers/types";
@@ -21,6 +22,8 @@ function App() {
     // check that a remembered login is still valid on the server
     dispatch(checkSession());
     dispatch(getTellSentences());
+    // which features being tried out are on here (see features.ts)
+    dispatch(getFeatures());
   }, [dispatch]);
 
   return (
