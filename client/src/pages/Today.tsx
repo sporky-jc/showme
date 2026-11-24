@@ -91,19 +91,6 @@ function Today() {
               <p className="paper-today__sentence">“{withoutAsk(today.tell)}”</p>
               {ask && <span className="paper-status paper-status--turn">{ask}</span>}
               <p className="paper-today__hint">{hintFor(today.technique)}</p>
-              {senseCoach && (
-                <p
-                  className="paper-today__tip"
-                  style={{ "--tip-color": `var(--paper-sense-${tipSense})` } as CSSProperties}
-                >
-                  <strong className="paper-today__tip-try">
-                    {used[tipSense] === 0
-                      ? `Try ${tipName} today!`
-                      : `You use ${tipName} the least. Try it today!`}
-                  </strong>{" "}
-                  {tip}
-                </p>
-              )}
               <Link to="/Write" className="paper-btn paper-btn--action paper-today__start">
                 Start showing
                 <svg
@@ -121,6 +108,20 @@ function Today() {
                   <path d="M14.5 6l3.5 3.5" />
                 </svg>
               </Link>
+              {/* After the button, so the button stays on a phone's first screen */}
+              {senseCoach && (
+                <p
+                  className="paper-today__tip"
+                  style={{ "--tip-color": `var(--paper-sense-${tipSense})` } as CSSProperties}
+                >
+                  <strong className="paper-today__tip-try">
+                    {used[tipSense] === 0
+                      ? `Try ${tipName} today!`
+                      : `You use ${tipName} the least. Try it today!`}
+                  </strong>{" "}
+                  {tip}
+                </p>
+              )}
             </div>
             {/* Scenery for the sentence beside it, which says it all */}
             <img className="paper-today__photo" src={today.image} alt="" />
@@ -149,7 +150,12 @@ function Today() {
 
       {latest.length > 0 && (
         <section className="paper-today__mine" aria-labelledby="today-mine">
-          <h2 id="today-mine">My sentences</h2>
+          <div className="paper-today__mine-top">
+            <h2 id="today-mine">My sentences</h2>
+            <Link to="/MySentences" className="paper-today__all">
+              See all<span className="visually-hidden"> my sentences</span>
+            </Link>
+          </div>
           {checking && (
             <p className="paper-today__later">
               Come back later! Once Scribbles approves it, it will appear in
@@ -177,7 +183,7 @@ function Today() {
       <section className="paper-card paper-today__films" aria-labelledby="today-films">
         <div>
           <h2 id="today-films">Films</h2>
-          <p>Short films about ways to show, not tell.</p>
+          <p>Short films about ways to show.</p>
         </div>
         <Link to="/Films" className="paper-btn">
           Watch a film

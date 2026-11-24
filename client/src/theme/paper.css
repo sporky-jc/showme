@@ -1285,16 +1285,17 @@ h3,
 .paper-today__photo {
   display: block;
   width: 100%;
-  height: 170px;
+  /* Short on a phone, so the Tell and its button fit on the first screen */
+  height: 132px;
   object-fit: cover;
-  border-radius: 120px 120px 18px 18px;
+  border-radius: 100px 100px 18px 18px;
   background: var(--paper-sky);
 }
 
 .paper-today__scribbles {
   position: absolute;
   right: -10px;
-  top: 118px;
+  top: 84px;
   pointer-events: none;
 }
 
@@ -1308,9 +1309,33 @@ h3,
   bottom: -40px;
 }
 
+/* "My sentences", with the way to all of them beside it */
+.paper-today__mine-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
 .paper-today__mine h2 {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 1.5rem;
+}
+
+.paper-today__all {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--paper-ink);
+  font-weight: 800;
+}
+
+.paper-today__all:focus-visible {
+  outline: 3px solid var(--paper-brand);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 /* What happens next to a sentence that is being checked */
@@ -1430,6 +1455,10 @@ h3,
   }
 
   /* The last column stays clear for Scribbles' feet */
+  .paper-today__mine-top {
+    padding-right: 130px;
+  }
+
   .paper-today__mine ul {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     padding-right: 130px;
@@ -4506,25 +4535,36 @@ h3,
   }
 }
 
-/* The Films card on Today: words, then the link */
+/* The Films card on Today: one small row, words then the link */
 .paper-today__films {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px;
+  padding: 12px 16px;
+}
+
+.paper-today__films > div {
+  min-width: 0;
 }
 
 .paper-today__films h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
 }
 
 .paper-today__films p {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--paper-muted);
+}
+
+.paper-today__films .paper-btn {
+  flex: none;
+  min-height: 44px;
+  padding: 0.5em 1em;
+  font-size: 1.05rem;
 }
 
 .paper-refresher__example mark {
