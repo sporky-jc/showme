@@ -25,4 +25,11 @@ const film = (name: string, title: string, seconds: number): Film => ({
 
 export const FILMS: Partial<Record<Technique, Film>> = {
   senses: film("senses", "Show it with your senses", 34),
+  simile: film("simile", "The simile film", 30),
+  metaphor: film("metaphor", "The metaphor film", 33),
+  personification: film("personification", "The personification film", 34),
+  onomatopoeia: film("onomatopoeia", "The onomatopoeia film", 33),
+  hyperbole: film("hyperbole", "The hyperbole film", 33),
+  alliteration: film("alliteration", "The alliteration film", 35),
+  allusion: film("allusion", "The allusion film", 37),
 };
