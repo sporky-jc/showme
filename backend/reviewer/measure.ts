@@ -29,6 +29,12 @@ export const outcomeOf = (suggestion: Suggestion): Outcome =>
         : suggestion.verdict;
 
 export const scoreOf = (sample: Sample, suggestion: Suggestion): Score => {
+  // Sent back by the rules for its words (the kind-words tip): kept out of
+  // the gallery and the student told why, right for unkind or rude words,
+  // wrong for a worrying sentence, which a person must read
+  if (sample.expected === "unsafe" && suggestion.decidedBy === "rules" && suggestion.tip === "kindWords") {
+    return sample.reason === "worrying" ? "wrong" : "agreed";
+  }
   const got = outcomeOf(suggestion);
   if (sample.expected === "unsafe") {
     if (got === "held by rules" && sample.reason) {
