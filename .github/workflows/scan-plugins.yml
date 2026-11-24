@@ -1,0 +1,143 @@
+name: Scan plugins and skills
+
+# Checks the Claude skills, agents, commands and plugins this repo gives to
+# Claude Code sessions (.claude/), so nobody has to remember to run a scanner.
+# It uses NVIDIA SkillSpector, offline: no file leaves the runner.
+#
+# On a pull request that changes .claude/ (or this check itself):
+#   - scans everything in .claude/, and every plugin .claude/settings.json
+#     turns on (see .github/scripts/scan-plugins.mjs for the rules);
+#   - writes the result as one comment on the pull request;
+#   - fails when something is rated HIGH or CRITICAL and is not on the "a
+#     person has read this" list, .github/plugin-review.json, or when a
+#     plugin is turned on without being pinned to one exact commit.
+#
+# Every Monday: the same scan with the NEWEST SkillSpector, which may know
+# new tricks. If it finds something, it opens an issue (or adds to the open
+# one). Nothing happens when all is clear.
+#
+# It can't see plugins installed on a person's own computer or turned on in
+# their claude.ai account: only what is in this repo.
+#
+# To fix a failure: read the lines the comment lists. If the skill is bad,
+# take it out. If the lines are harmless, copy the block from the comment
+# into .github/plugin-review.json and say why.
+on:
+  pull_request:
+    paths:
+      - ".claude/**"
+      - ".github/plugin-review.json"
+      - ".github/scripts/scan-plugins.mjs"
+      - ".github/workflows/scan-plugins.yml"
+  schedule:
+    # Mondays, 14:37 UTC (6:37 or 7:37 in the morning, Pacific)
+    - cron: "37 14 * * 1"
+  # A "Run workflow" button (Actions tab), which scans like the Monday run
+  workflow_dispatch:
+
+# What GitHub's token may do: read the code, comment on the pull request,
+# and open the Monday issue. Only the last step of the job is given the token.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: scan-plugins-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The SkillSpector version pull requests are checked with (v2.12.0), so a
+  # result only changes when the code does. Move it by hand, in a pull
+  # request of its own: the Monday run shows what the newest version says.
+  SKILLSPECTOR_COMMIT: f9bb13dd1667eb4e7ac97b8ebace3160041ed571
+  # The tool that installs SkillSpector, with the Python it needs
+  UV_VERSION: "0.11.32"
+  ISSUE_TITLE: "Weekly plugin scan: needs a look"
+
+jobs:
+  scan:
+    name: Scan plugins and skills
+    # Pinned rather than ubuntu-latest, like the other workflows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          # Don't leave GitHub's token in the folder the scanner reads
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install SkillSpector
+        env:
+          # Pull requests: the pinned version. Monday and the button: newest.
+          SKILLSPECTOR_REF: ${{ github.event_name == 'pull_request' && env.SKILLSPECTOR_COMMIT || 'main' }}
+        run: |
+          pipx install "uv==$UV_VERSION"
+          uv tool install --python 3.13 \
+            "git+https://github.com/NVIDIA/skillspector.git@$SKILLSPECTOR_REF"
+          skillspector --version
+
+      - name: Scan
+        id: scan
+        # Carry on after a failure, so the result can be posted; the last
+        # step fails the job
+        continue-on-error: true
+        run: node .github/scripts/scan-plugins.mjs "$RUNNER_TEMP/plugin-scan-report.md"
+
+      - name: Comment on the pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        # One comment per pull request, rewritten on each run (found by the
+        # hidden "plugin-scan" marker on its first line). Dependabot's pull
+        # requests get a read-only token: there, the result is only on the
+        # run's summary page.
+        run: |
+          report="$RUNNER_TEMP/plugin-scan-report.md"
+          if [ ! -f "$report" ]; then
+            echo "::warning::The scan wrote no report. See the Scan step."
+            exit 0
+          fi
+          comments="repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments"
+          old=$(gh api "$comments" --paginate \
+            --jq '.[] | select(.body | startswith("<!-- plugin-scan -->")) | .id' | head -n 1) || old=""
+          if [ -n "$old" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$old" -F body=@"$report" > /dev/null \
+              || echo "::warning::Could not update the comment. The result is on this run's summary page."
+          else
+            gh api -X POST "$comments" -F body=@"$report" > /dev/null \
+              || echo "::warning::Could not comment. The result is on this run's summary page."
+          fi
+
+      - name: Open an issue (Monday run)
+        if: github.event_name != 'pull_request' && steps.scan.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          report="$RUNNER_TEMP/plugin-scan-report.md"
+          if [ ! -f "$report" ]; then
+            printf 'The weekly plugin scan could not run. See %s\n' "$RUN_URL" > "$report"
+          else
+            printf '\nFrom the weekly scan with the newest SkillSpector: %s\n' "$RUN_URL" >> "$report"
+          fi
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$report"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body-file "$report"
+          fi
+
+      - name: Fail if the scan found something
+        if: steps.scan.outcome == 'failure'
+        run: |
+          echo "::error::The plugin scan needs a look. See the comment on the pull request, or this run's summary page."
+          exit 1
