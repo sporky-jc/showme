@@ -11,8 +11,9 @@ import type { Film } from "../films";
 // and the keyboard moves onto the video.
 //
 // Captions are ours: a Captions button under the film, off until pressed,
-// shows the words being said in a strip under the picture. (No <track>
-// element: iPhones won't load a video that has one.) If the video can't
+// shows the words being said on the picture, near the bottom. While the
+// film is stopped they sit higher, clear of the video's own controls. (No
+// <track> element: iPhones won't load a video that has one.) If the video can't
 // play, a link opens it by itself. Styled in src/theme/paper.css.
 function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
   const [started, setStarted] = useState(false);
@@ -20,6 +21,7 @@ function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
   const [captions, setCaptions] = useState(false);
   const [lines, setLines] = useState<CaptionLine[] | null>(null);
   const [words, setWords] = useState("");
+  const [playing, setPlaying] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
 
   const start = () => {
@@ -41,6 +43,8 @@ function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
     });
   };
 
+  const shown = lines && lines.length === 0 ? "The captions can’t show right now." : words;
+
   return (
     <div className="paper-film-set">
       <div className="paper-film">
@@ -54,6 +58,8 @@ function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
           preload="none"
           // So the keyboard can land on it in every browser, once it's playing
           tabIndex={started ? 0 : -1}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
           onTimeUpdate={(event) => lines && setWords(lineAt(lines, event.currentTarget.currentTime))}
         >
           <source src={film.video} type="video/mp4" onError={() => setBroken(true)} />
@@ -66,6 +72,11 @@ function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
             </span>
           </button>
         )}
+        {captions && shown && (
+          <p className={`paper-film__words${playing ? "" : " paper-film__words--raised"}`}>
+            <span>{shown}</span>
+          </p>
+        )}
         {broken && (
           <p className="paper-film__broken">
             The film can’t play here. <a href={film.video}>Open the film</a>
@@ -76,11 +87,6 @@ function FilmPlayer({ film, onStart }: { film: Film; onStart?: () => void }) {
         <button type="button" className="paper-film__captions-button" aria-pressed={captions} onClick={toggleCaptions}>
           Captions <span aria-hidden>{captions ? "on" : "off"}</span>
         </button>
-        {captions && (
-          <p className="paper-film__words">
-            {lines && lines.length === 0 ? "The captions can’t show right now." : words}
-          </p>
-        )}
       </div>
     </div>
   );
