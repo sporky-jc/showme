@@ -31,14 +31,17 @@ const shownOrder = () => screen.queryAllByText(/^Sentence \d+$/).map((el) => el.
 const renderCollection = ({
   server = fromServer(6),
   remembered = [],
+  lit = true,
 }: {
   server?: SentenceWithAuthor[] | ((call: number) => Outcome);
   remembered?: SentenceWithAuthor[];
+  // The senseHighlights feature (see features.ts)
+  lit?: boolean;
 } = {}) => {
   let calls = 0;
   return renderWithApp(<Collection />, {
     // `remembered`: an old list redux-persist may have restored
-    state: { tellsentences, approvedsentences: remembered },
+    state: { tellsentences, approvedsentences: remembered, features: { senseHighlights: lit, senseCoach: false } },
     route: "/Collections",
     respond: (config) => {
       if (config.url !== "/Collections") return 200;
@@ -220,6 +223,14 @@ describe("Collection", () => {
     ["Rain drummed on the roof.", "The soup smelled of garlic.", "A bell rang twice.", "Sentence 4"].map(
       (show, i) => ({ ...fromServer(4)[i], show })
     );
+
+  it("has no sense finder when sense highlights are off", async () => {
+    renderCollection({ server: withSenses(), lit: false });
+    await screen.findByRole("region", { name: "Scribbles’ pick" });
+
+    expect(screen.queryByRole("group", { name: "Find a sense" })).not.toBeInTheDocument();
+    expect(document.querySelector("mark")).toBeNull();
+  });
 
   it("finds the sentences that use a sense, and says how many", async () => {
     const user = userEvent.setup();

@@ -9,15 +9,18 @@ import { frameStyle } from "../frames";
 import { tellById, withoutAsk } from "../tells";
 import { SENSE_KEYS, sensePieces } from "../senses";
 import { DOT, LIT, authorName, usesLabel } from "./galleryWords";
+import { useFeature } from "../features";
 
 // Nothing to do when there are no likes to press
 const noLikes = () => {};
 
-// The gallery's cards: each approved sentence, the star of its card, with
-// its words that use a sense lit up in that sense's color (see senses.ts),
-// under its crossed-out Tell and that Tell's photo, in the frame its author
-// picked. Then who wrote it, the senses it uses and, for signed-in users,
-// its likes.
+// The gallery's cards: each approved sentence, the star of its card, under
+// its crossed-out Tell and that Tell's photo, in the frame its author
+// picked. Then who wrote it and, for signed-in users, its likes.
+//
+// With the senseHighlights feature on (see features.ts), its words that use
+// a sense are lit up in that sense's color (see senses.ts), and a row of
+// dots says which senses it uses. Without it, the sentence is plain.
 function Cards(props: {
   displaySentences?: GallerySentence[];
   // The signed-in user's view of each sentence's likes, or null for none
@@ -27,6 +30,7 @@ function Cards(props: {
   limit?: number;
 }) {
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
+  const lit = useFeature("senseHighlights");
   const likes = props.likes ?? null;
   const onToggleLike = props.onToggleLike ?? noLikes;
   const sentences = (props.displaySentences ?? []).slice(0, props.limit ?? config.DisplayCollectionSentences);
@@ -34,7 +38,7 @@ function Cards(props: {
   return (
     <ul className="paper-gallery__cards">
       {sentences.map((sentence) => {
-        const pieces = sensePieces(sentence.show, sentence.senseTags);
+        const pieces = lit ? sensePieces(sentence.show, sentence.senseTags) : [{ text: sentence.show, sense: null }];
         const senses = SENSE_KEYS.filter((sense) => pieces.some((piece) => piece.sense === sense));
         return (
           <li key={sentence._id}>

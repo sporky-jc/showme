@@ -9,6 +9,7 @@ import { tellById, withoutAsk } from "../tells";
 import { SENSE_KEYS, SENSE_NAMES, sensePieces } from "../senses";
 import { DOT, LIT, authorName } from "./galleryWords";
 import type { GallerySentence } from "../api/types";
+import { useFeature } from "../features";
 import type { RootState } from "../reducers/types";
 
 // Scribbles' pick: one approved sentence, big, at the top of the gallery, so
@@ -37,7 +38,10 @@ function GalleryPick({
   onAnother?: () => void;
 }) {
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
-  const pieces = sensePieces(sentence.show, sentence.senseTags);
+  // Sense words are only lit up, and listed, with the senseHighlights
+  // feature on (see features.ts)
+  const lit = useFeature("senseHighlights");
+  const pieces = lit ? sensePieces(sentence.show, sentence.senseTags) : [{ text: sentence.show, sense: null }];
   // Each sense the sentence uses, with its words: "Hear: crunched"
   const senses = SENSE_KEYS.flatMap((sense) => {
     const words = [

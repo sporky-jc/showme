@@ -24,11 +24,12 @@ const sentence: GallerySentence = {
   look: { frame: "teal" },
 };
 
-const renderPick = ({ signedIn = false, more = true } = {}) => {
+// `lit`: the senseHighlights feature (see features.ts)
+const renderPick = ({ signedIn = false, more = true, lit = true } = {}) => {
   const onAnother = vi.fn();
   renderWithApp(
     <GalleryPick sentence={sentence} signedIn={signedIn} onAnother={more ? onAnother : undefined} />,
-    { state: { tellsentences } }
+    { state: { tellsentences, features: { senseHighlights: lit, senseCoach: false } } }
   );
   return { onAnother };
 };
@@ -45,6 +46,14 @@ describe("GalleryPick", () => {
     );
     expect(pick()).toHaveTextContent("Noah K. showed it.");
     expect(screen.getByText("Tell says it. Show lets you see it!")).toBeInTheDocument();
+  });
+
+  it("shows the sentence plain, with no list of senses, when sense highlights are off", () => {
+    renderPick({ lit: false });
+
+    expect(pick().querySelector("mark")).toBeNull();
+    expect(pick().querySelector(".paper-pick__show")).toHaveTextContent(sentence.show);
+    expect(screen.queryByRole("list", { name: "Senses in this sentence" })).not.toBeInTheDocument();
   });
 
   it("lights up the sense words and lists each sense with its words", () => {
