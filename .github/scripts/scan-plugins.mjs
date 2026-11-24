@@ -5,7 +5,7 @@
 //   node .github/scripts/scan-plugins.mjs [report.md]
 //
 // What it checks:
-// 1. Every skill in .claude/skills/, and the agents, commands and references
+// 1. Every skill in .claude/skills/, and the agents, commands, hooks and references
 //    folders.
 // 2. .claude/settings.json: every marketplace it adds must be on GitHub (or
 //    git) and pinned to one exact commit, and every plugin it turns on must
@@ -119,7 +119,7 @@ if (fs.existsSync(skillsDir)) {
     }
   }
 }
-for (const folder of ["agents", "commands", "references"]) {
+for (const folder of ["agents", "commands", "hooks", "references"]) {
   const dir = path.join(".claude", folder);
   if (fs.existsSync(dir) && filesIn(dir).length > 0) {
     units.push(summarize(folder, dir, scan(dir)));
