@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import Scribbles from "../components/Scribbles";
-import SenseSticker from "../components/SenseSticker";
 import PageLoading from "../components/PageLoading";
 import SignInPrompt from "../components/SignInPrompt";
 import { useStudentData } from "../components/useStudentData";
@@ -20,10 +19,6 @@ import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 // The five senses in order, each with the questions Scribbles asks (see
 // SENSE_TIPS in senses.ts). Pressing a sense again asks its next question.
 const SENSES = SENSE_KEYS.map((key) => ({ key, name: SENSE_NAMES[key], tips: SENSE_TIPS[key] }));
-
-// Where each sense's sticker lands on the picture frame, and its tilt, in the
-// order the student's senses come (see .paper-write__stickers)
-const STICKER_TILTS = [-8, 7, -5, 6, -10];
 
 // A sentence this long has room for a detail
 const WORD_GOAL = 8;
@@ -395,8 +390,7 @@ function WriteSentence({ id }: { id: string | undefined }) {
             </p>
           </div>
 
-          {/* Scribbles' picture of the sentence, with a sticker for each
-              sense it uses, and what he thinks of it */}
+          {/* Scribbles' picture of the sentence, and what he thinks of it */}
           <div className="paper-write__coach">
             <div className="paper-write__frame">
               <div className="paper-write__window">
@@ -410,11 +404,6 @@ function WriteSentence({ id }: { id: string | undefined }) {
                     style={{ filter: `blur(${blur.toFixed(1)}px) grayscale(${gray})` }}
                   />
                 )}
-              </div>
-              <div className="paper-write__stickers" aria-hidden>
-                {used.map(({ key }, place) => (
-                  <SenseSticker key={key} word={found[key]!} sense={key} tilt={STICKER_TILTS[place]} />
-                ))}
               </div>
             </div>
             <div className="paper-write__talk">
