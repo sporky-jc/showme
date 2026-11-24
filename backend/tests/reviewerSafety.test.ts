@@ -25,6 +25,19 @@ const check = (rows: [string, Expected][]) =>
     else expect(result).toMatchObject({ outcome: "hold", reasons: expect.arrayContaining([expected]) });
   });
 
+// Words that are also the names of things every JavaScript object has
+// ("constructor", "toString"): a child can write them, and they must be read
+// as plain words, not looked up as if they were in our word lists
+describe("words that are also built-in JavaScript names", () => {
+  check([
+    ["The constructor built a wall of red bricks.", "pass"],
+    ["Constructor! The c0nstruct0r drove a yellow digger.", "pass"],
+    ["My toy robot has a valueOf button and a toString light.", "pass"],
+    ["The constructors and the prototypes stood in a row.", "pass"],
+    ["The constructor said he wants to kill me", "worrying"],
+  ]);
+});
+
 describe("read every way it can be written", () => {
   check([
     ["k y s", "worrying"],
