@@ -4,6 +4,7 @@ import Cards from "../components/Cards";
 import Scribbles from "../components/Scribbles";
 import GalleryPick from "../components/GalleryPick";
 import SenseFinder from "../components/SenseFinder";
+import { useFeature } from "../features";
 import { DisplayCollectionSentences } from "../config";
 import { senseWords } from "../senses";
 import type { SenseKey } from "../senses";
@@ -35,6 +36,8 @@ function Collection() {
   const [pickId, setPickId] = useState<string | null>(null);
   // The sense finder's sense, if one is pressed (see SenseFinder)
   const [sense, setSense] = useState<SenseKey | null>(null);
+  // The finder is part of the senseHighlights feature (see features.ts)
+  const finder = useFeature("senseHighlights");
   // How many of the wall's cards are showing; Show more adds
   // DisplayCollectionSentences, and a new order or sense starts again
   const [limit, setLimit] = useState(DisplayCollectionSentences);
@@ -173,7 +176,7 @@ function Collection() {
               onToggleLike={toggle}
             />
           )}
-          {sentences.length > 0 && <SenseFinder sense={sense} found={found.length} onPick={pickSense} />}
+          {finder && sentences.length > 0 && <SenseFinder sense={sense} found={found.length} onPick={pickSense} />}
           {!loading && sentences.length === 0 ? (
             <p className="page-message">
               No sentences have been approved yet.

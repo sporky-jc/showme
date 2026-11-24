@@ -25,9 +25,11 @@ const approved = (n: number, prefix = "Show"): GallerySentence[] =>
     author: { firstName: "Ada", lastName: "L" },
   }));
 
-const renderCards = (sentences: GallerySentence[]) =>
+// `lit`: the senseHighlights feature (see features.ts), on unless a test
+// turns it off
+const renderCards = (sentences: GallerySentence[], lit = true) =>
   renderWithApp(<Cards displaySentences={sentences} />, {
-    state: { tellsentences },
+    state: { tellsentences, features: { senseHighlights: lit, senseCoach: false } },
   });
 
 const pictures = () => screen.queryAllByRole("img");
@@ -71,6 +73,17 @@ describe("Cards", () => {
 
   // The Show sentence is the star: the words that use a sense light up in
   // that sense's color, and the card says which senses it uses
+  it("shows the sentence plain, with no dots, when sense highlights are off", () => {
+    const [one] = approved(1);
+    renderCards([{ ...one, show: "Frost crunched under my boots, and my ears were cold." }], false);
+
+    expect(document.querySelector("mark")).toBeNull();
+    expect(document.querySelector(".paper-gallery__show")).toHaveTextContent(
+      "Frost crunched under my boots, and my ears were cold."
+    );
+    expect(screen.queryByRole("img", { name: /^Uses/ })).not.toBeInTheDocument();
+  });
+
   it("lights up the words that use a sense", () => {
     const [one] = approved(1);
     renderCards([{ ...one, show: "Frost crunched under my boots, and my ears were cold." }]);
