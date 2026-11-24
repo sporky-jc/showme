@@ -1022,3 +1022,51 @@ describe("rude or unkind words", () => {
     expect(suggestion).toMatchObject({ verdict: "unsure", tip: null, reasons: ["unsafe-words", "redo-limit"] });
   });
 });
+
+// Held because the word lists can't read it well (UNREADABLE, reviewer.ts):
+// another language, or far too long. The welfare check reads it first
+describe("sentences the word lists can't read well", () => {
+  const SPANISH = "Hace mucho frío afuera y el viento sopla fuerte en la calle.";
+  const LONG = `${"It was a very cold and windy day outside. ".repeat(15)}`;
+
+  it.each([
+    ["another language", SPANISH, ["not-english"]],
+    ["far too long", LONG, ["too-long"]],
+  ])("are a Check in when the welfare check is worried: %s", async (_, show, reasons) => {
+    const ai = provider("ai", { verdict: "approve", tip: "great" });
+    const { suggestion, attempts } = await reviewSentence({ tell: COLD, show }, [ai], {
+      safety: safetyCheck("safe"),
+      welfare: welfareCheck({ concern: "yes" }),
+    });
+    expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check", ...reasons], decidedBy: "welfare" });
+    expect(outcomes(attempts)).toEqual([{ provider: "welfare", outcome: "concern" }]);
+    expect(ai.review).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["another language", SPANISH, ["not-english"]],
+    ["far too long", LONG, ["too-long"]],
+  ])("stay held for a person when the welfare check sees nothing: %s", async (_, show, reasons) => {
+    const safety = safetyCheck("safe");
+    const { suggestion } = await reviewSentence({ tell: COLD, show }, [], { safety, welfare: calm() });
+    expect(suggestion).toEqual({ verdict: "unsure", tip: null, reasons, decidedBy: "rules" });
+    // Never sent back, and the safety check isn't asked
+    expect(safety.check).not.toHaveBeenCalled();
+  });
+
+  it("are held as worrying when the welfare check can't answer", async () => {
+    const { suggestion } = await reviewSentence({ tell: COLD, show: SPANISH }, [], {
+      safety: safetyCheck("safe"),
+      welfare: welfareCheck(new Error("down")),
+    });
+    expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["worrying", "no-welfare-check", "not-english"] });
+  });
+
+  it("with personal details, go to no AI at all", async () => {
+    const welfare = calm();
+    const show = "Mi teléfono es 555-123-4567 y vivo en la calle Oak.";
+    const { suggestion } = await reviewSentence({ tell: COLD, show }, [], { safety: safetyCheck("safe"), welfare });
+    expect(suggestion).toMatchObject({ verdict: "unsure", decidedBy: "rules" });
+    expect(welfare.check).not.toHaveBeenCalled();
+  });
+});
