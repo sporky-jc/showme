@@ -106,15 +106,27 @@ jobs:
           npm ci
           npx tsx scripts/sense-words.ts "$RUNNER_TEMP/counts.json" "$RUNNER_TEMP/report.md" $DRY_RUN
 
-      # One job pull request at a time: rebuild last week's if it's open
+      # One job pull request at a time: rebuild last week's if it's open.
+      # "Last week's" is an open pull request from a sense-words/ branch IN
+      # THIS REPOSITORY. Anyone can open one from a fork with a branch of
+      # that name: going by the name alone, the job would take a stranger's
+      # pull request for its own, put its title and report on it, and open
+      # none of its own. A branch in this repository can only be made by
+      # someone who may already push here.
       - name: Open or update the pull request
         if: ${{ !inputs.dry_run && steps.ask.outputs.changed == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.SENSE_WORDS_TOKEN }}
           ADDED: ${{ steps.ask.outputs.added }}
         run: |
-          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base staging --json number,headRefName \
-            --jq "[.[] | select(.headRefName | startswith(\"$BRANCH_PREFIX\"))][0] // empty")
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base staging --limit 100 \
+            --json number,headRefName,isCrossRepository,headRepositoryOwner \
+            | jq -c --arg prefix "$BRANCH_PREFIX" --arg owner "$GITHUB_REPOSITORY_OWNER" '
+                [.[] | select(
+                  (.headRefName | startswith($prefix))
+                  and .isCrossRepository == false
+                  and .headRepositoryOwner.login == $owner
+                )][0] // empty')
           if [ -n "$open" ]; then
             branch=$(echo "$open" | jq -r .headRefName)
             number=$(echo "$open" | jq -r .number)
