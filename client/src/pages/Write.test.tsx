@@ -263,7 +263,7 @@ describe("Write", () => {
     expect(screen.getByRole("button", { name: "Smell" })).toHaveAttribute("type", "button");
   });
 
-  it("lights up the senses the sentence uses, with a sticker each, and keeps their names", async () => {
+  it("lights up the senses the sentence uses, and keeps their names", async () => {
     const user = userEvent.setup();
     renderWrite();
     await user.type(await box(), "His tail thumped the floor like a drum and he licked my salty cheek.");
@@ -276,8 +276,8 @@ describe("Write", () => {
     // Using a sense isn't pressing it: pressed is the one Scribbles asks about
     expect(hear).toHaveAttribute("aria-pressed", "false");
 
-    const stickers = document.querySelectorAll(".paper-write__stickers .paper-sticker");
-    expect(Array.from(stickers, (sticker) => sticker.textContent)).toEqual(["THUMPED!", "LICKED!", "SALTY!"]);
+    // No stickers on the picture
+    expect(document.querySelector(".paper-sticker")).toBeNull();
     expect(bubble()).toHaveTextContent("I can picture it! You used 3 senses.");
   });
 
@@ -286,7 +286,6 @@ describe("Write", () => {
     renderWrite();
     await user.type(await box(), "He was tired and bored and seemed furious today");
 
-    expect(document.querySelectorAll(".paper-sticker")).toHaveLength(0);
     for (const name of ["See", "Hear", "Feel", "Smell", "Taste"]) {
       expect(screen.getByRole("button", { name })).not.toHaveAccessibleDescription();
     }

@@ -148,16 +148,14 @@ describe("My sentences", () => {
     expect(screen.getAllByRole("link", { name: /^Pick a frame/ })).toHaveLength(1);
   });
 
-  it("shows the senses each sentence uses as stickers, said in words for screen readers", async () => {
+  it("shows no sense stickers on a sentence", async () => {
     const mine = shows(2);
     mine[0] = { ...mine[0], show: "His tail thumped and he licked my salty cheek." };
     renderMyPage({ mine });
 
     const row = (await screen.findByText(mine[0].show)).closest("li")!;
-    expect(row.querySelectorAll(".paper-sticker")).toHaveLength(3);
-    expect(row).toHaveTextContent("Senses: Hear (thumped), Feel (licked), Taste (salty)");
-    // A sentence without a sense word gets no row of stickers
-    expect(note("Show 2").querySelector(".paper-mine__senses")).toBeNull();
+    expect(row.querySelector(".paper-sticker")).toBeNull();
+    expect(row).not.toHaveTextContent("Senses:");
   });
 
   it("offers the next sentence while there is one left to write", async () => {

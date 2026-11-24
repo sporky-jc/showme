@@ -31,7 +31,7 @@
   --paper-brand-shadow: #5a3fd6;
   --paper-brand-ink: #ffffff;
 
-  /* One color per sense, for its button and its stickers. Always with ink
+  /* One color per sense, for its button and its highlights. Always with ink
      text on top (8:1 or more). */
   --paper-sense-see: #ffc93c;
   --paper-sense-hear: #7fd3ff;
@@ -1396,72 +1396,7 @@ h3,
   color: var(--paper-retry-ink);
 }
 
-/* The sticker book: one slot per sense, a comic sticker once it's earned
-   (SenseSticker.tsx) and a dashed outline until then */
-.paper-book {
-  padding: 18px 18px 22px;
-}
-
-.paper-book h2 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.paper-book__hint {
-  margin: 4px 0 16px;
-  font-weight: 700;
-  color: var(--paper-muted);
-}
-
-.paper-book__stickers {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px 10px;
-}
-
-.paper-book__slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
-}
-
-.paper-book__slot .paper-sticker__word {
-  font-size: 1.1rem;
-}
-
-.paper-book__empty {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 112px;
-  min-height: 52px;
-  padding: 0 14px;
-  border: 3px dashed var(--paper-control-edge);
-  border-radius: 999px;
-  font-family: var(--paper-font-display);
-  font-weight: 800;
-  color: var(--paper-muted);
-}
-
-.paper-book__count {
-  font-weight: 800;
-  font-size: 0.95rem;
-}
-
 @media (min-width: 768px) {
-  .paper-book {
-    padding: 26px 30px 30px;
-  }
-
-  .paper-book__stickers {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
   .paper-today__card {
     padding: 34px 36px;
     display: grid;
@@ -2518,37 +2453,6 @@ h3,
   transition: filter 0.5s ease-out;
 }
 
-/* A sticker per sense the sentence uses, on the frame's corners */
-.paper-write__stickers .paper-sticker {
-  position: absolute;
-  z-index: 1;
-}
-
-.paper-write__stickers .paper-sticker:nth-child(1) {
-  top: -18px;
-  left: -8px;
-}
-
-.paper-write__stickers .paper-sticker:nth-child(2) {
-  top: -18px;
-  right: -8px;
-}
-
-.paper-write__stickers .paper-sticker:nth-child(3) {
-  bottom: 6px;
-  right: -10px;
-}
-
-.paper-write__stickers .paper-sticker:nth-child(4) {
-  bottom: 6px;
-  left: -10px;
-}
-
-.paper-write__stickers .paper-sticker:nth-child(5) {
-  top: 40%;
-  right: -12px;
-}
-
 .paper-write__talk {
   display: flex;
   align-items: center;
@@ -2566,46 +2470,6 @@ h3,
   min-height: 3.6em;
   display: flex;
   align-items: center;
-}
-
-/* A comic sound-effect sticker (SenseSticker.tsx): a starburst in its
-   sense's color with a white die-cut edge, slapped on at a tilt */
-.paper-sticker {
-  display: inline-block;
-  padding: 5px;
-  background: var(--paper-white);
-  clip-path: polygon(50% 0, 61% 20%, 84% 8%, 80% 32%, 100% 40%, 82% 56%, 94% 82%, 66% 76%, 52% 100%, 38% 78%, 12% 90%, 20% 62%, 0 46%, 20% 34%, 12% 10%, 38% 20%);
-  transform: rotate(var(--sticker-tilt));
-  filter: drop-shadow(0 4px 0 rgba(32, 48, 74, 0.2));
-  animation: paper-sticker-slap 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
-  pointer-events: none;
-}
-
-.paper-sticker__word {
-  display: inline-block;
-  padding: 13px 26px;
-  background: var(--sticker-color);
-  clip-path: inherit;
-  color: var(--paper-ink);
-  font-family: var(--paper-font-display);
-  font-weight: 900;
-  font-size: 1rem;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-@keyframes paper-sticker-slap {
-  0% {
-    opacity: 0;
-    transform: scale(1.8) rotate(var(--sticker-tilt));
-  }
-  60% {
-    opacity: 1;
-    transform: scale(0.92) rotate(var(--sticker-tilt));
-  }
-  100% {
-    transform: scale(1) rotate(var(--sticker-tilt));
-  }
 }
 
 /* After sending: Scribbles is checking */
@@ -2821,19 +2685,6 @@ h3,
   color: var(--paper-turn-ink);
 }
 
-/* The senses the sentence uses, as small stickers */
-.paper-mine__senses {
-  margin: 0 0 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-}
-
-.paper-mine__senses .paper-sticker__word {
-  font-size: 0.8rem;
-  padding: 9px 18px;
-}
-
 .paper-mine__foot {
   display: flex;
   align-items: flex-end;
@@ -2915,12 +2766,7 @@ h3,
     transform: none;
   }
 
-  /* Stickers appear without the slap, at their tilt, and the photo clears
-     without fading */
-  .paper-sticker {
-    animation: none;
-  }
-
+  /* The photo clears without fading */
   .paper-write__photo {
     transition: none;
   }
@@ -4675,8 +4521,10 @@ h3,
   font-size: 1.5rem;
 }
 
-.paper-today__films .paper-book__hint {
-  margin-bottom: 0;
+.paper-today__films p {
+  margin: 4px 0 0;
+  font-weight: 700;
+  color: var(--paper-muted);
 }
 
 .paper-refresher__example mark {
