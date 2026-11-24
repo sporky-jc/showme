@@ -14,6 +14,7 @@ import nspell from "nspell";
 import dictionary from "dictionary-en";
 import britishDictionary from "dictionary-en-gb";
 import { SOUND_WORDS } from "./soundWords.js";
+import { FIRST_NAMES, PRETEND_NAMES } from "./words.js";
 
 // Each loaded on first use (about a tenth of a second each), then kept
 let checker: ReturnType<typeof nspell> | undefined;
@@ -101,6 +102,12 @@ const isSoundPair = (pair: string) => {
   return (sameLetters || rhyme) && halves.some(isSpelledRight);
 };
 
+// First names and story characters kids write about ("Zoe", "Olaf"), for
+// the first word of a sentence: later words with a capital are names
+// anyway (below), but the first word always has one, so a name there was
+// read as a misspelled word
+const NAMES = new Set([...FIRST_NAMES, ...PRETEND_NAMES.filter((name) => !name.includes(" "))]);
+const isNameWithCapital = (word: string) => /^[A-Z]/.test(word) && NAMES.has(word.toLowerCase().replace(/'s$/, ""));
 // The misspelled words, each once, as written. Words written with a capital
 // after the first word are names ("Lily", "Minecraft") and aren't checked;
 // nor are words with digits or symbols in them.
@@ -116,6 +123,7 @@ export const misspelledWords = (text: string): string[] => {
     const word = match[0];
     const plain = word.replace(/’/g, "'");
     if (index > 0 && /^[A-Z]/.test(plain)) return;
+    if (isNameWithCapital(plain)) return;
     if (inPairs.has(match.index)) return;
     if (isSpelledRight(plain)) return;
     found.add(word);
