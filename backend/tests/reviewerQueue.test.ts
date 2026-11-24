@@ -338,6 +338,27 @@ describe("the scheduled reviewer", () => {
     expect(ai.review.mock.calls.length).toBe(asked);
   });
 
+  // A review that throws (a bug of ours, not a provider failing) must not
+  // leave the sentence first in line for ever
+  it("puts a sentence whose review throws behind new ones", async () => {
+    const broken = await addSentence({ show: "The wind howled like a wolf.", createdAt: new Date(Date.now() - 60_000) });
+    const exists = vi.spyOn(ReviewSuggestion, "exists").mockImplementationOnce(() => {
+      throw new Error("a bug in a check");
+    });
+    try {
+      const ai = approving();
+      expect(await reviewWaitingSentences(setupWith([ai]))).toEqual({ reviewed: 0 });
+      expect((await Sentence.findById(broken._id).select("+lastTriedAt").lean())?.lastTriedAt).toBeInstanceOf(Date);
+
+      // Next run, with room for one: the new sentence goes first
+      const fresh = await addSentence({ show: "The wind bit my ears like a little dog." });
+      expect(await reviewWaitingSentences(setupWith([ai]), { limit: 1 })).toEqual({ reviewed: 1 });
+      expect(await ReviewSuggestion.exists({ sentence: fresh._id })).toBeTruthy();
+    } finally {
+      exists.mockRestore();
+    }
+  });
+
   // A short outage fails every sentence: none of them is to blame
   it("holds nothing after an outage, and reviews everything once it's over", async () => {
     for (let i = 0; i < 5; i++) await addSentence({ show: `${GOOD} ${i}` });
