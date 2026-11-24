@@ -1599,12 +1599,7 @@ h3,
   box-decoration-break: clone;
 }
 
-/* A dot per sense the sentence uses, in the card's foot */
-.paper-gallery__senses {
-  display: inline-flex;
-  gap: 5px;
-}
-
+/* A dot per sense, in the sense finder (components/SenseFinder.tsx) */
 .paper-gallery__dot {
   width: 14px;
   height: 14px;

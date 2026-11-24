@@ -8,7 +8,7 @@ import type { RootState } from "../reducers/types";
 import { frameStyle } from "../frames";
 import { tellById, withoutAsk } from "../tells";
 import { SENSE_KEYS, sensePieces } from "../senses";
-import { DOT, LIT, authorName, usesLabel } from "./galleryWords";
+import { LIT, authorName, usesLabel } from "./galleryWords";
 import { useFeature } from "../features";
 
 // Nothing to do when there are no likes to press
@@ -19,8 +19,8 @@ const noLikes = () => {};
 // picked. Then who wrote it and, for signed-in users, its likes.
 //
 // With the senseHighlights feature on (see features.ts), its words that use
-// a sense are lit up in that sense's color (see senses.ts), and a row of
-// dots says which senses it uses. Without it, the sentence is plain.
+// a sense are lit up in that sense's color (see senses.ts), and screen
+// readers hear which senses it uses. Without it, the sentence is plain.
 function Cards(props: {
   displaySentences?: GallerySentence[];
   // The signed-in user's view of each sentence's likes, or null for none
@@ -71,17 +71,8 @@ function Cards(props: {
               </p>
               <div className="paper-gallery__foot">
                 <span className="paper-gallery__author">{authorName(sentence.author)}</span>
-                {senses.length > 0 && (
-                  <span
-                    className="paper-gallery__senses"
-                    role="img"
-                    aria-label={usesLabel(senses)}
-                  >
-                    {senses.map((sense) => (
-                      <span key={sense} className={DOT[sense]} />
-                    ))}
-                  </span>
-                )}
+                {/* For screen readers, which don't get the colors */}
+                {senses.length > 0 && <span className="visually-hidden">{usesLabel(senses)}</span>}
                 {/* Signed-in users only: with nobody signed in there are
                     no likes to show (see useLikes) */}
                 {likes?.[sentence._id] && (
