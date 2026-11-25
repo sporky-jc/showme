@@ -81,8 +81,11 @@ export interface SafetyCheck {
 // {"concern": "yes"} or {"concern": "no"}), or it throws.
 export interface WelfareCheck {
   name: string;
-  check(input: ReviewInput, signal: AbortSignal): Promise<unknown>;
+  // "danger": the stricter question, for rude sentences (DANGER_INSTRUCTIONS
+  // in prompt.ts); the main question otherwise
+  check(input: ReviewInput, signal: AbortSignal, question?: WelfareQuestion): Promise<unknown>;
 }
+export type WelfareQuestion = "welfare" | "danger";
 
 // The checks asked before any AI reviewer, and how long each may take
 interface Checks {
@@ -101,9 +104,13 @@ const REWRITE_TIPS = new Set<TipId>(["onTopic", "ownWords"]);
 
 // Rule holds that are only about the words used: bad language, or unkind
 // words about someone. On its own that's a "Try again" with the kind-words
-// tip, not a hold for a person, so Scribbles can send it back without one.
-// But a child can tell us something serious in rude words, so the welfare
-// check reads it first, and any worry makes it a Check in instead. Its text
+// tip, not a hold for a person, so Scribbles sends it back without one. But
+// a child can tell us something serious in rude words, so the welfare check
+// asks its stricter question (serious or immediate danger only: kids will be
+// kids): "yes", and the sentence still goes back with the tip, and is a
+// Check in as well, so an adult reads it. (No answer, and it's held as
+// worrying until there is one.) The main question was worried about 23 of
+// 28 rude sentences in the held-out fair test, the stricter one about 2. Its text
 // goes to the welfare check's AI like any other sentence; a hold for
 // anything else (personal details, sensitive or worrying words, too long,
 // not in English) still goes to no AI at all. The safety check isn't asked:
@@ -215,12 +222,19 @@ const suggest = async (
   // Only the two texts are passed on, whatever else the caller's object holds
   const shown: ReviewInput = { tell: input.tell, show: input.show };
   const rules = checkRules(shown.tell, shown.show);
-  // Held only for rude or unkind words: the welfare check reads it first.
-  // Worried (or no clear "no"), and it's a Check in for a person; otherwise
-  // it goes back to the student with the kind-words tip (see RUDE_ONLY)
+  // Held only for rude or unkind words: back to the student with the
+  // kind-words tip. The welfare check's stricter question reads it too:
+  // danger, and it's a Check in as well; no answer, and it's held as
+  // worrying (see RUDE_ONLY)
   if (rules.outcome === "hold" && rules.reasons.every((reason) => RUDE_ONLY.has(reason))) {
     const attempts: ProviderAttempt[] = [];
-    const held = await checkWelfare(shown, welfare, timeoutMs, attempts);
+    const held = await checkWelfare(shown, welfare, timeoutMs, attempts, "danger");
+    if (held && held.verdict === "unsure" && held.reasons.includes("welfare-check")) {
+      return {
+        suggestion: { verdict: "redo", tip: "kindWords", reasons: [...held.reasons, ...rules.reasons], decidedBy: held.decidedBy },
+        attempts,
+      };
+    }
     if (held) return { suggestion: { ...held, reasons: [...held.reasons, ...rules.reasons] }, attempts };
     return {
       suggestion: { verdict: "redo", tip: "kindWords", reasons: rules.reasons, decidedBy: "rules" },
@@ -340,7 +354,8 @@ const checkWelfare = async (
   shown: ReviewInput,
   welfare: WelfareCheck | undefined,
   timeoutMs: number,
-  attempts: ProviderAttempt[]
+  attempts: ProviderAttempt[],
+  question: WelfareQuestion = "welfare"
 ): Promise<Suggestion | null> => {
   const unchecked: Suggestion = {
     verdict: "unsure",
@@ -349,7 +364,7 @@ const checkWelfare = async (
     decidedBy: "none",
   };
   if (!welfare) return unchecked;
-  const checked = await ask({ review: (i, signal) => welfare.check(i, signal) }, shown, timeoutMs);
+  const checked = await ask({ review: (i, signal) => welfare.check(i, signal, question) }, shown, timeoutMs);
   const parsed = checked.kind === "answer" ? WelfareAnswer.safeParse(checked.answer) : undefined;
   const concern = parsed?.success ? parsed.data.concern : null;
   attempts.push({
