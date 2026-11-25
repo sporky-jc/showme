@@ -4721,15 +4721,19 @@ html.paper-film-open {
 
 /* An iPhone colors the strip behind its address bar from whatever is fixed
    to the bottom of the page: the green bar of links. While a film is big
-   that bar is put away and the page behind is ink, so the strip is dark
-   like the rest of the big view. */
+   or a pop-up is open that bar is put away (components/bottomBar.ts), and
+   under a big film the page behind is ink, so the strip is dark like the
+   rest of the big view. */
 html.paper-film-open,
 html.paper-film-open body {
   background: var(--paper-ink);
 }
 
-html.paper-film-open .paper-nav__links {
-  display: none;
+/* Phones only: on wider screens these links are in the top bar */
+@media (max-width: 767.98px) {
+  html.paper-bar-away .paper-nav__links {
+    display: none;
+  }
 }
 
 .paper-film-set--big {

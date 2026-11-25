@@ -37,6 +37,8 @@ describe("WelcomeFilm", () => {
 
   it("shuts with Close or Esc, and the keyboard goes back to its button", async () => {
     const { user } = await open();
+    // While it's open the bar of links is put away (see bottomBar.ts)
+    expect(document.documentElement).toHaveClass("paper-bar-away");
     await user.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await vi.waitFor(() => expect(screen.getByRole("button", { name: "Watch how it works" })).toHaveFocus());
@@ -44,6 +46,7 @@ describe("WelcomeFilm", () => {
     await user.click(screen.getByRole("button", { name: "Watch how it works" }));
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.documentElement).not.toHaveClass("paper-bar-away");
   });
 
   it("keeps Tab and Shift+Tab going round inside the pop-up", async () => {

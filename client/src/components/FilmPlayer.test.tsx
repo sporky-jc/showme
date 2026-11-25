@@ -30,12 +30,15 @@ describe("FilmPlayer", () => {
     play();
     expect(set()).toHaveClass("paper-film-set--big");
     expect(document.documentElement).toHaveClass("paper-film-open");
+    // The bar of links is put away with it, so an iPhone's address bar strip isn't green
+    expect(document.documentElement).toHaveClass("paper-bar-away");
     // The Captions button is in the big view too
     expect(screen.getByRole("button", { name: /^Captions/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back to the page" }));
     expect(set()).not.toHaveClass("paper-film-set--big");
     expect(document.documentElement).not.toHaveClass("paper-film-open");
+    expect(document.documentElement).not.toHaveClass("paper-bar-away");
   });
 
   it("leaves the big view on Esc without passing the key on, and when the film ends", () => {

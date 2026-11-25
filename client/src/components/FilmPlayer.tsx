@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { putBarAway } from "./bottomBar";
 import { lineAt, loadCaptions } from "../captions";
 import type { CaptionLine } from "../captions";
 import type { Film } from "../films";
@@ -48,12 +49,25 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const [big, setBig] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
 
-  // The page under the big view stays where it is
+  // The page under the big view stays where it is, and the bar of links is
+  // put away. That happens in `grow`, in the same moment as the press, not
+  // here after the screen is drawn: an iPhone picks the color behind its
+  // address bar the instant the big view opens (see bottomBar.ts).
   useEffect(() => {
     if (!big) return;
-    document.documentElement.classList.add("paper-film-open");
-    return () => document.documentElement.classList.remove("paper-film-open");
+    return () => {
+      document.documentElement.classList.remove("paper-film-open");
+      putBarAway("film", false);
+    };
   }, [big]);
+
+  const grow = (on: boolean) => {
+    if (on) {
+      document.documentElement.classList.add("paper-film-open");
+      putBarAway("film", true);
+    }
+    setBig(on);
+  };
 
   const start = () => {
     const player = video.current;
@@ -61,7 +75,7 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
     // yet; the controls are showing by then, so the viewer can press play
     void player?.play()?.catch(() => undefined);
     setStarted(true);
-    setBig(onAPhone());
+    grow(onAPhone());
     onStart?.();
     player?.focus();
   };
@@ -105,7 +119,7 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
           tabIndex={started ? 0 : -1}
           onPlay={(event) => {
             setPlaying(true);
-            setBig(onAPhone());
+            grow(onAPhone());
             // One film at a time
             const mine = event.currentTarget;
             document.querySelectorAll("video").forEach((other) => {
