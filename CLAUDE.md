@@ -49,6 +49,14 @@ A "show, don't tell" writing app for kids in grades 4–7. The client is in
 - Don't use the Clawd character or the Mascot Screencast style (Anthropic's,
   not licensed), or the narration from Lemo Opuscar's own demo films.
 
+## Keeping changes small
+
+- The `ponytail` skill (`.claude/skills/ponytail`) is here to stop
+  over-building. Use it at its `lite` level: build what was asked, and say in
+  one line if a smaller way exists. Only the owner raises the level.
+- It never beats a house rule above, and it never means skipping tests or a
+  look at the page.
+
 ## Security scans
 
 - Free checks run on every pull request (tests, CodeQL, Dependabot, the plugin

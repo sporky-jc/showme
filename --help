@@ -1,0 +1,47 @@
+<!-- plugin-scan -->
+## Plugin and skill scan: all clear
+
+Scanned 34 items with SkillSpector (offline). 33 rated below HIGH, 1 rated HIGH or CRITICAL but already read by a person and found harmless.
+
+### `skills/security-and-hardening`: CRITICAL (100/100), reviewed
+
+<details><summary>Every item</summary>
+
+| Item | Rating | Score | Status |
+|---|---|---|---|
+| `skills/accessibility-engineering` | LOW | 0 | ok |
+| `skills/api-and-interface-design` | LOW | 0 | ok |
+| `skills/browser-testing-with-devtools` | MEDIUM | 47 | ok |
+| `skills/ci-cd-and-automation` | MEDIUM | 27 | ok |
+| `skills/code-review-and-quality` | LOW | 0 | ok |
+| `skills/code-simplification` | MEDIUM | 21 | ok |
+| `skills/constraint-driven-development` | MEDIUM | 37 | ok |
+| `skills/context-engineering` | MEDIUM | 33 | ok |
+| `skills/debugging-and-error-recovery` | LOW | 0 | ok |
+| `skills/deprecation-and-migration` | LOW | 7 | ok |
+| `skills/documentation-and-adrs` | LOW | 0 | ok |
+| `skills/doubt-driven-development` | MEDIUM | 22 | ok |
+| `skills/frontend-ui-engineering` | LOW | 0 | ok |
+| `skills/git-workflow-and-versioning` | MEDIUM | 23 | ok |
+| `skills/idea-refine` | LOW | 0 | ok |
+| `skills/incremental-implementation` | LOW | 7 | ok |
+| `skills/interview-me` | LOW | 0 | ok |
+| `skills/observability-and-instrumentation` | LOW | 0 | ok |
+| `skills/performance-optimization` | LOW | 7 | ok |
+| `skills/planning-and-task-breakdown` | LOW | 11 | ok |
+| `skills/ponytail` | LOW | 0 | ok |
+| `skills/security-and-hardening` | CRITICAL | 100 | reviewed |
+| `skills/shipping-and-launch` | LOW | 20 | ok |
+| `skills/source-driven-development` | MEDIUM | 47 | ok |
+| `skills/spec-driven-development` | MEDIUM | 21 | ok |
+| `skills/test-driven-development` | LOW | 7 | ok |
+| `skills/using-agent-skills` | LOW | 11 | ok |
+| `skills/web-design-guidelines` | LOW | 0 | ok |
+| `agents` | LOW | 20 | ok |
+| `commands` | LOW | 12 | ok |
+| `hooks` | LOW | 15 | ok |
+| `references` | MEDIUM | 42 | ok |
+| `marketplace lemolab: plugin/skills/lemo-opuscar` | MEDIUM | 31 | ok |
+| `marketplace lemolab: tools/directory` | MEDIUM | 31 | ok |
+
+</details>
