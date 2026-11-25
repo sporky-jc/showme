@@ -266,15 +266,12 @@ same.
 A sentence is approved without a teacher only when all of these hold:
 1. **The rule checks pass:** nothing worrying, sensitive, unsafe or
    personal. Anything they flag always goes to a person, whoever wrote it,
-   and is never sent to an AI. Trust never skips this.
+   and is never sent to an AI.
 2. **The safety check passes, and both models' welfare checks pass.**
 3. **Both models say approve,** and the writing checks find no mistakes.
-4. **The kid has earned trust:** at least 3 sentences a teacher approved,
-   and none sent back with the kind-words tip. A kid's first sentences
-   always go to a teacher.
-5. **It's the sentence's first or second version.** Later edits go to a
+4. **It's the sentence's first or second version.** Later edits go to a
    teacher, so nobody can reword until the models say yes.
-6. **The gates are open** for the version running now:
+5. **The gates are open** for the version running now:
    - the made-up safety set (B7): zero wrong approvals;
    - the last 100 real teacher decisions: zero where Scribbles said approve
      and the teacher sent it back or took an approval back.
@@ -296,9 +293,9 @@ Everything else waits for a teacher, as today. Beyond that:
   teacher.
 - **It takes time.** With today's volume, 100 teacher decisions will take a
   while, and a new version starts the count again.
-- **Still open:** whether an auto-approved sentence shows to classmates at
-  once, or after a few hours (its writer sees "approved" at once either
-  way).
+- **It shows to classmates at once,** like a teacher's approval. The
+  sample and the undo are the checks after that.
+- **No earned trust.** Every kid's sentences are treated the same way.
 
 ### The Scribbles switch (B1)
 
@@ -595,8 +592,8 @@ day's free allowance.
 - Sentences may one day be approved automatically, only as Stage C sets out,
   never sent back automatically, with a teacher able to undo.
 - Auto-approval (decided 2026-11-25): a teacher still reads 1 in 5, to
-  start; a kid earns trust first, and the rule checks still flag every
-  sentence; the switch works from the site and from GitHub, on staging and
+  start; the rule checks still flag every sentence; no earned trust per
+  kid; an auto-approved sentence shows to classmates at once; the switch works from the site and from GitHub, on staging and
   production, and will be per class later.
 - AI and the job's own gates decide, not a person, and it must stay free.
 - The weekly job adds words with no person in the loop: its PR merges itself
