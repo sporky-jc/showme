@@ -18,7 +18,13 @@ const lessMotion = (wanted: boolean) =>
   }));
 
 const turn = () => act(() => vi.advanceTimersByTime(3500));
-const sentence = () => document.querySelector(".paper-welcome__sentence")?.textContent;
+// The sentence as a screen reader gets it: the Show sentence's words are
+// split up for its animation, and hidden from them beside a whole copy
+const sentence = () => {
+  const shown = document.querySelector(".paper-welcome__sentence")?.cloneNode(true) as Element | undefined;
+  shown?.querySelectorAll('[aria-hidden="true"]').forEach((hidden) => hidden.remove());
+  return shown?.textContent;
+};
 const pressed = (name: string) =>
   screen.getByRole("button", { name }).getAttribute("aria-pressed");
 const bigPhoto = () => document.querySelector(".paper-welcome__photo img")!;
@@ -263,5 +269,22 @@ describe("Welcome", () => {
 
     expect(screen.queryByRole("img", { name: "Scribbles the pencil" })).not.toBeInTheDocument();
     expect(screen.getByText("Tap Show and watch the words come alive!")).toBeInTheDocument();
+  });
+
+  it("paints the Show in with a brush, each time, and says the sentence once to screen readers", () => {
+    render(<Welcome />);
+    expect(document.querySelector(".paper-welcome__wipe")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show" }));
+    const wipe = document.querySelector(".paper-welcome__wipe")!;
+    expect(wipe).toHaveAttribute("aria-hidden", "true");
+    expect(wipe.querySelector(".paper-welcome__brush")).not.toBeNull();
+    // The animated words are hidden; the whole sentence is there once
+    const words = document.querySelectorAll(".paper-welcome__sentence .paper-welcome__word");
+    expect(words.length).toBeGreaterThan(5);
+    expect(words[0].closest('[aria-hidden="true"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Tell" }));
+    expect(document.querySelector(".paper-welcome__wipe")).toBeNull();
   });
 });
