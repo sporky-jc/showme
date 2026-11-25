@@ -83,7 +83,8 @@ describe("NavbarComp", () => {
 const maya = { id: "g-maya", firstName: "Maya", lastName: "Rivera", isAdmin: false };
 
 // Draw the nav bar (and the page under it) at `route`
-const renderNav = (route: string, user: object = {}) =>
+// `logOut` is what the server says to each Log out (200 unless a test says)
+const renderNav = (route: string, user: object = {}, logOut: () => number | "offline" = () => 200) =>
   renderWithApp(
     <>
       <NavbarComp />
@@ -94,7 +95,7 @@ const renderNav = (route: string, user: object = {}) =>
       state: { user },
       respond: (config) => {
         if (config.url === "/Login") return Object.keys(user).length ? { status: 200, data: user } : 401;
-        if (config.url === "/Logout") return 200;
+        if (config.url === "/Logout") return logOut();
         return { status: 200, data: [] };
       },
     }
@@ -132,6 +133,21 @@ describe("the nav bar's links", () => {
     await userEvent.click(within(screen.getByRole("banner")).getByRole("button", { name: "Sign in" }));
     // The pop-up (the Welcome page under it has a sign-in button of its own)
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  // The Welcome page has its own big "Sign in with Google", the one coral
+  // button there: the top bar's Sign in is an outline on that page only
+  it("makes the top Sign in quiet on the home page, and coral everywhere else", () => {
+    const home = renderNav("/", {});
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "Sign in" })).toHaveClass(
+      "paper-nav__signin--quiet"
+    );
+    home.unmount();
+
+    renderNav("/Gallery", {});
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "Sign in" })).not.toHaveClass(
+      "paper-nav__signin--quiet"
+    );
   });
 
   it("marks the page you're on", async () => {
@@ -235,6 +251,35 @@ describe("the account button", () => {
     await waitFor(() => expect(store.getState().user).toEqual({}));
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/$/));
     expect(within(screen.getByRole("banner")).getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  // The server cancels the login and deletes its cookie. If it never got the
+  // message, the student is still signed in: saying "logged out" would leave
+  // the next person on a shared computer signed in as them after a reload.
+  it.each([
+    ["the server can't be reached", "offline" as const],
+    ["the server fails", 500],
+  ])("says so and keeps the student signed in when %s, and Log out works when tried again", async (_why, answer) => {
+    let down = true;
+    const { store } = renderNav("/Gallery", maya, () => (down ? answer : 200));
+
+    await userEvent.click(screen.getByRole("button", { name: "Account: Maya Rivera" }));
+    await userEvent.click(screen.getByRole("button", { name: "Log out" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "We couldn't log you out. Check your internet, then press Log out again."
+    );
+    expect(store.getState().user).toEqual(maya);
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/Gallery$/);
+    expect(screen.getByRole("button", { name: "Account: Maya Rivera" })).toBeInTheDocument();
+
+    down = false;
+    await userEvent.click(screen.getByRole("button", { name: "Account: Maya Rivera" }));
+    await userEvent.click(screen.getByRole("button", { name: "Log out" }));
+
+    await waitFor(() => expect(store.getState().user).toEqual({}));
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/$/));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 

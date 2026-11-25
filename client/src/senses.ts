@@ -1,5 +1,5 @@
 // Which senses a Show sentence uses, from a short word list per sense. It's a
-// hint for the Write page (stickers, lit-up sense buttons, Scribbles' picture)
+// hint for the Write page (lit-up sense buttons, Scribbles' picture)
 // and the gallery, not a grade: it will miss some words, and Scribbles'
 // review decides.
 //

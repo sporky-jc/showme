@@ -3,8 +3,8 @@ import { Link } from "react-router";
 import { useSelector } from "react-redux";
 import PageLoading from "../components/PageLoading";
 import Scribbles from "../components/Scribbles";
-import SenseSticker from "../components/SenseSticker";
-import { SENSE_KEYS, SENSE_NAMES, senseWords } from "../senses";
+import { JoinedLine, JoinedStamp } from "../components/GalleryJoined";
+import { useNewApprovals } from "../components/useNewApprovals";
 import SignInPrompt from "../components/SignInPrompt";
 import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
@@ -16,24 +16,6 @@ import { withoutAsk } from "../tells";
 // My sentences: everything the signed-in student has written, newest first,
 // each on a paper note colored by where it stands, with the way to change
 // it. Writing happens on the Write page.
-// The senses a sentence uses, as a row of small stickers, said in words for
-// screen readers (see senses.ts). Nothing for a sentence that uses none.
-function SensesUsed({ text }: { text: string }) {
-  const found = senseWords(text);
-  const used = SENSE_KEYS.filter((sense) => found[sense]);
-  if (used.length === 0) return null;
-  return (
-    <p className="paper-mine__senses">
-      <span className="visually-hidden">
-        Senses: {used.map((sense) => `${SENSE_NAMES[sense]} (${found[sense]})`).join(", ")}
-      </span>
-      {used.map((sense, place) => (
-        <SenseSticker key={sense} word={found[sense]!} sense={sense} tilt={place % 2 ? 5 : -5} />
-      ))}
-    </p>
-  );
-}
-
 function MyPage() {
   const tellSentences = useSelector((state: RootState) => state.tellsentences);
   const user = useSelector((state: RootState) => state.user);
@@ -42,6 +24,8 @@ function MyPage() {
 
   const { loaded, retry } = useStudentData();
   const [activePage, setActivePage] = useState(1);
+  // Sentences approved since the student last looked: celebrated once
+  const fresh = useNewApprovals(user.id, userSentences, loaded === "ready");
 
   if (!signedIn) {
     return (
@@ -94,6 +78,8 @@ function MyPage() {
         )}
       </div>
 
+      {fresh.size > 0 && <JoinedLine count={fresh.size} />}
+
       {userSentences.length === 0 ? (
         <p className="page-message">
           You haven&apos;t written a sentence yet. Your first Tell is waiting!
@@ -107,13 +93,13 @@ function MyPage() {
             const day = dayOf(sentence.title);
             const name = day ? `sentence ${day}` : `sentence “${sentence.show}”`;
             return (
-              <li key={sentence._id} className={note}>
+              <li key={sentence._id} className={fresh.has(sentence._id) ? `${note} paper-note--fresh` : note}>
                 <div className="paper-mine__head">
                   <span className="paper-note__status">{label}</span>
                   <span className="paper-mine__day">{day ? `Sentence ${day}` : "Sentence"}</span>
                 </div>
+                {fresh.has(sentence._id) && <JoinedStamp />}
                 <p className="paper-mine__show">{sentence.show}</p>
-                <SensesUsed text={sentence.show} />
                 {/* The tip from the teacher's decision, in Scribbles' words:
                     how to fix it, or praise once it's in the gallery */}
                 {sentence.tip && (sentence.toRedo || sentence.approved) && (
@@ -121,6 +107,7 @@ function MyPage() {
                     <Scribbles
                       mood={sentence.approved ? "happy" : "thinking"}
                       prop={sentence.approved ? "check" : "note"}
+                      reaction={fresh.has(sentence._id) ? "cheer" : undefined}
                       size={56}
                       decorative
                     />

@@ -147,18 +147,26 @@ account. Each returns its sense words, each with a sense.
     made-up sentences, labeled the same way, never tuned on. The measure
     runs on both sets; production needs both to pass. The word list scores
     85.0% found, 94.4% right on it (84.2% and 93.0% on the tuning set).
-  - [ ] **2b. A judge panel decides the may senses**, once, then frozen
+  - [x] **2b. A judge panel decides the may senses**, once, then frozen
     (`client/src/test/senseMay.ts`): three AI families other than the
     tagger's (Gemma 4, GLM-4.7-flash, gpt-oss-120b) are asked, for every sense a sentence's
     labels leave out, whether most grade 4 to 7 teachers would accept it.
     Only a unanimous yes counts; any doubt counts against the tagger.
+    Judged 2026-11-24 (Gemma 4, GLM-4.7-flash, gpt-oss-120b, every answer
+    read): one judgment call in 137 sentences ("The fire alarm screeched,
+    and we covered our ears." may also show feel), so the bar is almost
+    exactly the labels. The free Neurons run over a rolling 24 hours: the
+    held-out set was refused at 02:52 UTC and ran at 05:40, once the day
+    before's big run was 24 hours old.
   - [x] **3. The tagger says clear or maybe** for each label, and a word
     lights up only when both models give the same sense and both say clear.
     A better question: a thing's name alone is none, judge by the phrase,
     with four worked examples. The examples are never practice sentences,
     nor close to one (`client/src/taggerPromptFair.test.ts`), so the measure
-    stays fair. Measured once the judge panel's answers are in.
-  - [ ] **4. Only if 3 misses the bar:** a yes/no double-check of each
+    stays fair. **Passed** on 2026-11-24: tuning set 92.6% found, 93.6%
+    right (word list 84.2%, 93.0%); held-out set 100% found, 97.6% right
+    (85.0%, 94.4%). Step 4 isn't needed.
+  - [x] **4. Only if 3 misses the bar** (it didn't, so not done): a yes/no double-check of each
     agreed word by the other model, then a third AI family.
   - [ ] **5. Running it unattended**, on two Cloudflare accounts: one for
     approvals (Scribbles), one for senses (the tagger, the judge panel, the
@@ -173,15 +181,29 @@ account. Each returns its sense words, each with a sense.
       request's Neurons), with the sentence count as a backstop, leaving room
       for the weekly measure (`TAGGER_NEURONS_PER_DAY`, set in each deploy
       workflow, counted in `models/taggerUsage.ts` per UTC day). Caps, not
-      reservations: while nobody uses production, staging 5,000 and
-      production 500; when production goes live, staging 1,000 and
-      production 4,500.
-    - [ ] **5d. The measure every week, and a switch that only turns off:**
+      reservations: about 50 Neurons per new approved sentence, and the
+      weekly measure uses about 6,900, all within 10,000 over any 24 hours.
+      While nobody uses production, staging 2,500 and production 500; when
+      production has real classes, staging 500 and production 2,500.
+      Failed sentences count too: the Neurons of every answer that came
+      back, and a worst case for one that timed out; a sentence that fails 3
+      times with the same words is saved with no AI highlights instead of
+      being tried every 10 minutes (`MAX_TAG_FAILURES`). Note: Cloudflare's
+      free Neurons seem to run over a rolling 24 hours, not from 00:00 UTC
+      (refused on 2026-11-24 with 3,670 used that day, 12,300 in 24 hours).
+    - [x] **5d. The measure every week, and a switch that only turns off:**
       if a finished measure misses the bar, or a model is gone, it turns "AI
       highlights for kids" off and the run fails (GitHub emails the owner).
       It never turns anything on, and doesn't act when it couldn't run.
-  - [ ] **6. Production:** AI reading on and AI highlights for kids off for
-    about a week, then on.
+      Sundays at 19:41 UTC, on the sense account. Staging only for now:
+      production's switch, behind the production approval, comes when
+      production is in use.
+  - [ ] **6. Release:** on staging, AI reading on and AI highlights for
+    kids off for about a week, then on. Production also needs its
+    `senseHighlights` feature flag on (backend/config/features.ts, #205:
+    with it off, the Gallery shows no sense highlights at all), its
+    budgets flipped (5c), and its switch-off behind the production approval
+    (5d).
 - [ ] **A5: The weekly word job learns from the agreed tags** (S3, reworked):
   a word goes on the list for the Write page (which can't call an AI on
   every keystroke) when both models tagged it with the same sense in at

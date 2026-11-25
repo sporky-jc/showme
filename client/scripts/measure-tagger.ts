@@ -12,6 +12,7 @@ import { appendFileSync } from "node:fs";
 import { TAG_MODELS, tagShow } from "../../backend/tagger/tagger";
 import { agreedTags } from "../../backend/tagger/senseTags";
 import { ProviderError } from "../../backend/reviewer/providers/http";
+import { isModelGone } from "../../backend/reviewer/providers/cloudflare";
 import type { SenseTag } from "../src/senses";
 import { senseWords } from "../src/senses";
 import { SENSE_SET, type Labeled } from "../src/test/senseSet";
@@ -23,7 +24,18 @@ const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 const token = process.env.CLOUDFLARE_AI_TOKEN;
 if (!accountId || !token) {
   console.error("Can't run: needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN.");
-  process.exit(1);
+  finish("unavailable");
+}
+
+// The verdict, for the workflow (GITHUB_OUTPUT "verdict"), and the exit code:
+// pass 0; fail 2 (a finished measure missed the bar, or a model is gone: the
+// workflow then switches AI highlights for kids off); unavailable 1 (it
+// couldn't run: nothing is switched)
+type Verdict = "pass" | "fail" | "unavailable";
+function finish(verdict: Verdict): never {
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `verdict=${verdict}\n`);
+  console.log(`Verdict: ${verdict}`);
+  process.exit({ pass: 0, fail: 2, unavailable: 1 }[verdict]);
 }
 
 // One practice set: run the tagger on each sentence, then score it
@@ -48,11 +60,14 @@ async function measure(name: string, set: readonly Labeled[]) {
         modelNamed[i] += own.length;
       });
     } catch (error) {
-      // Workers AI turned it away (out of Neurons, a busy model, a token
-      // without permission): say exactly what Cloudflare said
+      // Workers AI turned it away: say exactly what Cloudflare said. A
+      // retired or unknown model is a verdict (the tagger can't work, so
+      // it fails); anything else (out of Neurons, a busy model, a token
+      // without permission) means the measure couldn't run, not that it
+      // failed
       if (error instanceof ProviderError && error.status !== undefined) {
         console.error(`Workers AI said no (${error.message}): ${error.detail ?? "no reason given"}.`);
-        process.exit(1);
+        finish(isModelGone(error.status, error.detail) ? "fail" : "unavailable");
       }
       if (error instanceof ProviderError && error.invalid) {
         unreadable += 1;
@@ -102,3 +117,4 @@ const markdown = [
 ].join("\n\n");
 console.log(markdown);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`);
+finish(tuning.passed && heldOut.passed ? "pass" : "fail");

@@ -38,6 +38,10 @@ describe("the capitals and punctuation checks", () => {
     "She shouted, \"Look at the snow!\"",
     "I saw a UFO and an elephant in the snowy field.",
     "Was it the wind, or was it a ghost?",
+    "‘Woof!’ barked the dog, wagging his tail.",
+    "'Stop!' shouted Mum, and the car screeched to a halt.",
+    "‘Are you coming?’ asked Gran.",
+    "‘Boom,’ went the drum, ‘boom, boom.’",
   ])("finds nothing in: %s", (show) => {
     expect(mechanicsIssues(show)).toEqual([]);
   });

@@ -25,6 +25,19 @@ const check = (rows: [string, Expected][]) =>
     else expect(result).toMatchObject({ outcome: "hold", reasons: expect.arrayContaining([expected]) });
   });
 
+// Words that are also the names of things every JavaScript object has
+// ("constructor", "toString"): a child can write them, and they must be read
+// as plain words, not looked up as if they were in our word lists
+describe("words that are also built-in JavaScript names", () => {
+  check([
+    ["The constructor built a wall of red bricks.", "pass"],
+    ["Constructor! The c0nstruct0r drove a yellow digger.", "pass"],
+    ["My toy robot has a valueOf button and a toString light.", "pass"],
+    ["The constructors and the prototypes stood in a row.", "pass"],
+    ["The constructor said he wants to kill me", "worrying"],
+  ]);
+});
+
 describe("read every way it can be written", () => {
   check([
     ["k y s", "worrying"],
@@ -375,6 +388,10 @@ describe("how the measurement scores a sample", () => {
     [{ expected: "unsafe", reason: "worrying" }, rules(["sensitive-words"]), "wrong-reason"],
     [{ expected: "unsafe", reason: "other" }, rules(["worrying"]), "wrong-reason"],
     [{ expected: "unsafe" }, { verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: "guard" }, "agreed"],
+    // Sent back by the rules with the kind-words tip: right for rude words,
+    // wrong for a worrying sentence
+    [{ expected: "unsafe", reason: "other" }, { verdict: "redo", tip: "kindWords", reasons: ["unkind"], decidedBy: "rules" }, "agreed"],
+    [{ expected: "unsafe", reason: "worrying" }, { verdict: "redo", tip: "kindWords", reasons: ["unsafe-words"], decidedBy: "rules" }, "wrong"],
     // A welfare hold counts like a safety hold
     [{ expected: "unsafe" }, { verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: "welfare" }, "agreed"],
     [{ expected: "unsafe", reason: "worrying" }, { verdict: "unsure", tip: null, reasons: ["worrying", "welfare-check"], decidedBy: "welfare" }, "agreed"],

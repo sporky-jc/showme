@@ -9,18 +9,36 @@ name: Measure the sense tagger
 # (senseMay.ts) count neither way. Stages A4 and A7 of
 # tasks/sense-words-plan.md. Run it from the Actions tab with "Run workflow",
 # before showing AI highlights to kids in production: both sets must pass.
-# Uses about 4,500 of Cloudflare's 10,000 free daily Neurons per run.
+# Uses about 6,900 of Cloudflare's free 10,000 Neurons (counted over any 24
+# hours) per run: 137 sentences at about 50 each.
 #
 # Runs on made-up sentences only, on the sense Cloudflare account (secrets
 # CLOUDFLARE_SENSE_ACCOUNT_ID and CLOUDFLARE_SENSE_AI_TOKEN, a token with
 # only the Workers AI permission), the one the tagger uses, so Scribbles'
 # free Neurons are never touched. Without both, the test account (its
 # earlier name, CLOUDFLARE_TEST_*), else the main one.
+#
+# Every week too (Sundays), so a model Cloudflare changes or retires can't
+# quietly make kids' highlights worse. Its verdict:
+# - pass: nothing to do;
+# - fail (a finished measure missed the bar, or a model is gone): it turns
+#   "AI highlights for kids" off in staging (backend/scripts/
+#   switch-off-ai-highlights.ts), and the run fails, so GitHub emails the
+#   owner. It only ever turns that switch off: AI reading keeps going, and
+#   turning highlights back on is always the owner's press in Owner settings;
+# - unavailable (it couldn't run: out of Neurons, Cloudflare busy): nothing
+#   is switched, and the run fails so it's seen.
+# Production's switch comes when production is in use: its database is
+# behind the production approval, so it will wait for the owner's click.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '41 19 * * 0' # Sundays, 19:41 UTC
 
 permissions:
   contents: read
+  # To switch this workflow's own schedule back on (the last step)
+  actions: write
 
 concurrency:
   group: measure-tagger
@@ -71,4 +89,35 @@ jobs:
           # account (the same thing, by its earlier name), else the main one
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_SENSE_ACCOUNT_ID && secrets.CLOUDFLARE_SENSE_AI_TOKEN && secrets.CLOUDFLARE_SENSE_ACCOUNT_ID || secrets.CLOUDFLARE_TEST_ACCOUNT_ID && secrets.CLOUDFLARE_TEST_AI_TOKEN && secrets.CLOUDFLARE_TEST_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_SENSE_ACCOUNT_ID && secrets.CLOUDFLARE_SENSE_AI_TOKEN && secrets.CLOUDFLARE_SENSE_AI_TOKEN || secrets.CLOUDFLARE_TEST_ACCOUNT_ID && secrets.CLOUDFLARE_TEST_AI_TOKEN && secrets.CLOUDFLARE_TEST_AI_TOKEN || secrets.CLOUDFLARE_AI_TOKEN }}
+        id: measure
+        # The verdict decides what happens next, in the steps below
+        continue-on-error: true
         run: npx tsx scripts/measure-tagger.ts
+
+      - name: Switch AI highlights for kids off in staging
+        if: ${{ steps.measure.outputs.verdict == 'fail' }}
+        working-directory: backend
+        env:
+          DATABASE_ACCESS: ${{ secrets.STAGING_DATABASE_ACCESS }}
+          DATABASE_NAME: ShowME-dev
+        run: |
+          npm run build
+          node lib/scripts/switch-off-ai-highlights.js
+
+      - name: Say the verdict
+        env:
+          VERDICT: ${{ steps.measure.outputs.verdict }}
+        run: |
+          case "$VERDICT" in
+            pass) echo "The tagger passes on both practice sets." ;;
+            fail) echo "::error::The tagger missed the bar (or a model is gone): AI highlights for kids are off in staging. See the run's summary."; exit 1 ;;
+            *) echo "::error::The measure couldn't run (see the Measure step), so nothing was switched. It runs again next week, or run it by hand."; exit 1 ;;
+          esac
+
+      # GitHub turns off scheduled workflows in a public repository after 60
+      # days without commits. Switching it back on each run restarts that.
+      - name: Keep the weekly schedule on
+        if: ${{ always() && github.event_name == 'schedule' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/measure-tagger.yml/enable"

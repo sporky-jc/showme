@@ -2,20 +2,19 @@ import React, { type CSSProperties } from "react";
 import { Link } from "react-router";
 import { useSelector } from "react-redux";
 import Scribbles from "../components/Scribbles";
-import SenseSticker from "../components/SenseSticker";
+import { JoinedLine, JoinedStamp } from "../components/GalleryJoined";
+import { useNewApprovals } from "../components/useNewApprovals";
 import PageLoading from "../components/PageLoading";
 import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
 import type { RootState } from "../reducers/types";
 import { nextDay } from "../days";
 import { askOf, classicId, hintFor, tellById, withoutAsk } from "../tells";
-import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, leastUsedSense, senseCounts } from "../senses";
+import { useFeature } from "../features";
+import { SENSE_NAMES, SENSE_TIPS, leastUsedSense, senseCounts } from "../senses";
 
 // How many of the student's latest sentences to show under their next Tell
 const LATEST = 3;
-
-// Each earned sticker's tilt in the sticker book, so they look stuck on by hand
-const STICKER_TILTS = [-6, 5, -4, 7, -5];
 
 // A signed-in student's home: their next Tell sentence with the way to start
 // writing, and where their latest sentences stand.
@@ -26,7 +25,11 @@ function Today() {
   // The next Tell is the one after the student's last sentence, so it's only
   // known once their list and the Tell sentences have arrived. Without both,
   // say so: a guess would show the wrong day, or "all done".
+  // Scribbles' sense tip is part of the senseCoach feature (see features.ts)
+  const senseCoach = useFeature("senseCoach");
   const { loaded, retry } = useStudentData();
+  // Sentences approved since the student last looked: celebrated once
+  const fresh = useNewApprovals(user.id, userSentences, loaded === "ready");
 
   if (loaded === "loading") return <PageLoading />;
   if (loaded === "failed") {
@@ -56,8 +59,8 @@ function Today() {
   const ask = askOf(today?.technique);
   const approved = userSentences.filter((sentence) => sentence.approved);
   const shown = approved.length;
-  // The sticker book: a sticker for each sense used in a sentence that made
-  // it into the gallery (see senses.ts)
+  // How often each sense is used in the sentences that made it into the
+  // gallery (see senses.ts)
   const used = senseCounts(approved.map((sentence) => sentence.show));
   // Scribbles' tip for today: the sense the student uses least, with one of
   // its questions (a different one each day)
@@ -92,17 +95,6 @@ function Today() {
               <p className="paper-today__sentence">“{withoutAsk(today.tell)}”</p>
               {ask && <span className="paper-status paper-status--turn">{ask}</span>}
               <p className="paper-today__hint">{hintFor(today.technique)}</p>
-              <p
-                className="paper-today__tip"
-                style={{ "--tip-color": `var(--paper-sense-${tipSense})` } as CSSProperties}
-              >
-                <strong className="paper-today__tip-try">
-                  {used[tipSense] === 0
-                    ? `Try ${tipName} today!`
-                    : `You use ${tipName} the least. Try it today!`}
-                </strong>{" "}
-                {tip}
-              </p>
               <Link to="/Write" className="paper-btn paper-btn--action paper-today__start">
                 Start showing
                 <svg
@@ -120,6 +112,20 @@ function Today() {
                   <path d="M14.5 6l3.5 3.5" />
                 </svg>
               </Link>
+              {/* After the button, so the button stays on a phone's first screen */}
+              {senseCoach && (
+                <p
+                  className="paper-today__tip"
+                  style={{ "--tip-color": `var(--paper-sense-${tipSense})` } as CSSProperties}
+                >
+                  <strong className="paper-today__tip-try">
+                    {used[tipSense] === 0
+                      ? `Try ${tipName} today!`
+                      : `You use ${tipName} the least. Try it today!`}
+                  </strong>{" "}
+                  {tip}
+                </p>
+              )}
             </div>
             {/* Scenery for the sentence beside it, which says it all */}
             <img className="paper-today__photo" src={today.image} alt="" />
@@ -138,9 +144,12 @@ function Today() {
           </div>
         )}
         <div className="paper-today__scribbles">
+          {/* A sentence new to the gallery: he holds up his check and
+              cheers, once */}
           <Scribbles
-            mood={checking ? "thinking" : today ? "idle" : "happy"}
-            prop={checking ? "note" : "none"}
+            mood={fresh.size > 0 ? "happy" : checking ? "thinking" : today ? "idle" : "happy"}
+            prop={fresh.size > 0 ? "check" : checking ? "note" : "none"}
+            reaction={fresh.size > 0 ? "cheer" : undefined}
             size={120}
           />
         </div>
@@ -148,7 +157,13 @@ function Today() {
 
       {latest.length > 0 && (
         <section className="paper-today__mine" aria-labelledby="today-mine">
-          <h2 id="today-mine">My sentences</h2>
+          <div className="paper-today__mine-top">
+            <h2 id="today-mine">My sentences</h2>
+            <Link to="/MySentences" className="paper-today__all">
+              See all<span className="visually-hidden"> my sentences</span>
+            </Link>
+          </div>
+          {fresh.size > 0 && <JoinedLine count={fresh.size} />}
           {checking && (
             <p className="paper-today__later">
               Come back later! Once Scribbles approves it, it will appear in
@@ -161,9 +176,13 @@ function Today() {
               return (
                 <li key={sentence._id}>
                   {/* One Scribbles sent back opens ready to rewrite */}
-                  <Link to={sentence.toRedo ? `/Write/${sentence._id}` : "/MySentences"} className={note}>
+                  <Link
+                    to={sentence.toRedo ? `/Write/${sentence._id}` : "/MySentences"}
+                    className={fresh.has(sentence._id) ? `${note} paper-note--fresh` : note}
+                  >
                     <span className="paper-note__status">{label}</span>
                     <span className="paper-note__show">{sentence.show}</span>
+                    {fresh.has(sentence._id) && <JoinedStamp />}
                     {tell && <span className="visually-hidden">for “{withoutAsk(tell)}”</span>}
                   </Link>
                 </li>
@@ -173,35 +192,14 @@ function Today() {
         </section>
       )}
 
-      <section className="paper-card paper-book" aria-labelledby="today-book">
-        <h2 id="today-book">Sticker book</h2>
-        <p className="paper-book__hint">
-          Use a sense in a sentence that makes it into the gallery to earn its
-          sticker.
-        </p>
-        <ul className="paper-book__stickers">
-          {SENSE_KEYS.map((sense, place) => {
-            const count = used[sense];
-            const name = SENSE_NAMES[sense];
-            return (
-              <li key={sense} className="paper-book__slot">
-                {count > 0 ? (
-                  <SenseSticker word={name} sense={sense} tilt={STICKER_TILTS[place]} />
-                ) : (
-                  <span className="paper-book__empty" aria-hidden>
-                    {name}?
-                  </span>
-                )}
-                <span className="visually-hidden">{name}: </span>
-                <span className="paper-book__count">
-                  {count === 0
-                    ? "Not yet. Try it today!"
-                    : `Used in ${count} ${count === 1 ? "sentence" : "sentences"}`}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+      <section className="paper-card paper-today__films" aria-labelledby="today-films">
+        <div>
+          <h2 id="today-films">Films</h2>
+          <p>Short films about ways to show.</p>
+        </div>
+        <Link to="/Films" className="paper-btn">
+          Watch a film
+        </Link>
       </section>
     </div>
   );

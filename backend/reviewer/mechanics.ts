@@ -82,7 +82,9 @@ export const mechanicsIssues =(text: string): MechanicsIssue[] => {
   // A space after , ; : and after . ! ? between words, but not inside
   // numbers ("3.5", "1,000") or "..."
   const unabbreviated = trimmed.replace(/\b(?:[A-Za-z]\.){2,}/g, (abbreviation) => "X".repeat(abbreviation.length)); // "a.m."
-  for (const match of unabbreviated.matchAll(/[A-Za-z'’]+[,;:!?.][A-Za-z'’]+/g)) add("no-space-after-mark", match[0]);
+  // A word must follow the mark: a closing quote after it ("‘Woof!’ barked
+  // the dog", "'Stop!' he said") is how dialogue ends, not a missing space
+  for (const match of unabbreviated.matchAll(/[A-Za-z'’]+[,;:!?.][A-Za-z][A-Za-z'’]*/g)) add("no-space-after-mark", match[0]);
 
   const words = [...trimmed.matchAll(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)];
   // Is word i the word before it again, with only a space between?

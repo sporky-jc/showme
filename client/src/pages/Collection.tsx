@@ -2,12 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Cards from "../components/Cards";
 import Scribbles from "../components/Scribbles";
-import GalleryPick from "../components/GalleryPick";
 import SenseFinder from "../components/SenseFinder";
+import { useFeature } from "../features";
 import { DisplayCollectionSentences } from "../config";
 import { senseWords } from "../senses";
 import type { SenseKey } from "../senses";
-import { anyOf, pickAndWall } from "./pickAndWall";
 import { useLikes } from "../components/useLikes";
 import { useOpenLogin } from "../components/loginPopup";
 import LoadingOverlay from "react-loading-overlay-ts";
@@ -31,10 +30,10 @@ function Collection() {
   const [sentences, setSentences] = useState<GallerySentence[]>([]);
   const [displaySentences, setDisplay] = useState<GallerySentence[]>([]);
   const [order, setOrder] = useState<"shuffle" | "newest">("shuffle");
-  // Scribbles' pick, once "Show me another" has chosen one (see pickAndWall)
-  const [pickId, setPickId] = useState<string | null>(null);
   // The sense finder's sense, if one is pressed (see SenseFinder)
   const [sense, setSense] = useState<SenseKey | null>(null);
+  // The finder is part of the senseHighlights feature (see features.ts)
+  const finder = useFeature("senseHighlights");
   // How many of the wall's cards are showing; Show more adds
   // DisplayCollectionSentences, and a new order or sense starts again
   const [limit, setLimit] = useState(DisplayCollectionSentences);
@@ -84,13 +83,11 @@ function Collection() {
   const showShuffled = () => {
     setDisplay(shuffle(sentences));
     setOrder("shuffle");
-    setPickId(null);
     setLimit(DisplayCollectionSentences);
   };
   const showNewest = () => {
     setDisplay(sentences);
     setOrder("newest");
-    setPickId(null);
     setLimit(DisplayCollectionSentences);
   };
   const pickSense = (next: SenseKey | null) => {
@@ -108,24 +105,18 @@ function Collection() {
     focusAt.current = null;
   }, [limit]);
 
-  const { pick, wall, others } = pickAndWall(displaySentences, pickId);
-  // With a sense pressed, the wall shows every sentence but the pick that
-  // uses it (Cards shows the first DisplayCollectionSentences of them)
+  // The wall: every sentence in the order showing, or, with a sense
+  // pressed, every one that uses it (Cards shows the first
+  // DisplayCollectionSentences of them)
   const found = sense
-    ? displaySentences.filter((sentence) => sentence !== pick && senseWords(sentence.show, sentence.senseTags)[sense] !== null)
-    : wall;
-  // A different one from the ones Scribbles could pick
-  const showAnother = () => {
-    const choices = others.filter((sentence) => sentence._id !== pick?._id);
-    setPickId(anyOf(choices)._id);
-  };
+    ? displaySentences.filter((sentence) => senseWords(sentence.show, sentence.senseTags)[sense] !== null)
+    : displaySentences;
 
   // Scribbles taped the cards up. He tells a signed-in student when one of
   // theirs is among the ones showing.
   const firstName = useSelector((state: RootState) => state.user.firstName);
   const showing = found.slice(0, limit);
-  const mineIsUp = (pick ? [pick, ...showing] : showing)
-    .some((sentence) => likes?.[sentence._id]?.mine);
+  const mineIsUp = showing.some((sentence) => likes?.[sentence._id]?.mine);
 
   // The Show ME gallery: every approved sentence, from every student
   return (
@@ -164,16 +155,7 @@ function Collection() {
               </button>
             </div>
           </div>
-          {pick && (
-            <GalleryPick
-              sentence={pick}
-              signedIn={userId !== undefined}
-              onAnother={others.length > 1 ? showAnother : undefined}
-              likes={likes}
-              onToggleLike={toggle}
-            />
-          )}
-          {sentences.length > 0 && <SenseFinder sense={sense} found={found.length} onPick={pickSense} />}
+          {finder && sentences.length > 0 && <SenseFinder sense={sense} found={found.length} onPick={pickSense} />}
           {!loading && sentences.length === 0 ? (
             <p className="page-message">
               No sentences have been approved yet.

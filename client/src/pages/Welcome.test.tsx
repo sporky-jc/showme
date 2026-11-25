@@ -18,7 +18,13 @@ const lessMotion = (wanted: boolean) =>
   }));
 
 const turn = () => act(() => vi.advanceTimersByTime(3500));
-const sentence = () => document.querySelector(".paper-welcome__sentence")?.textContent;
+// The sentence as a screen reader gets it: the Show sentence's words are
+// split up for its animation, and hidden from them beside a whole copy
+const sentence = () => {
+  const shown = document.querySelector(".paper-welcome__sentence")?.cloneNode(true) as Element | undefined;
+  shown?.querySelectorAll('[aria-hidden="true"]').forEach((hidden) => hidden.remove());
+  return shown?.textContent;
+};
 const pressed = (name: string) =>
   screen.getByRole("button", { name }).getAttribute("aria-pressed");
 const bigPhoto = () => document.querySelector(".paper-welcome__photo img")!;
@@ -33,9 +39,29 @@ describe("Welcome", () => {
     render(<Welcome />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Don't just tell it. Show it!");
-    expect(screen.getByText(/Turn boring sentences into pictures made of words/)).toBeInTheDocument();
-    expect(screen.getByText("2 · Scribbles checks")).toBeInTheDocument();
-    expect(screen.getByText("3 · Join the gallery")).toBeInTheDocument();
+    // One short line: the example is what explains it
+    expect(screen.getByText("Write yours. When Scribbles says yes, it joins the gallery.")).toBeInTheDocument();
+    expect(screen.queryByText(/Turn boring sentences/)).not.toBeInTheDocument();
+    expect(screen.queryByText("2 · Scribbles checks")).not.toBeInTheDocument();
+  });
+
+  // On a phone a pill on the photo covered too much of it: Tell, Show and
+  // Pause are a row of their own, which paper.css puts under the photo on a
+  // phone and on the photo's corners on wider screens
+  it("keeps Tell, Show and Pause out of the photo's box", () => {
+    lessMotion(true);
+    render(<Welcome />);
+
+    const photo = document.querySelector(".paper-welcome__photo")!;
+    const controls = document.querySelector(".paper-welcome__controls")!;
+    for (const name of ["Tell", "Show", "Pause"]) {
+      const button = screen.getByRole("button", { name });
+      expect(controls).toContainElement(button);
+      expect(photo).not.toContainElement(button);
+    }
+    // ... right after the photo, before the sentence
+    expect(photo.nextElementSibling).toBe(controls);
+    expect(controls.nextElementSibling).toHaveClass("paper-welcome__words");
   });
 
   it("opens the sign-in pop-up from its button", () => {
@@ -263,5 +289,22 @@ describe("Welcome", () => {
 
     expect(screen.queryByRole("img", { name: "Scribbles the pencil" })).not.toBeInTheDocument();
     expect(screen.getByText("Tap Show and watch the words come alive!")).toBeInTheDocument();
+  });
+
+  it("paints the Show in with a brush, each time, and says the sentence once to screen readers", () => {
+    render(<Welcome />);
+    expect(document.querySelector(".paper-welcome__wipe")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show" }));
+    const wipe = document.querySelector(".paper-welcome__wipe")!;
+    expect(wipe).toHaveAttribute("aria-hidden", "true");
+    expect(wipe.querySelector(".paper-welcome__brush")).not.toBeNull();
+    // The animated words are hidden; the whole sentence is there once
+    const words = document.querySelectorAll(".paper-welcome__sentence .paper-welcome__word");
+    expect(words.length).toBeGreaterThan(5);
+    expect(words[0].closest('[aria-hidden="true"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Tell" }));
+    expect(document.querySelector(".paper-welcome__wipe")).toBeNull();
   });
 });

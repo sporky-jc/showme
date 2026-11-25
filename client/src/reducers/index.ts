@@ -6,12 +6,14 @@ import user from "./user";
 import approvalsentences from "./approvalsentences";
 import approvedsentences from "./approvedsentences";
 import session from "./session";
+import features from "./features";
 import type { AppAction } from "./types";
 
 const reducers = {
   tellsentences,
   user,
   session,
+  features,
   usersentences,
   approvalsentences,
   approvedsentences,

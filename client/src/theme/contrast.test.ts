@@ -42,7 +42,7 @@ describe("theme colors", () => {
     expect(contrast(token(text), token(background))).toBeGreaterThanOrEqual(4.5);
   });
 
-  // Sense buttons and stickers: ink on each sense's color
+  // Sense buttons and highlights: ink on each sense's color
   it.each(["see", "hear", "feel", "smell", "taste"])("ink on the %s color is easy to read", (sense) => {
     expect(contrast(token("ink"), token(`sense-${sense}`))).toBeGreaterThanOrEqual(4.5);
   });

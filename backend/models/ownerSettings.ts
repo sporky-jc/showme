@@ -74,3 +74,16 @@ export const aiHighlightsShown = async () => {
     return false;
   }
 };
+
+// The weekly measure's switch ("Measure the sense tagger", Stage A7 of
+// tasks/sense-words-plan.md, scripts/switch-off-ai-highlights.ts): turns AI
+// highlights for kids off when the measure fails, and nothing else. It
+// can't turn anything on; turning them back on is always the owner's press.
+// Says whether they were on, for the run's summary.
+export const switchOffAiHighlights = async (): Promise<{ wasOn: boolean }> => {
+  const { modifiedCount } = await OwnerSettings.updateOne(
+    { _id: SETTINGS_ID, showAiHighlights: true },
+    { $set: { showAiHighlights: false, showAiHighlightsChangedAt: new Date() } }
+  );
+  return { wasOn: modifiedCount === 1 };
+};

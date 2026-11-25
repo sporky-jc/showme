@@ -1,5 +1,6 @@
 import type { ThunkAction, ThunkDispatch } from "@reduxjs/toolkit";
 import type {
+  Features,
   GallerySentence,
   OwnSentence,
   QueueSentence,
@@ -15,6 +16,7 @@ export type { RootState };
 // an action that isn't listed here, or with the wrong payload, is an error.
 export type AppAction =
   | { type: "FETCH_TELL"; payload: TellSentence[] }
+  | { type: "FETCH_FEATURES"; payload: Features }
   | { type: "FIND_USER"; payload: User }
   | { type: "SESSION_CHECKED" }
   | { type: "SAW_REFRESHER"; payload: Technique }

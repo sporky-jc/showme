@@ -31,14 +31,17 @@ const shownOrder = () => screen.queryAllByText(/^Sentence \d+$/).map((el) => el.
 const renderCollection = ({
   server = fromServer(6),
   remembered = [],
+  lit = true,
 }: {
   server?: SentenceWithAuthor[] | ((call: number) => Outcome);
   remembered?: SentenceWithAuthor[];
+  // The senseHighlights feature (see features.ts)
+  lit?: boolean;
 } = {}) => {
   let calls = 0;
   return renderWithApp(<Collection />, {
     // `remembered`: an old list redux-persist may have restored
-    state: { tellsentences, approvedsentences: remembered },
+    state: { tellsentences, approvedsentences: remembered, features: { senseHighlights: lit, senseCoach: false } },
     route: "/Collections",
     respond: (config) => {
       if (config.url !== "/Collections") return 200;
@@ -154,62 +157,27 @@ describe("Collection", () => {
     expect(screen.queryByRole("img", { name: "Scribbles the pencil" })).not.toBeInTheDocument();
   });
 
-  // Scribbles' pick, at the top: never one that's on the wall too
-  const pickRegion = () => screen.getByRole("region", { name: "Scribbles’ pick" });
-  const pickShows = () => pickRegion().querySelector(".paper-pick__show")?.textContent;
   const wallShows = () =>
     [...document.querySelectorAll(".paper-gallery__show")].map((show) => show.textContent);
 
-  it("picks one from the sentences after the wall's 12, leaving the wall as it was", async () => {
+  it("has no Scribbles' pick: the cards come first, every sentence among them", async () => {
     const user = userEvent.setup();
     renderCollection({ server: fromServer(15) });
-    await screen.findByRole("region", { name: "Scribbles’ pick" });
-
+    await screen.findByRole("group", { name: "Order" });
     await pickSort(user, "Newest");
-
-    expect(wallShows()).toEqual(fromServer(12).map((s) => s.show));
-    expect(pickShows()).toBe("Sentence 13");
-  });
-
-  it("with 12 or fewer, picks the first and shows the rest on the wall", async () => {
-    const user = userEvent.setup();
-    renderCollection({ server: fromServer(4) });
-    await screen.findByRole("region", { name: "Scribbles’ pick" });
-
-    await pickSort(user, "Newest");
-
-    expect(pickShows()).toBe("Sentence 1");
-    expect(wallShows()).toEqual(["Sentence 2", "Sentence 3", "Sentence 4"]);
-  });
-
-  it("Show me another picks a different one that isn't on the wall, keeping the keyboard on the button", async () => {
-    const user = userEvent.setup();
-    renderCollection({ server: fromServer(15) });
-    await screen.findByRole("region", { name: "Scribbles’ pick" });
-    await pickSort(user, "Newest");
-    const button = screen.getByRole("button", { name: "Show me another" });
-
-    await user.click(button);
-
-    expect(["Sentence 14", "Sentence 15"]).toContain(pickShows());
-    expect(wallShows()).toEqual(fromServer(12).map((s) => s.show));
-    expect(screen.getByRole("button", { name: "Show me another" })).toHaveFocus();
-    expect(within(pickRegion()).getByRole("status")).toHaveTextContent("Scribbles’ pick: Ada L.’s sentence.");
-  });
-
-  it("has no Show me another with only one to pick from", async () => {
-    renderCollection({ server: fromServer(1) });
-    await screen.findByRole("region", { name: "Scribbles’ pick" });
-
-    expect(pickShows()).toBe("Sentence 1");
-    expect(screen.queryByRole("button", { name: "Show me another" })).not.toBeInTheDocument();
-  });
-
-  it("has no pick without sentences", async () => {
-    renderCollection({ server: [] });
-    await screen.findByText(/No sentences have been approved yet/);
 
     expect(screen.queryByRole("region", { name: "Scribbles’ pick" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show me another" })).not.toBeInTheDocument();
+    expect(wallShows()).toEqual(fromServer(12).map((s) => s.show));
+  });
+
+  it("shows every sentence on the wall when there are only a few", async () => {
+    const user = userEvent.setup();
+    renderCollection({ server: fromServer(4) });
+    await screen.findByText("Sentence 1");
+    await pickSort(user, "Newest");
+
+    expect(wallShows()).toEqual(["Sentence 1", "Sentence 2", "Sentence 3", "Sentence 4"]);
   });
 
   // The sense finder: See, Hear, Feel, Smell and Taste show only the wall's
@@ -220,6 +188,14 @@ describe("Collection", () => {
     ["Rain drummed on the roof.", "The soup smelled of garlic.", "A bell rang twice.", "Sentence 4"].map(
       (show, i) => ({ ...fromServer(4)[i], show })
     );
+
+  it("has no sense finder when sense highlights are off", async () => {
+    renderCollection({ server: withSenses(), lit: false });
+    await screen.findByText("Sentence 4");
+
+    expect(screen.queryByRole("group", { name: "Find a sense" })).not.toBeInTheDocument();
+    expect(document.querySelector("mark")).toBeNull();
+  });
 
   it("finds the sentences that use a sense, and says how many", async () => {
     const user = userEvent.setup();
@@ -283,7 +259,7 @@ describe("Collection", () => {
     expect(wallShows()).toEqual([]);
     await user.click(screen.getByRole("button", { name: "Show all" }));
     expect(senseButton("Taste")).toHaveAttribute("aria-pressed", "false");
-    expect(wallShows()).toHaveLength(3);
+    expect(wallShows()).toHaveLength(4);
   });
 
   it("has no sense finder without sentences", async () => {
@@ -297,30 +273,28 @@ describe("Collection", () => {
   it("Show more shows the next 12, and the keyboard goes to the first new card", async () => {
     const user = userEvent.setup();
     renderCollection({ server: fromServer(30) });
-    await screen.findByRole("region", { name: "Scribbles’ pick" });
+    await screen.findByRole("button", { name: "Show more" });
     await pickSort(user, "Newest");
     expect(wallShows()).toHaveLength(12);
-    expect(screen.getByText("Showing 12 of 29 sentences.")).toBeInTheDocument();
+    expect(screen.getByText("Showing 12 of 30 sentences.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Show more" }));
 
     expect(wallShows()).toHaveLength(24);
-    expect(wallShows()[12]).toBe("Sentence 14");
-    expect(document.activeElement?.textContent).toContain("Sentence 14");
-    expect(screen.getByText("Showing 24 of 29 sentences.")).toBeInTheDocument();
+    expect(wallShows()[12]).toBe("Sentence 13");
+    expect(document.activeElement?.textContent).toContain("Sentence 13");
+    expect(screen.getByText("Showing 24 of 30 sentences.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Show more" }));
 
-    expect(wallShows()).toHaveLength(29);
+    expect(wallShows()).toHaveLength(30);
     expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
-    expect(screen.getByText("Showing all 29 sentences.")).toBeInTheDocument();
-    // Scribbles' pick is never on the wall too
-    expect(wallShows()).not.toContain(pickShows());
+    expect(screen.getByText("Showing all 30 sentences.")).toBeInTheDocument();
   });
 
   it("has no Show more when every sentence fits", async () => {
     renderCollection({ server: fromServer(6) });
-    await screen.findByRole("region", { name: "Scribbles’ pick" });
+    await screen.findByText("Sentence 6");
 
     expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
     expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
@@ -329,8 +303,7 @@ describe("Collection", () => {
   it("starts from 12 again with a new order", async () => {
     const user = userEvent.setup();
     renderCollection({ server: fromServer(30) });
-    await screen.findByRole("region", { name: "Scribbles’ pick" });
-    await user.click(screen.getByRole("button", { name: "Show more" }));
+    await user.click(await screen.findByRole("button", { name: "Show more" }));
 
     await pickSort(user, "Newest");
 

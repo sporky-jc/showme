@@ -33,6 +33,10 @@ export const TIPS = {
   checkWriting: "Check your spelling, capitals and punctuation. Read it slowly, word by word.",
   onTopic: "Make sure your sentence shows the Tell. What would it look, sound or feel like?",
 
+  // For rude or unkind words (reviewer.ts): only ever suggested once the
+  // welfare check has read the sentence and seen nothing worrying
+  kindWords: "Use words that are kind and OK for school.",
+
   // For a sentence that's ready
   great: "Great picture! Keep painting with words.",
 } as const;

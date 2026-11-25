@@ -47,7 +47,10 @@ const renderWrite = ({
   mine = shows(2),
   list,
   save,
+  coach = true,
 }: {
+  // The senseCoach feature (see features.ts), on unless a test turns it off
+  coach?: boolean;
   route?: string;
   tellCount?: number;
   tellList?: TellSentence[];
@@ -63,7 +66,12 @@ const renderWrite = ({
       <Route path="*" element={<p>Another page</p>} />
     </Routes>,
     {
-      state: { user: student, tellsentences: tellList ?? tells(tellCount), usersentences: [] },
+      state: {
+        user: student,
+        tellsentences: tellList ?? tells(tellCount),
+        usersentences: [],
+        features: { senseHighlights: false, senseCoach: coach },
+      },
       route,
       respond: (config) => {
         requests.push(config);
@@ -89,6 +97,9 @@ const renderWrite = ({
 const box = () => screen.findByLabelText("Now show it");
 const sendButton = () => screen.getByRole("button", { name: "Ask Scribbles" });
 const bubble = () => document.querySelector(".paper-bubble")!;
+// Help (the refresher's button and the sense buttons) sits behind this button
+const ideasButton = () => screen.getByRole("button", { name: "Need an idea?" });
+const openIdeas = () => act(() => ideasButton().click());
 
 describe("Write", () => {
   it("asks a visitor who isn't signed in to sign in, without asking the server", async () => {
@@ -134,6 +145,7 @@ describe("Write", () => {
     list[2] = { ...list[2], technique: "simile", tell: "He dodged all the traps with ease. (Use a Simile)" };
     renderWrite({ mine: shows(2), tellList: list });
     await box();
+    await openIdeas();
 
     const what = screen.getByRole("button", { name: "What’s a simile?" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -148,6 +160,7 @@ describe("Write", () => {
   it("offers the senses refresher on a Tell that asks for the senses", async () => {
     renderWrite({ mine: shows(2) });
     await box();
+    await openIdeas();
 
     expect(screen.getByRole("button", { name: "What’s a sense?" })).toBeInTheDocument();
     expect(screen.queryByText(/This Tell asks for/)).not.toBeInTheDocument();
@@ -160,11 +173,20 @@ describe("Write", () => {
     await waitFor(() =>
       expect(requests.some((r) => r.method === "put" && r.url === "/Login/refreshers/senses")).toBe(true)
     );
+    // The help is open under it, so its button is there when it closes
+    await userEvent.keyboard("{Escape}");
+    expect(ideasButton()).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => expect(screen.getByRole("button", { name: "What’s a sense?" })).toHaveFocus());
   });
 
   it("doesn't open a refresher by itself once it's been seen", async () => {
     const { requests } = renderWrite({ mine: [], student: { ...ada, seenRefreshers: ["senses"] } });
     await box();
+    // Closed until asked for
+    expect(ideasButton()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "What’s a sense?" })).not.toBeInTheDocument();
+    await openIdeas();
+    expect(ideasButton()).toHaveAttribute("aria-expanded", "true");
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "What’s a sense?" })).toBeInTheDocument();
@@ -244,7 +266,8 @@ describe("Write", () => {
     const user = userEvent.setup();
     renderWrite();
     await box();
-    expect(bubble()).toHaveTextContent("Tap a sense and I'll help you think!");
+    expect(bubble()).toHaveTextContent("Stuck? Tap “Need an idea?” and I'll help you think!");
+    await openIdeas();
 
     const hear = screen.getByRole("button", { name: "Hear" });
     expect(hear).toHaveAttribute("aria-pressed", "false");
@@ -263,10 +286,40 @@ describe("Write", () => {
     expect(screen.getByRole("button", { name: "Smell" })).toHaveAttribute("type", "button");
   });
 
-  it("lights up the senses the sentence uses, with a sticker each, and keeps their names", async () => {
+  it("has no sense buttons or sense hints when the sense coach is off", async () => {
+    const user = userEvent.setup();
+    renderWrite({ coach: false });
+    const field = await box();
+    expect(bubble()).toHaveTextContent("Write your sentence. I'll try to picture it!");
+    await user.type(field, "His tail thumped the floor like a drum and he licked my salty cheek.");
+
+    expect(screen.queryByRole("group", { name: "Senses" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hear" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tap a sense/)).not.toBeInTheDocument();
+    // Scribbles praises a full sentence without counting senses
+    expect(bubble()).toHaveTextContent("I can picture it!");
+    expect(bubble()).not.toHaveTextContent("senses");
+    // Sending still works the same
+    expect(screen.getByRole("button", { name: "Ask Scribbles" })).toBeEnabled();
+  });
+
+  it("still warns about the Tell word when the sense coach is off", async () => {
+    const user = userEvent.setup();
+    const mine = shows(2);
+    mine[0].tell = "The dog was happy.";
+    renderWrite({ route: "/Write/s1", mine, coach: false });
+    const input = await box();
+
+    await user.clear(input);
+    await user.type(input, "His tail thumped the floor because he was happy");
+    expect(bubble()).toHaveTextContent("“happy” is the Tell word. Can you show it instead?");
+  });
+
+  it("lights up the senses the sentence uses, and keeps their names", async () => {
     const user = userEvent.setup();
     renderWrite();
     await user.type(await box(), "His tail thumped the floor like a drum and he licked my salty cheek.");
+    await openIdeas();
 
     const hear = screen.getByRole("button", { name: "Hear" });
     expect(hear).toHaveAccessibleDescription("Used: thumped");
@@ -276,8 +329,8 @@ describe("Write", () => {
     // Using a sense isn't pressing it: pressed is the one Scribbles asks about
     expect(hear).toHaveAttribute("aria-pressed", "false");
 
-    const stickers = document.querySelectorAll(".paper-write__stickers .paper-sticker");
-    expect(Array.from(stickers, (sticker) => sticker.textContent)).toEqual(["THUMPED!", "LICKED!", "SALTY!"]);
+    // No stickers on the picture
+    expect(document.querySelector(".paper-sticker")).toBeNull();
     expect(bubble()).toHaveTextContent("I can picture it! You used 3 senses.");
   });
 
@@ -285,8 +338,8 @@ describe("Write", () => {
     const user = userEvent.setup();
     renderWrite();
     await user.type(await box(), "He was tired and bored and seemed furious today");
+    await openIdeas();
 
-    expect(document.querySelectorAll(".paper-sticker")).toHaveLength(0);
     for (const name of ["See", "Hear", "Feel", "Smell", "Taste"]) {
       expect(screen.getByRole("button", { name })).not.toHaveAccessibleDescription();
     }
@@ -312,6 +365,7 @@ describe("Write", () => {
     const user = userEvent.setup();
     renderWrite();
     const input = await box();
+    await openIdeas();
     await user.click(screen.getByRole("button", { name: "Smell" }));
     expect(bubble()).toHaveTextContent(/sniff/);
 
@@ -321,17 +375,37 @@ describe("Write", () => {
     expect(screen.getByRole("button", { name: "Smell" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("shows the day's photo, foggy and gray until the sentence paints it", async () => {
+  it("shows the day's photo clear from the start: small by the Tell, and in its frame", async () => {
     const user = userEvent.setup();
     renderWrite();
     await box();
-    const photo = document.querySelector<HTMLImageElement>(".paper-write__photo")!;
-    expect(photo).toHaveAttribute("src", "/day3.jpg");
-    expect(photo).toHaveAttribute("alt", "");
-    expect(photo.style.filter).toBe("blur(9.6px) grayscale(1)");
+    // Both are here; paper.css shows the small one on a phone, the framed one on a wide screen
+    const photos = [
+      document.querySelector<HTMLImageElement>(".paper-write__thumb")!,
+      document.querySelector<HTMLImageElement>(".paper-write__photo")!,
+    ];
+    for (const photo of photos) {
+      expect(photo).toHaveAttribute("src", "/day3.jpg");
+      expect(photo).toHaveAttribute("alt", "");
+      expect(photo.style.filter).toBe("");
+    }
 
     await user.type(await box(), "Bright snow crunched under my boots and stung my cold cheeks");
-    expect(photo.style.filter).toBe("blur(0px) grayscale(0)");
+    for (const photo of photos) expect(photo.style.filter).toBe("");
+  });
+
+  it("has no step chips, and keeps the button right after the writing box", async () => {
+    renderWrite();
+    const input = await box();
+
+    expect(screen.queryByRole("list", { name: "Steps" })).not.toBeInTheDocument();
+    expect(screen.queryByText("2 · Scribbles checks")).not.toBeInTheDocument();
+    // In the page's order, the button comes right after the box, before the senses
+    const send = screen.getByRole("button", { name: "Ask Scribbles" });
+    await openIdeas();
+    const senses = screen.getByRole("group", { name: "Senses" });
+    expect(input.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(send.compareDocumentPosition(senses) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("sending saves the sentence for the right day, then says Scribbles is checking", async () => {
@@ -343,6 +417,8 @@ describe("Write", () => {
 
     const heading = await screen.findByRole("heading", { name: "Scribbles is checking!" });
     expect(heading).toHaveFocus();
+    // Scribbles catches the note it was sent on
+    expect(document.querySelector(".scribbles--catch")).not.toBeNull();
     expect(saves()).toHaveLength(1);
     expect(saves()[0].method).toBe("post");
     // The day and the words, plus the Tell it shows for an older backend (the
@@ -436,6 +512,8 @@ describe("Write", () => {
     ).toHaveFocus();
     expect(screen.getByText("Brr, my fingers froze.")).toBeInTheDocument();
     expect(screen.getByText("Tell 3")).toBeInTheDocument();
+    // Nothing new was sent, so Scribbles doesn't catch anything
+    expect(document.querySelector(".scribbles--catch")).toBeNull();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(requests.filter((r) => r.url === "/MyPage" && r.method === "get")).toHaveLength(2);
   });

@@ -34,6 +34,8 @@ npm-debug.log*
 !.claude/commands/
 !.claude/agents/
 !.claude/references/
+# The hooks .claude/settings.json runs (see the top of each file)
+!.claude/hooks/
 
 # Editor and operating system files
 .vscode/

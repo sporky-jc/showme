@@ -20,15 +20,19 @@ const answer = ({ senseTagger, showAiHighlights }: Flags, extra: object = {}) =>
 const renderSettings = ({
   settings = { status: 200, data: answer({ senseTagger: false, showAiHighlights: false }) } as Outcome,
   change,
+  lit = true,
 }: {
   settings?: Outcome;
   change?: (config: InternalAxiosRequestConfig) => Outcome;
+  // The senseHighlights feature (see features.ts): on for staging, off for production
+  lit?: boolean;
 } = {}) => {
   const requests: InternalAxiosRequestConfig[] = [];
   const onSaid = vi.fn();
   // The server's flags, changed by each PATCH
   const flags: Flags = { senseTagger: false, showAiHighlights: false };
   const view = renderWithApp(<OwnerSettings onSaid={onSaid} />, {
+    state: { features: { senseHighlights: lit, senseCoach: false } },
     respond: (config) => {
       requests.push(config);
       if (config.url !== "/Admin/owner") return 404;
@@ -80,6 +84,17 @@ describe("OwnerSettings", () => {
     expect(await within(highlights()).findByText("AI highlights for kids: off.")).toBeInTheDocument();
     expect(onSaid).toHaveBeenLastCalledWith("Kids see only the word list's highlights.");
     expect(patches()).toEqual([{ showAiHighlights: true }, { showAiHighlights: false }]);
+  });
+
+  it("says highlights are off on this site, with no switch, where the highlights feature is off", async () => {
+    renderSettings({ lit: false });
+
+    expect(await screen.findByText("AI highlights for kids: off on this site.")).toBeInTheDocument();
+    expect(within(highlights()).getByText(/kids see plain sentences/)).toBeInTheDocument();
+    expect(screen.queryByText(/word list's highlights/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show AI highlights to kids" })).not.toBeInTheDocument();
+    // AI reading is still there to switch
+    expect(screen.getByRole("button", { name: "Turn AI reading on" })).toBeInTheDocument();
   });
 
   it("says when the Cloudflare keys aren't set", async () => {

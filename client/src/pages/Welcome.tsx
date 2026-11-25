@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Scribbles from "../components/Scribbles";
+import WelcomeFilm from "../components/WelcomeFilm";
 import { useOpenLogin } from "../components/loginPopup";
 import { phonePhotoMedia } from "../config";
 import examples from "../tellData";
@@ -12,6 +13,34 @@ const AFTER_A_PICK_MS = 8000;
 
 const wantsLessMotion = () =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+// The Show sentence comes in a few words at a time, after the brush has
+// passed. Screen readers get it whole.
+function ShowWords({ sentence }: { sentence: string }) {
+  // Each word with where it starts in the sentence, which names it
+  const words = sentence.split(" ").reduce<{ word: string; at: number; order: number }[]>(
+    (list, word) => {
+      const last = list[list.length - 1];
+      return [...list, { word, at: last ? last.at + last.word.length + 1 : 0, order: list.length }];
+    },
+    []
+  );
+  return (
+    <>
+      <span className="visually-hidden">{sentence}</span>
+      <span aria-hidden="true">
+        {words.map(({ word, at, order }) => (
+          <React.Fragment key={at}>
+            {order > 0 && " "}
+            <span className="paper-welcome__word" style={{ "--i": order } as React.CSSProperties}>
+              {word}
+            </span>
+          </React.Fragment>
+        ))}
+      </span>
+    </>
+  );
+}
 
 // The first screen for someone who isn't signed in: what Show ME is, a way to
 // sign in, and the same sentence told and then shown.
@@ -86,9 +115,10 @@ function Welcome() {
           Don't just <span className="paper-welcome__tell">tell</span> it.{" "}
           <span className="paper-welcome__show">Show</span> it!
         </h1>
+        {/* On a phone this comes last, under the example and the buttons
+            (paper.css): the picture says it first */}
         <p className="paper-welcome__lead">
-          Turn boring sentences into pictures made of words. Write yours,
-          and once Scribbles approves it, it joins the Show ME gallery.
+          Write yours. When Scribbles says yes, it joins the gallery.
         </p>
         <button
           type="button"
@@ -100,11 +130,7 @@ function Welcome() {
           </span>
           Sign in with Google
         </button>
-        <ol className="paper-welcome__steps">
-          <li>1 · Write it</li>
-          <li>2 · Scribbles checks</li>
-          <li>3 · Join the gallery</li>
-        </ol>
+        <WelcomeFilm onSignIn={openLogin} />
       </section>
 
       <section
@@ -135,6 +161,26 @@ function Welcome() {
                   onError={photoDone}
                 />
               </picture>
+              {/* Turning to Show: the photo is clear at once, and a gray
+                  copy of it slides away with a coral brush bar on its edge,
+                  so the color looks painted in. A new one for each Show, so
+                  it plays each time; still under less motion (paper.css). */}
+              {showing && (
+                <span className="paper-welcome__wipe" key={example.key} aria-hidden="true">
+                  <span className="paper-welcome__wipe-in">
+                    <picture>
+                      <source media={phonePhotoMedia} srcSet={example.phonePicture} />
+                      <img className="paper-welcome__faded" src={example.picture} alt="" />
+                    </picture>
+                  </span>
+                  <span className="paper-welcome__brush" />
+                </span>
+              )}
+            </div>
+            {/* Tell or Show, and Pause. Under the photo on a phone, so they
+                don't cover it; on its top corners on wider screens
+                (paper.css). */}
+            <div className="paper-welcome__controls">
               <div className="paper-toggle" role="group" aria-label="Tell or show">
                 <button
                   type="button"
@@ -181,7 +227,7 @@ function Welcome() {
                   showing ? "paper-welcome__sentence" : "paper-welcome__sentence paper-welcome__sentence--tell"
                 }
               >
-                {showing ? example.show : example.tell}
+                {showing ? <ShowWords key={example.key} sentence={example.show} /> : example.tell}
               </p>
             </div>
           </div>

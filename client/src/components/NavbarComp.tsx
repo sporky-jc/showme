@@ -21,6 +21,7 @@ const loadWrite = () => import("../pages/Write");
 const loadAdmin = () => import("../pages/Admin");
 const loadCollection = () => import("../pages/Collection");
 const loadFrame = () => import("../pages/Frame");
+const loadFilms = () => import("../pages/Films");
 
 const About = lazy(loadAbout);
 const Login = lazy(loadLogin);
@@ -29,12 +30,13 @@ const Write = lazy(loadWrite);
 const Admin = lazy(loadAdmin);
 const Collection = lazy(loadCollection);
 const Frame = lazy(loadFrame);
+const Films = lazy(loadFilms);
 
 // Once the first page is showing and the browser has nothing else to do,
 // download the other pages' files in the background, so opening them later
 // is instant instead of waiting for the download at the moment of the click.
 const prefetchPages = () => {
-  [loadAbout, loadLogin, loadMyPage, loadWrite, loadAdmin, loadCollection, loadFrame].forEach(
+  [loadAbout, loadLogin, loadMyPage, loadWrite, loadAdmin, loadCollection, loadFrame, loadFilms].forEach(
     (load) => load().catch(() => {}) // a failure here is retried on the click
   );
 };
@@ -196,6 +198,8 @@ function NavbarComp() {
 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Log out was pressed, but the server couldn't be told (see authService)
+  const [logOutFailed, setLogOutFailed] = useState(false);
 
   // In the app the navbar never goes away, but in tests each one is removed
   // after its test; a download still waiting then would land in a later test
@@ -215,7 +219,7 @@ function NavbarComp() {
   }, []);
 
   // Sign out whoever is signed in, or open the sign-in pop-up
-  const signInorOut = () => authService(user, setLoading, handleShowLoginModal);
+  const signInorOut = () => authService(user, setLoading, handleShowLoginModal, setLogOutFailed);
 
   // On a phone the main links are a bar along the bottom of the screen. It
   // steps aside on the Write page, where the keyboard needs the room (the
@@ -261,11 +265,26 @@ function NavbarComp() {
           {signedIn ? (
             <AccountMenu firstName={user.firstName} lastName={user.lastName} onLogOut={signInorOut} />
           ) : (
-            <button type="button" className="paper-btn paper-btn--action paper-nav__signin" onClick={signInorOut}>
+            <button
+              type="button"
+              // Quiet on the Welcome page, whose own "Sign in with Google"
+              // is the one coral button there (paper.css)
+              className={
+                location.pathname === "/"
+                  ? "paper-btn paper-btn--action paper-nav__signin paper-nav__signin--quiet"
+                  : "paper-btn paper-btn--action paper-nav__signin"
+              }
+              onClick={signInorOut}
+            >
               Sign in
             </button>
           )}
         </header>
+        {logOutFailed && signedIn && (
+          <p className="paper-nav__failed" role="alert">
+            We couldn&apos;t log you out. Check your internet, then press Log out again.
+          </p>
+        )}
         <main className={pageClass}>
           <PageErrorBoundary resetKey={location.pathname}>
             <Suspense fallback={<PageLoading />}>
@@ -287,6 +306,8 @@ function NavbarComp() {
                   <Route path="/Write/:id?" element={<Write />} />
                   {/* The frame an approved sentence has in the gallery */}
                   <Route path="/Frame/:id" element={<Frame />} />
+                  {/* Every explainer film, for anyone */}
+                  <Route path="/Films" element={<Films />} />
                   <Route path="/" element={<Home />} />
                 </Routes>
               </OpenLoginContext.Provider>
