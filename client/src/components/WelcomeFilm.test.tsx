@@ -46,6 +46,19 @@ describe("WelcomeFilm", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("keeps Tab and Shift+Tab going round inside the pop-up", async () => {
+    const { user, dialog } = await open();
+    const buttons = within(dialog).getAllByRole("button");
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+
+    // From the heading, back goes to the last button, and on from there to the first
+    await user.tab({ shift: true });
+    expect(last).toHaveFocus();
+    await user.tab();
+    expect(first).toHaveFocus();
+  });
+
   it("offers the way to sign in under the film", async () => {
     const { user, onSignIn, dialog } = await open();
     await user.click(within(dialog).getByRole("button", { name: "Sign in with Google" }));

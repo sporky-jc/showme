@@ -3,6 +3,7 @@ import FilmPlayer from "./FilmPlayer";
 import Scribbles from "./Scribbles";
 import type { Film } from "../films";
 import type { Practice, Refresher as RefresherWords } from "../refreshers";
+import { popUpKeys } from "./popUpKeys";
 
 // A refresher pop-up: a minute's reminder of what a technique is, in five
 // short steps (see refreshers.ts for the words). A wrong pick only says
@@ -56,26 +57,8 @@ function Refresher({ words, film, onClose }: { words: RefresherWords; film?: Fil
   };
 
   // Esc shuts it; Tab and Shift+Tab go round inside it
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Escape") {
-      event.stopPropagation();
-      onClose();
-      return;
-    }
-    if (event.key !== "Tab" || !dialog.current) return;
-    const stops = [...dialog.current.querySelectorAll<HTMLElement>("button:not(:disabled)")];
-    if (stops.length === 0) return;
-    const first = stops[0];
-    const last = stops[stops.length - 1];
-    const at = document.activeElement;
-    if (event.shiftKey && (at === first || at === heading.current)) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && at === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
+  const onKeyDown = (event: React.KeyboardEvent) =>
+    popUpKeys(event, dialog.current, heading.current, onClose);
 
   const example = (
     <div className="paper-refresher__example">
