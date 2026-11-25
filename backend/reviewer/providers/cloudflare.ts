@@ -12,8 +12,15 @@
 //
 // Needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN (an API token with
 // only the "Workers AI" permission). See docs/ai-reviewer-setup.md.
-import type { ReviewInput, ReviewProvider, SafetyCheck, WelfareCheck } from "../reviewer.js";
-import { ANSWER_SCHEMA, REVIEW_INSTRUCTIONS, reviewMessage, WELFARE_INSTRUCTIONS, WELFARE_SCHEMA } from "../prompt.js";
+import type { ReviewInput, ReviewProvider, SafetyCheck, WelfareCheck, WelfareQuestion } from "../reviewer.js";
+import {
+  ANSWER_SCHEMA,
+  DANGER_INSTRUCTIONS,
+  REVIEW_INSTRUCTIONS,
+  reviewMessage,
+  WELFARE_INSTRUCTIONS,
+  WELFARE_SCHEMA,
+} from "../prompt.js";
 import { asJson, postJson, ProviderError } from "./http.js";
 
 export interface CloudflareSettings {
@@ -159,13 +166,13 @@ export const readSafetyAnswer = (answer: unknown): "safe" | "unsafe" => {
 // attempts apart (queue.ts).
 export const cloudflareWelfare = ({ accountId, token }: CloudflareSettings): WelfareCheck => ({
   name: `cloudflare-welfare:${CLOUDFLARE_WELFARE_MODEL}`,
-  check: async (input: ReviewInput, signal: AbortSignal) => {
+  check: async (input: ReviewInput, signal: AbortSignal, question: WelfareQuestion = "welfare") => {
     const body = await postJson(
       runUrl(accountId, CLOUDFLARE_WELFARE_MODEL),
       token,
       {
         messages: [
-          { role: "system", content: WELFARE_INSTRUCTIONS },
+          { role: "system", content: question === "danger" ? DANGER_INSTRUCTIONS : WELFARE_INSTRUCTIONS },
           { role: "user", content: reviewMessage(input) },
         ],
         response_format: { type: "json_schema", json_schema: WELFARE_SCHEMA },

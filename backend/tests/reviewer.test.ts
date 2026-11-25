@@ -741,7 +741,7 @@ describe("the welfare check", () => {
     const { suggestion } = await reviewSentence(input, [ai], { safety: safetyCheck("safe"), welfare });
 
     expect(suggestion).toMatchObject({ verdict: "approve", decidedBy: "ai" });
-    expect(welfare.check).toHaveBeenCalledWith({ tell: COLD, show: GOOD }, expect.any(AbortSignal));
+    expect(welfare.check).toHaveBeenCalledWith({ tell: COLD, show: GOOD }, expect.any(AbortSignal), "welfare");
     expect(ai.review).toHaveBeenCalledTimes(1);
   });
 
@@ -895,7 +895,7 @@ describe("the welfare check", () => {
     const { suggestion } = await reviewSentence({ tell: COLD, show }, [], { safety: safetyCheck("safe"), welfare });
 
     expect(suggestion).toMatchObject({ verdict: "unsure", reasons: ["worrying", "welfare-check"] });
-    expect(welfare.check).toHaveBeenCalledWith({ tell: COLD, show }, expect.any(AbortSignal));
+    expect(welfare.check).toHaveBeenCalledWith({ tell: COLD, show }, expect.any(AbortSignal), "welfare");
   });
 
   it("is never asked about a sentence the rules held", async () => {
@@ -947,8 +947,9 @@ describe("the welfare check's answer", () => {
   });
 });
 
-// Held only for rude or unkind words (RUDE_ONLY, reviewer.ts): the welfare
-// check reads it, then it's a Check in or a "Try again" with kindWords
+// Held only for rude or unkind words (RUDE_ONLY, reviewer.ts): always a "Try
+// again" with kindWords; the welfare check's stricter question ("danger")
+// reads it too, and a "yes" makes it a Check in as well
 describe("rude or unkind words", () => {
   it.each([
     ["It is cold outside, damn.", ["unsafe-words"]],
@@ -963,22 +964,34 @@ describe("rude or unkind words", () => {
 
     expect(suggestion).toEqual({ verdict: "redo", tip: "kindWords", reasons, decidedBy: "rules" });
     expect(outcomes(attempts)).toEqual([{ provider: "welfare", outcome: "no-concern" }]);
+    // The stricter question, not the main one
+    expect(welfare.check).toHaveBeenCalledWith({ tell: COLD, show }, expect.anything(), "danger");
     // Not the safety check (it calls rude words unsafe) and no reviewer
     expect(safety.check).not.toHaveBeenCalled();
     expect(ai.review).not.toHaveBeenCalled();
   });
 
-  it("are a Check in when the welfare check is worried, with the words still listed", async () => {
+  it("still go back with the kind-words tip when the welfare check sees danger, and are a Check in as well", async () => {
     const { suggestion } = await reviewSentence({ tell: COLD, show: "He made me suck his dick." }, [], {
       safety: safetyCheck("safe"),
       welfare: welfareCheck({ concern: "yes" }),
     });
     expect(suggestion).toEqual({
-      verdict: "unsure",
-      tip: null,
+      verdict: "redo",
+      tip: "kindWords",
       reasons: ["worrying", "welfare-check", "unsafe-words"],
       decidedBy: "welfare",
     });
+  });
+
+  it("are held for a person once sent back twice, still a Check in", async () => {
+    const { suggestion } = await reviewSentence({ tell: COLD, show: "He made me suck his dick." }, [], {
+      safety: safetyCheck("safe"),
+      welfare: welfareCheck({ concern: "yes" }),
+      sentBack: 2,
+    });
+    expect(suggestion).toMatchObject({ verdict: "unsure", tip: null });
+    expect(suggestion.reasons).toEqual(expect.arrayContaining(["worrying", "welfare-check", "redo-limit"]));
   });
 
   it.each([
