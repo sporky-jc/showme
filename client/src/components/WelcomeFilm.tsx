@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import FilmPlayer from "./FilmPlayer";
 import { WELCOME_FILM } from "../films";
+import { popUpKeys } from "./popUpKeys";
 
 // "Watch how it works" on the Welcome page: opens the Welcome film in a
 // pop-up, with the way to sign in under it. The film still waits for its
@@ -24,25 +25,8 @@ function WelcomeFilm({ onSignIn }: { onSignIn: () => void }) {
   };
 
   // Esc shuts it; Tab and Shift+Tab go round inside it
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Escape") {
-      event.stopPropagation();
-      close();
-      return;
-    }
-    if (event.key !== "Tab" || !dialog.current) return;
-    const stops = [...dialog.current.querySelectorAll<HTMLElement>("button:not(:disabled)")];
-    const first = stops[0];
-    const last = stops[stops.length - 1];
-    const at = document.activeElement;
-    if (event.shiftKey && (at === first || at === heading.current)) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && at === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
+  const onKeyDown = (event: React.KeyboardEvent) =>
+    popUpKeys(event, dialog.current, heading.current, close);
 
   return (
     <>
