@@ -2203,25 +2203,24 @@ h3,
     stroke-dashoffset: 0;
   }
 
-  /* A reaction keeps its meaning without moving: he already holds the note
-     or the check, and the sparks stay away. (Named with the reaction, so
-     these win over the reaction's own rules.) */
+  /* Scribbles stands still in every mood and reaction: he already holds the
+     note or the check, and the sparks stay away. Named inside .scribbles so
+     these win over the moods' and reactions' own rules (such as
+     .scribbles--happy .scribbles__body), which a bare .scribbles__body
+     didn't. */
   .scribbles__spark {
     display: none;
   }
 
-  .scribbles--catch .scribbles__held,
-  .scribbles--catch .scribbles__body,
-  .scribbles--cheer .scribbles__body,
-  .scribbles--cheer .scribbles__shadow {
+  .scribbles .scribbles__body,
+  .scribbles .scribbles__shadow,
+  .scribbles .scribbles__arm,
+  .scribbles .scribbles__eye,
+  .scribbles .scribbles__dots circle,
+  .scribbles .scribbles__held {
     animation: none;
   }
 
-  .scribbles__body,
-  .scribbles__shadow,
-  .scribbles__arm,
-  .scribbles__eye,
-  .scribbles__dots circle,
   .paper-btn,
   .paper-welcome__photo img,
   .paper-note,
