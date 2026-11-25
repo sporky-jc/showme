@@ -39,9 +39,29 @@ describe("Welcome", () => {
     render(<Welcome />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Don't just tell it. Show it!");
-    expect(screen.getByText(/Turn boring sentences into pictures made of words/)).toBeInTheDocument();
-    // The three step chips are gone: the lead says the same thing
+    // One short line: the example is what explains it
+    expect(screen.getByText("Write yours. When Scribbles says yes, it joins the gallery.")).toBeInTheDocument();
+    expect(screen.queryByText(/Turn boring sentences/)).not.toBeInTheDocument();
     expect(screen.queryByText("2 · Scribbles checks")).not.toBeInTheDocument();
+  });
+
+  // On a phone a pill on the photo covered too much of it: Tell, Show and
+  // Pause are a row of their own, which paper.css puts under the photo on a
+  // phone and on the photo's corners on wider screens
+  it("keeps Tell, Show and Pause out of the photo's box", () => {
+    lessMotion(true);
+    render(<Welcome />);
+
+    const photo = document.querySelector(".paper-welcome__photo")!;
+    const controls = document.querySelector(".paper-welcome__controls")!;
+    for (const name of ["Tell", "Show", "Pause"]) {
+      const button = screen.getByRole("button", { name });
+      expect(controls).toContainElement(button);
+      expect(photo).not.toContainElement(button);
+    }
+    // ... right after the photo, before the sentence
+    expect(photo.nextElementSibling).toBe(controls);
+    expect(controls.nextElementSibling).toHaveClass("paper-welcome__words");
   });
 
   it("opens the sign-in pop-up from its button", () => {

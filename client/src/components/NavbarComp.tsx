@@ -265,7 +265,17 @@ function NavbarComp() {
           {signedIn ? (
             <AccountMenu firstName={user.firstName} lastName={user.lastName} onLogOut={signInorOut} />
           ) : (
-            <button type="button" className="paper-btn paper-btn--action paper-nav__signin" onClick={signInorOut}>
+            <button
+              type="button"
+              // Quiet on the Welcome page, whose own "Sign in with Google"
+              // is the one coral button there (paper.css)
+              className={
+                location.pathname === "/"
+                  ? "paper-btn paper-btn--action paper-nav__signin paper-nav__signin--quiet"
+                  : "paper-btn paper-btn--action paper-nav__signin"
+              }
+              onClick={signInorOut}
+            >
               Sign in
             </button>
           )}

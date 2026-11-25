@@ -135,6 +135,21 @@ describe("the nav bar's links", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
+  // The Welcome page has its own big "Sign in with Google", the one coral
+  // button there: the top bar's Sign in is an outline on that page only
+  it("makes the top Sign in quiet on the home page, and coral everywhere else", () => {
+    const home = renderNav("/", {});
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "Sign in" })).toHaveClass(
+      "paper-nav__signin--quiet"
+    );
+    home.unmount();
+
+    renderNav("/Gallery", {});
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "Sign in" })).not.toHaveClass(
+      "paper-nav__signin--quiet"
+    );
+  });
+
   it("marks the page you're on", async () => {
     renderNav("/Gallery", maya);
 

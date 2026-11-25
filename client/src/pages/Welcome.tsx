@@ -115,9 +115,10 @@ function Welcome() {
           Don't just <span className="paper-welcome__tell">tell</span> it.{" "}
           <span className="paper-welcome__show">Show</span> it!
         </h1>
+        {/* On a phone this comes last, under the example and the buttons
+            (paper.css): the picture says it first */}
         <p className="paper-welcome__lead">
-          Turn boring sentences into pictures made of words. Write yours,
-          and once Scribbles approves it, it joins the Show ME gallery.
+          Write yours. When Scribbles says yes, it joins the gallery.
         </p>
         <button
           type="button"
@@ -175,6 +176,11 @@ function Welcome() {
                   <span className="paper-welcome__brush" />
                 </span>
               )}
+            </div>
+            {/* Tell or Show, and Pause. Under the photo on a phone, so they
+                don't cover it; on its top corners on wider screens
+                (paper.css). */}
+            <div className="paper-welcome__controls">
               <div className="paper-toggle" role="group" aria-label="Tell or show">
                 <button
                   type="button"

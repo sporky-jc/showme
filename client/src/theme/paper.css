@@ -273,6 +273,14 @@ h3,
   font-size: 1.05rem;
 }
 
+/* On the Welcome page, which has its own big "Sign in with Google": an
+   outline, so the page has one coral button, not two */
+.paper-nav__signin--quiet,
+.paper-nav__signin--quiet:active {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--paper-control-edge);
+}
+
 /* The account button: the signed-in person's initials */
 .paper-account {
   position: relative;
@@ -846,25 +854,47 @@ h3,
 .paper-welcome {
   max-width: 1160px;
   margin: 0 auto;
-  padding: 24px 20px 56px;
+  padding: 12px 20px 56px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 28px;
+  gap: 12px;
   text-align: left;
 }
 
+/* In one column (phones, tablets) the pitch's parts are laid out with the
+   examples, in this order: the heading, the example, the two buttons, then
+   the line of words. So the picture comes before the reading, and a phone's
+   first screen holds the whole example and the way in. Side by side on wide
+   screens (below), the pitch is a column of its own again. */
 .paper-welcome__pitch {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 18px;
+  display: contents;
+}
+
+.paper-welcome__title {
+  order: 1;
+}
+
+.paper-welcome__examples {
+  order: 2;
+}
+
+.paper-welcome__signin {
+  order: 3;
+}
+
+.paper-welcome__watch {
+  order: 4;
+}
+
+.paper-welcome__lead {
+  order: 6;
 }
 
 /* Lines far enough apart that the yellow behind "Show" doesn't cover the
    line above it */
 .paper-welcome__title {
   margin: 0;
-  font-size: clamp(2.5rem, 6vw, 3.6rem);
+  font-size: clamp(2.1rem, 6vw, 3.6rem);
   line-height: 1.2;
 }
 
@@ -886,19 +916,32 @@ h3,
 
 .paper-welcome__lead {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 600;
   line-height: 1.5;
+  color: var(--paper-muted);
+  text-align: center;
 }
 
+/* The one coral button on this screen (the top bar's Sign in is quiet
+   here, see .paper-nav__signin--quiet) */
 .paper-welcome__signin {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   border-radius: 18px;
 }
 
-/* "Watch how it works": a white button with a small play mark */
+/* "Watch how it works": plain words with a small play mark, so it doesn't
+   compete with the button above */
 .paper-welcome__watch {
-  min-height: 48px;
+  min-height: 44px;
+  padding: 0 0.6em;
+  background: transparent;
+  box-shadow: none;
+  font-size: 1.05rem;
+}
+
+.paper-welcome__watch:active {
+  box-shadow: none;
 }
 
 .paper-welcome__watch-mark {
@@ -946,19 +989,19 @@ h3,
 .paper-welcome__examples {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 4px;
 }
 
 .paper-welcome__card {
-  padding: 14px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .paper-welcome__photo {
   position: relative;
-  height: 210px;
+  height: 160px;
   border-radius: 22px;
   overflow: hidden;
   background: var(--paper-sky);
@@ -1056,32 +1099,48 @@ h3,
   }
 }
 
-.paper-welcome__photo .paper-toggle {
-  position: absolute;
-  left: 12px;
-  top: 12px;
+/* Tell or Show, and Pause (Welcome.tsx): a row under the photo on a phone,
+   where a pill on the photo covered too much of it. From 576px they sit on
+   the photo's top corners (below). */
+.paper-welcome__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.paper-welcome__controls .paper-toggle {
+  background: var(--paper-sky);
+}
+
+/* Here Tell is dark and Show is sunny, the heading's own colors: coral is
+   kept for the one button that signs you in */
+.paper-welcome__controls .paper-toggle button[aria-pressed="true"]:first-child {
+  background: var(--paper-ink);
+  color: var(--paper-white);
+}
+
+.paper-welcome__controls .paper-toggle button[aria-pressed="true"]:last-child {
+  background: var(--paper-sun);
+  color: var(--paper-ink);
 }
 
 /* Stops the examples changing by themselves; only offered to someone who
    asked their device for less motion (Welcome.tsx) */
 .paper-welcome__pause {
-  position: absolute;
-  right: 12px;
-  top: 12px;
   min-height: 44px;
   border: 0;
   border-radius: 14px;
   padding: 0 16px;
   font-weight: 800;
   font-size: 1rem;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--paper-sky);
   color: var(--paper-ink);
 }
 
 /* Tall enough for the longest Show sentence, so the page doesn't jump as the
    examples change */
 .paper-welcome__words {
-  min-height: 150px;
+  min-height: 72px;
   padding: 0 6px;
   display: flex;
   flex-direction: column;
@@ -1089,10 +1148,10 @@ h3,
   gap: 6px;
 }
 
-/* The narrowest phones wrap the sentences onto more lines */
-@media (max-width: 359px) {
+/* Narrower phones wrap the longest Show sentence onto a fourth line */
+@media (max-width: 389.98px) {
   .paper-welcome__words {
-    min-height: 200px;
+    min-height: 96px;
   }
 }
 
@@ -1100,12 +1159,12 @@ h3,
   margin: 0;
   font-family: var(--paper-font-display);
   font-weight: 700;
-  font-size: 1.35rem;
-  line-height: 1.2;
+  font-size: 1.15rem;
+  line-height: 1.25;
 }
 
 .paper-welcome__sentence--tell {
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   color: var(--paper-muted);
 }
 
@@ -1114,7 +1173,7 @@ h3,
 .paper-welcome__scribbles {
   position: absolute;
   right: -6px;
-  bottom: -34px;
+  bottom: -30px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1122,7 +1181,7 @@ h3,
 }
 
 .paper-welcome__scribbles .scribbles {
-  width: 70px;
+  width: 56px;
   height: auto;
 }
 
@@ -1175,13 +1234,105 @@ h3,
   white-space: nowrap;
 }
 
+/* On a phone the example's parts join that order too: the card comes before
+   the buttons, and the dots for more examples after them. The "Tell" or
+   "Show" label goes: the switch just above the sentence says it. And
+   Scribbles stands at the end of the switch's row, clear of the words. */
+@media (max-width: 575.98px) {
+  .paper-welcome__examples {
+    display: contents;
+  }
+
+  .paper-stack {
+    order: 2;
+  }
+
+  .paper-welcome__picker {
+    order: 5;
+    justify-content: center;
+  }
+
+  .paper-welcome__signin {
+    font-size: 1.25rem;
+  }
+
+  .paper-welcome__words .paper-status {
+    display: none;
+  }
+
+  .paper-welcome__scribbles {
+    top: 162px;
+    right: 6px;
+    bottom: auto;
+  }
+}
+
+/* ... where Pause goes, for someone who asked for less motion: on a phone
+   there's no room for both, and Scribbles stands still for them anyway */
+@media (max-width: 575.98px) and (prefers-reduced-motion: reduce) {
+  .paper-welcome__scribbles {
+    display: none;
+  }
+}
+
 @media (min-width: 576px) {
+  .paper-welcome {
+    padding-top: 24px;
+    gap: 22px;
+  }
+
+  .paper-welcome__examples {
+    gap: 22px;
+  }
+
+  .paper-welcome__card {
+    padding: 14px;
+    gap: 12px;
+  }
+
   .paper-welcome__photo {
     height: 290px;
   }
 
+  /* The photo is big enough here for the controls to sit on its corners */
+  .paper-welcome__controls {
+    position: absolute;
+    top: 26px;
+    left: 26px;
+    right: 26px;
+    z-index: 1;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+
+  .paper-welcome__controls > * {
+    pointer-events: auto;
+  }
+
+  .paper-welcome__controls .paper-toggle,
+  .paper-welcome__pause {
+    background: rgba(255, 255, 255, 0.95);
+  }
+
   .paper-welcome__words {
     min-height: 124px;
+  }
+
+  .paper-welcome__signin,
+  .paper-welcome__watch {
+    justify-self: start;
+  }
+
+  .paper-welcome__lead {
+    text-align: left;
+  }
+
+  .paper-welcome__scribbles {
+    bottom: -34px;
+  }
+
+  .paper-welcome__scribbles .scribbles {
+    width: 70px;
   }
 
   .paper-welcome__sentence {
@@ -1248,6 +1399,24 @@ h3,
     gap: 44px;
     align-items: center;
     padding-top: 40px;
+  }
+
+  /* Side by side: the pitch is its own column again, in reading order
+     (heading, the line of words, the two buttons) */
+  .paper-welcome__pitch {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .paper-welcome__lead {
+    order: 2;
+    font-size: 1.25rem;
+  }
+
+  .paper-welcome__signin {
+    font-size: 1.5rem;
   }
 
   /* Room above the card for Scribbles and what he says */
