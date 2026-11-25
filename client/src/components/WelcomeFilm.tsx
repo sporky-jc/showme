@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState, useLayoutEffect } from "react";
-import { putBarAway } from "./bottomBar";
+import React, { useEffect, useRef, useState } from "react";
 import FilmPlayer from "./FilmPlayer";
 import { WELCOME_FILM } from "../films";
 import { popUpKeys } from "./popUpKeys";
@@ -17,13 +16,6 @@ function WelcomeFilm({ onSignIn }: { onSignIn: () => void }) {
 
   useEffect(() => {
     if (open) heading.current?.focus();
-  }, [open]);
-
-  // Before the pop-up is drawn (see bottomBar.ts)
-  useLayoutEffect(() => {
-    if (!open) return;
-    putBarAway("welcome-film", true);
-    return () => putBarAway("welcome-film", false);
   }, [open]);
 
   const close = () => {

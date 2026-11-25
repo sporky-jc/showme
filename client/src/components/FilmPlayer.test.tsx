@@ -30,15 +30,12 @@ describe("FilmPlayer", () => {
     play();
     expect(set()).toHaveClass("paper-film-set--big");
     expect(document.documentElement).toHaveClass("paper-film-open");
-    // The bar of links is put away with it, so an iPhone's address bar strip isn't green
-    expect(document.documentElement).toHaveClass("paper-bar-away");
-    // The Captions button is in the big view too
-    expect(screen.getByRole("button", { name: /^Captions/ })).toBeInTheDocument();
+    // The captions come on with it, and the viewer can turn them off
+    expect(screen.getByRole("button", { name: /^Captions/ })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "Back to the page" }));
     expect(set()).not.toHaveClass("paper-film-set--big");
     expect(document.documentElement).not.toHaveClass("paper-film-open");
-    expect(document.documentElement).not.toHaveClass("paper-bar-away");
   });
 
   it("leaves the big view on Esc without passing the key on, and when the film ends", () => {
@@ -60,6 +57,53 @@ describe("FilmPlayer", () => {
     expect(set()).toHaveClass("paper-film-set--big");
     fireEvent.ended(video);
     expect(set()).not.toHaveClass("paper-film-set--big");
+  });
+
+  it("asks the browser for real full screen, and comes back when that ends", () => {
+    onAPhone(true);
+    const ask = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", { value: ask, configurable: true });
+    try {
+      render(<FilmPlayer film={WELCOME_FILM} />);
+      play();
+      expect(ask).toHaveBeenCalledTimes(1);
+      expect(ask.mock.contexts[0]).toBe(set());
+      // The viewer leaves full screen with the phone's own back or Esc
+      fireEvent(document, new Event("fullscreenchange"));
+      expect(set()).not.toHaveClass("paper-film-set--big");
+    } finally {
+      delete (HTMLElement.prototype as { requestFullscreen?: unknown }).requestFullscreen;
+    }
+  });
+
+  it("on an iPhone, leaves the full screen to the phone's own player and gives it the words", () => {
+    onAPhone(true);
+    const track = { mode: "disabled", addCue: vi.fn() };
+    const tracks: unknown[] = [];
+    const proto = HTMLVideoElement.prototype as unknown as Record<string, unknown>;
+    proto.webkitEnterFullscreen = () => undefined;
+    Object.defineProperty(proto, "textTracks", { get: () => tracks, configurable: true });
+    proto.addTextTrack = () => {
+      tracks.push(track);
+      return track;
+    };
+    try {
+      render(<FilmPlayer film={WELCOME_FILM} />);
+      const video = document.querySelector("video")!;
+      // No playsinline: that is what sends an iPhone to its own player
+      expect(video).not.toHaveAttribute("playsinline");
+      play();
+      expect(set()).not.toHaveClass("paper-film-set--big");
+      expect(track.mode).toBe("hidden");
+      fireEvent(video, new Event("webkitbeginfullscreen"));
+      expect(track.mode).toBe("showing");
+      fireEvent(video, new Event("webkitendfullscreen"));
+      expect(track.mode).toBe("hidden");
+    } finally {
+      delete proto.webkitEnterFullscreen;
+      delete proto.textTracks;
+      delete proto.addTextTrack;
+    }
   });
 
   it("stays in the page on a wider screen", () => {

@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState, useLayoutEffect } from "react";
-import { putBarAway } from "./bottomBar";
+import React, { useEffect, useRef, useState } from "react";
 import FilmPlayer from "./FilmPlayer";
 import Scribbles from "./Scribbles";
 import type { Film } from "../films";
@@ -45,12 +44,6 @@ function Refresher({ words, film, onClose }: { words: RefresherWords; film?: Fil
   const right = practice !== null && picked === practice.answer;
   const wrong = practice !== null && picked !== null && !right;
   const canGoOn = practice === null || right;
-
-  // Before the pop-up is drawn (see bottomBar.ts)
-  useLayoutEffect(() => {
-    putBarAway("refresher", true);
-    return () => putBarAway("refresher", false);
-  }, []);
 
   // Each step starts with the keyboard (and a screen reader) on its heading
   useEffect(() => {

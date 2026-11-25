@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { putBarAway } from "./bottomBar";
 import { lineAt, loadCaptions } from "../captions";
 import type { CaptionLine } from "../captions";
 import type { Film } from "../films";
@@ -20,11 +19,15 @@ import type { Film } from "../films";
 // play, a link opens it by itself. Styled in src/theme/paper.css.
 //
 // On a phone the picture in the page is small, so while the film plays it
-// fills the screen (`big`): the same video, held in place over the page, with
-// the Captions button and the words under it and a button back to the page.
-// Turning the phone on its side makes the picture fill the screen. It is our
-// own big view, not the browser's full screen, because an iPhone's full
-// screen can't show our captions.
+// fills the screen, in real full screen so the browser's own bars are gone:
+// - An iPhone can only make a video full screen, in its own player, and does
+//   that by itself when a video without `playsinline` plays (`ownPlayer`).
+//   That player can't show our words, so there they also go to the video as
+//   a text track, shown only while its player is up.
+// - Other phones make our whole set full screen (`big`): the video, the
+//   Captions button and the words, with a button back to the page. If the
+//   browser says no, the set still covers the page.
+// Either way the captions come on with it; the viewer can turn them off.
 //
 // On the Films page, where there are many: `about` names the film in the
 // play button ("Watch the film: Simile"), the Captions button waits until
@@ -39,6 +42,11 @@ interface Props {
 // A phone, held either way up
 const onAPhone = () => window.matchMedia?.("(max-width: 640px), (max-height: 500px)").matches ?? false;
 
+// An iPhone: no full screen for a part of the page, only for a video
+const ownPlayer = () =>
+  typeof document.documentElement.requestFullscreen !== "function" &&
+  "webkitEnterFullscreen" in HTMLVideoElement.prototype;
+
 function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const [started, setStarted] = useState(false);
   const [broken, setBroken] = useState(false);
@@ -48,25 +56,70 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const [playing, setPlaying] = useState(false);
   const [big, setBig] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
+  const set = useRef<HTMLDivElement>(null);
+  const loading = useRef<Promise<CaptionLine[]> | null>(null);
 
-  // The page under the big view stays where it is, and the bar of links is
-  // put away. That happens in `grow`, in the same moment as the press, not
-  // here after the screen is drawn: an iPhone picks the color behind its
-  // address bar the instant the big view opens (see bottomBar.ts).
+  // The page under the big view stays where it is; full screen ends with it
   useEffect(() => {
     if (!big) return;
+    document.documentElement.classList.add("paper-film-open");
+    const left = () => {
+      if (!document.fullscreenElement) setBig(false);
+    };
+    document.addEventListener("fullscreenchange", left);
     return () => {
+      document.removeEventListener("fullscreenchange", left);
       document.documentElement.classList.remove("paper-film-open");
-      putBarAway("film", false);
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     };
   }, [big]);
 
-  const grow = (on: boolean) => {
-    if (on) {
-      document.documentElement.classList.add("paper-film-open");
-      putBarAway("film", true);
+  // An iPhone's own player: our words show while it is up, and it shuts
+  // when the film ends
+  useEffect(() => {
+    const player = video.current;
+    if (!ownPlayer() || !player) return;
+    const show = (mode: TextTrackMode) => () => {
+      for (const track of Array.from(player.textTracks)) track.mode = mode;
+    };
+    const up = show("showing");
+    const down = show("hidden");
+    player.addEventListener("webkitbeginfullscreen", up);
+    player.addEventListener("webkitendfullscreen", down);
+    return () => {
+      player.removeEventListener("webkitbeginfullscreen", up);
+      player.removeEventListener("webkitendfullscreen", down);
+    };
+  }, []);
+
+  const loadLines = () => {
+    loading.current ??= loadCaptions(film.captions).then((loaded) => {
+      setLines(loaded);
+      setWords(lineAt(loaded, video.current?.currentTime ?? 0));
+      return loaded;
+    });
+    return loading.current;
+  };
+
+  const grow = () => {
+    if (ownPlayer()) {
+      // The track is made now, before the player opens, and filled when the
+      // words arrive (not a <track> element: an iPhone won't load the video)
+      const player = video.current;
+      if (!player || player.textTracks.length > 0) return;
+      const track = player.addTextTrack("captions", "English", "en");
+      track.mode = "hidden";
+      void loadLines().then((loaded) =>
+        loaded.forEach((line) => track.addCue(new VTTCue(line.start, line.end, line.text)))
+      );
+      return;
     }
-    setBig(on);
+    if (big || !onAPhone()) return;
+    setBig(true);
+    setCaptions(true);
+    void loadLines();
+    // Needs a press; if the browser says no, the set still covers the page
+    void set.current?.requestFullscreen?.().catch(() => undefined);
   };
 
   const start = () => {
@@ -75,24 +128,21 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
     // yet; the controls are showing by then, so the viewer can press play
     void player?.play()?.catch(() => undefined);
     setStarted(true);
-    grow(onAPhone());
+    grow();
     onStart?.();
     player?.focus();
   };
 
   const toggleCaptions = () => {
     setCaptions(!captions);
-    if (lines) return;
-    void loadCaptions(film.captions).then((loaded) => {
-      setLines(loaded);
-      setWords(lineAt(loaded, video.current?.currentTime ?? 0));
-    });
+    void loadLines();
   };
 
   const shown = lines && lines.length === 0 ? "The captions can’t show right now." : words;
 
   return (
     <div
+      ref={set}
       className={big ? "paper-film-set paper-film-set--big" : "paper-film-set"}
       onKeyDown={(event) => {
         // Esc leaves the big view first, before any pop-up around it
@@ -113,13 +163,13 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
           poster={film.poster}
           aria-label={film.title}
           controls={started}
-          playsInline
+          playsInline={!ownPlayer()}
           preload="none"
           // So the keyboard can land on it in every browser, once it's playing
           tabIndex={started ? 0 : -1}
           onPlay={(event) => {
             setPlaying(true);
-            grow(onAPhone());
+            grow();
             // One film at a time
             const mine = event.currentTarget;
             document.querySelectorAll("video").forEach((other) => {
@@ -127,7 +177,10 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
             });
           }}
           onPause={() => setPlaying(false)}
-          onEnded={() => setBig(false)}
+          onEnded={(event) => {
+            setBig(false);
+            (event.currentTarget as HTMLVideoElement & { webkitExitFullscreen?: () => void }).webkitExitFullscreen?.();
+          }}
           onTimeUpdate={(event) => lines && setWords(lineAt(lines, event.currentTarget.currentTime))}
         >
           <source src={film.video} type="video/mp4" onError={() => setBroken(true)} />
