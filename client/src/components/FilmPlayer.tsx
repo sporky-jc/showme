@@ -58,6 +58,7 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const set = useRef<HTMLDivElement>(null);
   const loading = useRef<Promise<CaptionLine[]> | null>(null);
+  const track = useRef<TextTrack | null>(null);
 
   // The page under the big view stays where it is; full screen ends with it
   useEffect(() => {
@@ -80,7 +81,7 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
     const player = video.current;
     if (!ownPlayer() || !player) return;
     const show = (mode: TextTrackMode) => () => {
-      for (const track of Array.from(player.textTracks)) track.mode = mode;
+      if (track.current) track.current.mode = mode;
     };
     const up = show("showing");
     const down = show("hidden");
@@ -105,12 +106,15 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
     if (ownPlayer()) {
       // The track is made now, before the player opens, and filled when the
       // words arrive (not a <track> element: an iPhone won't load the video)
+      // Made once (kept here: an iPhone's own list of tracks can lag, and a
+      // second track would show every line twice)
       const player = video.current;
-      if (!player || player.textTracks.length > 0) return;
-      const track = player.addTextTrack("captions", "English", "en");
-      track.mode = "hidden";
+      if (!player || track.current) return;
+      const made = player.addTextTrack("captions", "English", "en");
+      made.mode = "hidden";
+      track.current = made;
       void loadLines().then((loaded) =>
-        loaded.forEach((line) => track.addCue(new VTTCue(line.start, line.end, line.text)))
+        loaded.forEach((line) => made.addCue(new VTTCue(line.start, line.end, line.text)))
       );
       return;
     }

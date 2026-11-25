@@ -79,14 +79,10 @@ describe("FilmPlayer", () => {
   it("on an iPhone, leaves the full screen to the phone's own player and gives it the words", () => {
     onAPhone(true);
     const track = { mode: "disabled", addCue: vi.fn() };
-    const tracks: unknown[] = [];
     const proto = HTMLVideoElement.prototype as unknown as Record<string, unknown>;
     proto.webkitSupportsPresentationMode = () => true;
-    Object.defineProperty(proto, "textTracks", { get: () => tracks, configurable: true });
-    proto.addTextTrack = () => {
-      tracks.push(track);
-      return track;
-    };
+    const add = vi.fn(() => track);
+    proto.addTextTrack = add;
     try {
       render(<FilmPlayer film={WELCOME_FILM} />);
       const video = document.querySelector("video")!;
@@ -95,13 +91,15 @@ describe("FilmPlayer", () => {
       play();
       expect(set()).not.toHaveClass("paper-film-set--big");
       expect(track.mode).toBe("hidden");
+      // Playing again doesn't make a second track (every line would show twice)
+      fireEvent.play(video);
+      expect(add).toHaveBeenCalledTimes(1);
       fireEvent(video, new Event("webkitbeginfullscreen"));
       expect(track.mode).toBe("showing");
       fireEvent(video, new Event("webkitendfullscreen"));
       expect(track.mode).toBe("hidden");
     } finally {
       delete proto.webkitSupportsPresentationMode;
-      delete proto.textTracks;
       delete proto.addTextTrack;
     }
   });
