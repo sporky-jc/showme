@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import Scribbles from "./Scribbles";
+
+// jsdom has no AnimationEvent, so the name is set on a plain event. React
+// listens for the prefixed name where the browser has no unprefixed
+// animation (as in jsdom), so both are sent.
+const animationEnd = (element: Element, animationName: string) =>
+  act(() => {
+    for (const type of ["animationend", "webkitAnimationEnd"]) {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperty(event, "animationName", { value: animationName });
+      element.dispatchEvent(event);
+    }
+  });
 
 describe("Scribbles", () => {
   it("is an image called Scribbles the pencil", () => {
@@ -56,5 +68,33 @@ describe("Scribbles", () => {
       expect(container.querySelectorAll("[data-held]")).toHaveLength(1);
       expect(container.querySelector(`[data-held="${prop}"]`)).not.toBeNull();
     }
+  });
+
+  it("reacts once, then goes back to his mood", () => {
+    const { container } = render(<Scribbles mood="thinking" prop="note" reaction="catch" />);
+    const svg = container.querySelector("svg")!;
+    expect(svg).toHaveClass("scribbles--thinking", "scribbles--catch");
+    // Another animation ending doesn't stop it
+    animationEnd(svg, "scribbles-catch");
+    expect(svg).toHaveClass("scribbles--catch");
+    animationEnd(svg, "scribbles-gotit");
+    expect(svg).not.toHaveClass("scribbles--catch");
+    expect(svg).toHaveClass("scribbles--thinking");
+  });
+
+  it("shows sparks only while cheering", () => {
+    const { container } = render(<Scribbles mood="happy" prop="check" reaction="cheer" />);
+    const svg = container.querySelector("svg")!;
+    expect(svg).toHaveClass("scribbles--cheer");
+    expect(container.querySelector("[data-sparks]")).not.toBeNull();
+    animationEnd(svg, "scribbles-cheer");
+    expect(container.querySelector("[data-sparks]")).toBeNull();
+  });
+
+  it("doesn't react unless asked", () => {
+    const { container } = render(<Scribbles mood="happy" />);
+    const svg = container.querySelector("svg")!;
+    expect(svg).not.toHaveClass("scribbles--catch");
+    expect(svg).not.toHaveClass("scribbles--cheer");
   });
 });

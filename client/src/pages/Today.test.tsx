@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import Today from "./Today";
 import { renderWithApp } from "../test/testUtils";
@@ -45,7 +45,10 @@ const renderToday = ({
   answer,
   respond,
   coach = true,
+  who = ada,
 }: {
+  // The signed-in student (with an id, approvals can be celebrated)
+  who?: { id?: string; firstName: string; isAdmin: boolean };
   // The senseCoach feature (see features.ts), on unless a test turns it off
   coach?: boolean;
   tellCount?: number;
@@ -56,7 +59,7 @@ const renderToday = ({
 } = {}) => {
   const requests: string[] = [];
   const view = renderWithApp(<Today />, {
-    state: { user: ada, tellsentences: tells(remembered), features: { senseHighlights: false, senseCoach: coach } },
+    state: { user: who, tellsentences: tells(remembered), features: { senseHighlights: false, senseCoach: coach } },
     respond: (config) => {
       requests.push(`${config.method} ${config.url}`);
       if (respond) return respond(config);
@@ -381,5 +384,46 @@ describe("Today", () => {
     renderToday();
 
     expect(await screen.findByRole("img", { name: "Scribbles the pencil" })).toBeInTheDocument();
+  });
+
+  describe("a sentence new to the gallery", () => {
+    const maya = { id: "g1", firstName: "Maya", isAdmin: false };
+    const seenKey = "showme:seen-approved:g1";
+    beforeEach(() => window.localStorage.clear());
+
+    it("is celebrated the first time: a line to the gallery, a stamp on its note, and Scribbles cheers", async () => {
+      window.localStorage.setItem(seenKey, JSON.stringify(["s1"]));
+      const mine = shows(2, { approved: true });
+      renderToday({ who: maya, mine });
+
+      expect(await screen.findByText("Yay! Your sentence is in the gallery!")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "See it in the gallery" })).toHaveAttribute("href", "/Gallery");
+      // Newest first: day 2 is the new one
+      expect(notes()[0]).toHaveClass("paper-note--fresh");
+      expect(notes()[0].querySelector(".paper-joined-stamp")).toHaveAttribute("aria-hidden", "true");
+      expect(notes()[1]).not.toHaveClass("paper-note--fresh");
+      expect(document.querySelector(".scribbles--cheer")).not.toBeNull();
+    });
+
+    it("is not celebrated again on the next visit", async () => {
+      window.localStorage.setItem(seenKey, JSON.stringify(["s1"]));
+      const mine = shows(2, { approved: true });
+      const first = renderToday({ who: maya, mine });
+      await screen.findByText("Yay! Your sentence is in the gallery!");
+      first.unmount();
+
+      renderToday({ who: maya, mine });
+      await waitFor(() => expect(notes()).toHaveLength(2));
+      expect(screen.queryByText(/Yay!/)).not.toBeInTheDocument();
+      expect(document.querySelector(".paper-note--fresh")).toBeNull();
+      expect(document.querySelector(".scribbles--cheer")).toBeNull();
+    });
+
+    it("isn't celebrated the first time this browser sees the student, so old approvals stay quiet", async () => {
+      renderToday({ who: maya, mine: shows(2, { approved: true }) });
+
+      await waitFor(() => expect(notes()).toHaveLength(2));
+      expect(screen.queryByText(/Yay!/)).not.toBeInTheDocument();
+    });
   });
 });
