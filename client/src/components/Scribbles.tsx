@@ -5,8 +5,16 @@
 // wobbly mouth and a drop of sweat) wobbles, for a sentence that may mean a
 // student needs help. He can hold something for the job on each page.
 // Everything stands still for anyone whose device asks for less motion.
+// He can also react once to something the student just did (see
+// ScribblesReaction), then go back to his mood.
+import { useState } from "react";
+
 export type ScribblesMood = "idle" | "happy" | "thinking" | "worried";
 export type ScribblesProp = "none" | "note" | "check" | "brush" | "tape";
+// "catch": the note he holds flies into his hand, and he nods (a sentence
+// was just sent). "cheer": one big jump, with sparks by his head (a sentence
+// was just approved). Each plays once, for about a second.
+export type ScribblesReaction = "catch" | "cheer";
 
 const INK = "#20304a";
 
@@ -32,6 +40,15 @@ const MOOD_CLASS = {
   thinking: "scribbles scribbles--thinking",
   worried: "scribbles scribbles--worried",
 } as const;
+
+// Added for one play, in full for the same reason
+const REACTION_CLASS = {
+  catch: " scribbles--catch",
+  cheer: " scribbles--cheer",
+} as const;
+
+// The last animation of each reaction: when it ends, the reaction is over
+const REACTION_END = ["scribbles-gotit", "scribbles-cheer"];
 
 const MOUTH = {
   idle: { d: "M88 122 Q 100 134 112 122", fill: "none" },
@@ -103,6 +120,7 @@ function Scribbles({
   prop = "none",
   size = 120,
   decorative = false,
+  reaction,
 }: {
   mood?: ScribblesMood;
   prop?: ScribblesProp;
@@ -111,13 +129,20 @@ function Scribbles({
   // Next to text that already says what he's doing, hide him from screen
   // readers
   decorative?: boolean;
+  // Plays once when he first appears. To play it again, draw a new
+  // Scribbles (a new `key`).
+  reaction?: ScribblesReaction;
 }) {
+  const [playing, setPlaying] = useState(reaction);
   const label = decorative ? {} : { role: "img", "aria-label": "Scribbles the pencil" };
   const look = LOOK[mood];
   const cheering = mood === "happy" && prop === "none";
   return (
     <svg
-      className={MOOD_CLASS[mood]}
+      className={MOOD_CLASS[mood] + (playing ? REACTION_CLASS[playing] : "")}
+      onAnimationEnd={(event) => {
+        if (REACTION_END.includes(event.animationName)) setPlaying(undefined);
+      }}
       width={size}
       height={Math.round((size * 216) / 210)}
       viewBox="0 0 210 216"
@@ -140,6 +165,13 @@ function Scribbles({
           <circle cx="146" cy="30" r="6" fill="#7a5cff" />
           <circle cx="162" cy="16" r="7" fill="#7a5cff" />
           <circle cx="180" cy="4" r="8" fill="#7a5cff" />
+        </g>
+      )}
+      {playing === "cheer" && (
+        <g data-sparks>
+          <path className="scribbles__spark" d="M40 30 l5 12 l12 5 l-12 5 l-5 12 l-5 -12 l-12 -5 l12 -5 z" fill="#ffc93c" />
+          <path className="scribbles__spark" d="M160 14 l4 9 l9 4 l-9 4 l-4 9 l-4 -9 l-9 -4 l9 -4 z" fill="#7fd3ff" />
+          <path className="scribbles__spark" d="M178 70 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 z" fill="#ff9fb0" />
         </g>
       )}
       <g className="scribbles__body">
@@ -192,7 +224,11 @@ function Scribbles({
         />
         <circle cx="74" cy="120" r="6" fill="#ff9fb0" opacity={0.8} />
         <circle cx="126" cy="120" r="6" fill="#ff9fb0" opacity={0.8} />
-        <Held prop={prop} />
+        {/* Its own group, so a reaction can move it without undoing the
+            tilt each prop is drawn with */}
+        <g className="scribbles__held">
+          <Held prop={prop} />
+        </g>
       </g>
     </svg>
   );

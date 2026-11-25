@@ -417,6 +417,8 @@ describe("Write", () => {
 
     const heading = await screen.findByRole("heading", { name: "Scribbles is checking!" });
     expect(heading).toHaveFocus();
+    // Scribbles catches the note it was sent on
+    expect(document.querySelector(".scribbles--catch")).not.toBeNull();
     expect(saves()).toHaveLength(1);
     expect(saves()[0].method).toBe("post");
     // The day and the words, plus the Tell it shows for an older backend (the
@@ -510,6 +512,8 @@ describe("Write", () => {
     ).toHaveFocus();
     expect(screen.getByText("Brr, my fingers froze.")).toBeInTheDocument();
     expect(screen.getByText("Tell 3")).toBeInTheDocument();
+    // Nothing new was sent, so Scribbles doesn't catch anything
+    expect(document.querySelector(".scribbles--catch")).toBeNull();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(requests.filter((r) => r.url === "/MyPage" && r.method === "get")).toHaveLength(2);
   });
