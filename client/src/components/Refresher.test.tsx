@@ -135,7 +135,7 @@ describe("Refresher", () => {
       play.mockRestore();
     });
 
-    it("plays it from the press itself, with its controls, and captions off until asked for", async () => {
+    it("plays it from the press itself, with its controls and no captions of ours", async () => {
       const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
       const user = renderWithFilm();
       await user.click(screen.getByRole("button", { name: /^Watch the film/ }));
@@ -149,35 +149,8 @@ describe("Refresher", () => {
       expect(screen.queryByRole("button", { name: /^Watch the film/ })).not.toBeInTheDocument();
       // No <track> element (iPhones won't load a video that has one)
       expect(video.querySelector("track")).toBeNull();
+      expect(screen.queryByRole("button", { name: /^Captions/ })).not.toBeInTheDocument();
       play.mockRestore();
-    });
-
-    it("shows the words being said once Captions is pressed, and hides them again", async () => {
-      vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, text: async () => "WEBVTT\n\n00:01.000 --> 00:03.000\nIt was raining.\n" })));
-      const user = renderWithFilm();
-      const video = screen.getByLabelText(film.title) as HTMLVideoElement;
-      const button = screen.getByRole("button", { name: /^Captions/ });
-      expect(button).toHaveAttribute("aria-pressed", "false");
-      expect(fetch).not.toHaveBeenCalled();
-
-      await user.click(button);
-      expect(button).toHaveAttribute("aria-pressed", "true");
-      expect(fetch).toHaveBeenCalledWith(film.captions);
-      expect(screen.queryByText("It was raining.")).not.toBeInTheDocument();
-
-      Object.defineProperty(video, "currentTime", { value: 2, configurable: true });
-      fireEvent.timeUpdate(video);
-      // Twice: on the picture (wide screens) and in the strip (phones);
-      // the stylesheet shows one
-      expect(screen.getAllByText("It was raining.")).toHaveLength(2);
-
-      Object.defineProperty(video, "currentTime", { value: 5, configurable: true });
-      fireEvent.timeUpdate(video);
-      expect(screen.queryByText("It was raining.")).not.toBeInTheDocument();
-
-      await user.click(button);
-      expect(button).toHaveAttribute("aria-pressed", "false");
-      vi.unstubAllGlobals();
     });
 
     it("offers a link to the film if it can’t play", async () => {

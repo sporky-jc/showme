@@ -4616,100 +4616,75 @@ h3,
   font-weight: 700;
 }
 
-/* The film, then its Captions button and the words being said */
+/* The film and, in the big view on a phone, the button back to the page */
 .paper-film-set {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.paper-film__captions {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+/* On a phone, a playing film fills the screen (FilmPlayer's big view): the
+   video and a way back, in the browser's full screen.
+   (An iPhone uses its own player and never gets here.) */
+html.paper-film-open {
+  overflow: hidden;
 }
 
-.paper-film__captions-button {
+.paper-film-set--big {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  justify-content: center;
+  gap: 12px;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  background: var(--paper-ink);
+}
+
+.paper-film-set--big .paper-film {
   flex: none;
+  border-radius: 0;
+  background: var(--paper-ink);
+  box-shadow: none;
+}
+
+.paper-film-set--big .paper-film__video {
+  background: var(--paper-ink);
+}
+
+.paper-film__back {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: calc(env(safe-area-inset-left) + 10px);
+  z-index: 1;
   min-height: 44px;
   padding: 0 14px;
-  border: 2px solid var(--paper-control-edge);
+  border: 2px solid var(--paper-white);
   border-radius: 14px;
-  background: var(--paper-white);
-  color: var(--paper-ink);
+  background: var(--paper-ink);
+  color: var(--paper-white);
   font-family: var(--paper-font-display);
   font-weight: 800;
   font-size: 1rem;
   cursor: pointer;
 }
 
-.paper-film__captions-button[aria-pressed="true"] {
-  border-color: var(--paper-ink);
-  background: var(--paper-ink);
-  color: var(--paper-white);
-}
-
-.paper-film__captions-button:focus-visible {
-  outline: 3px solid var(--paper-ink);
+.paper-film__back:focus-visible {
+  outline: 3px solid var(--paper-white);
   outline-offset: 2px;
 }
 
-/* The words being said, on the picture near the bottom. Presses go
-   through to the video. Raised while the film is stopped, to stay clear of
-   the video's own controls. */
-.paper-film__words {
-  position: absolute;
-  left: 20px;
-  right: 20px;
-  bottom: 10px;
-  margin: 0;
-  text-align: center;
-  pointer-events: none;
-}
-
-.paper-film__words--raised {
-  bottom: 64px;
-}
-
-.paper-film__words span {
-  display: inline-block;
-  max-width: 100%;
-  padding: 3px 10px;
-  border-radius: 10px;
-  background: var(--paper-ink);
-  color: var(--paper-white);
-  font-weight: 700;
-  font-size: clamp(0.85rem, 2.6vw, 1.1rem);
-  line-height: 1.3;
-}
-
-/* On a phone the picture is too small to cover: the words go in a strip
-   under it. Tall enough for three rows, so the page doesn't jump as lines
-   change. */
-.paper-film__strip {
-  display: none;
-  margin: 0;
-  padding: 6px 12px;
-  border-radius: 14px;
-  background: var(--paper-sky);
-  color: var(--paper-ink);
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-@media (max-width: 640px) {
-  .paper-film__words {
-    display: none;
+/* On its side, the picture fills the screen */
+@media (orientation: landscape) {
+  .paper-film-set--big {
+    gap: 0;
   }
 
-  .paper-film__captions {
-    flex-direction: column;
-  }
-
-  .paper-film__strip {
-    display: block;
-    align-self: stretch;
-    min-height: 4.6em;
+  .paper-film-set--big .paper-film {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    margin: 0 auto;
   }
 }
 

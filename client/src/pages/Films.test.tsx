@@ -32,16 +32,13 @@ describe("Films", () => {
     }
   });
 
-  it("offers Captions once a film starts, and stops the other films", async () => {
+  it("starts a film from its press, and stops the other films", async () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
     const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
     const user = userEvent.setup();
     const { container } = renderFilms();
-    expect(screen.queryByRole("button", { name: /^Captions/ })).not.toBeInTheDocument();
-
     await user.click(screen.getByRole("button", { name: /^Watch the film: Simile/ }));
     expect(play).toHaveBeenCalledTimes(1);
-    expect(screen.getAllByRole("button", { name: /^Captions/ })).toHaveLength(1);
 
     const videos = [...container.querySelectorAll("video")];
     fireEvent.play(videos[2]);

@@ -32,14 +32,13 @@ function Films() {
           <FilmPlayer
             film={{ ...WELCOME_FILM, poster: WELCOME_FILM.smallPoster }}
             about={WELCOME_FILM.title}
-            quiet
           />
         </li>
         {films.map(({ technique, film, words }) => (
           <li key={technique} className="paper-card paper-films__card">
             <h2>{words.name}</h2>
             <p className="paper-films__about">{words.meaning}</p>
-            <FilmPlayer film={{ ...film, poster: film.smallPoster }} about={words.name} quiet />
+            <FilmPlayer film={{ ...film, poster: film.smallPoster }} about={words.name} />
           </li>
         ))}
       </ul>
