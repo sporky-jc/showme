@@ -239,4 +239,24 @@ describe("My sentences", () => {
     // A sentence still waiting has no tip
     expect(document.querySelectorAll(".paper-mine__tip")).toHaveLength(2);
   });
+
+  it("celebrates a sentence new to the gallery once, with a stamp on its note and a line to the gallery", async () => {
+    window.localStorage.setItem("showme:seen-approved:g-ada", JSON.stringify([]));
+    const mine = shows(2);
+    mine[1] = { ...mine[1], approved: true, tip: { id: "great", text: "Great picture! Keep painting with words." } };
+    const first = renderMyPage({ mine });
+
+    expect(await screen.findByText("Yay! Your sentence is in the gallery!")).toBeInTheDocument();
+    expect(note("Show 2")).toHaveClass("paper-note--fresh");
+    expect(note("Show 2").querySelector(".paper-joined-stamp")).toHaveAttribute("aria-hidden", "true");
+    expect(note("Show 1")).not.toHaveClass("paper-note--fresh");
+    // Scribbles cheers beside his praise
+    expect(note("Show 2").querySelector(".scribbles--cheer")).not.toBeNull();
+    first.unmount();
+
+    renderMyPage({ mine });
+    await screen.findByText("Show 2");
+    expect(screen.queryByText(/Yay!/)).not.toBeInTheDocument();
+    expect(note("Show 2")).not.toHaveClass("paper-note--fresh");
+  });
 });

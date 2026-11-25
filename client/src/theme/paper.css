@@ -1570,6 +1570,147 @@ h3,
     grid-template-columns: repeat(3, minmax(0, 1fr));
     padding-right: 130px;
   }
+
+  /* Clear of Scribbles' corner, like the list */
+  .paper-today__mine .paper-joined-line {
+    margin-right: 130px;
+  }
+}
+
+/* ---- A sentence joins the gallery (GalleryJoined.tsx) ---- */
+
+/* Above the student's sentences, the first time they see it approved */
+.paper-joined-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+  margin: 0 0 24px;
+  padding: 6px 16px;
+  border-radius: 16px;
+  background: var(--paper-white);
+  box-shadow: 0 4px 0 var(--paper-edge);
+}
+
+.paper-joined-line strong {
+  font-family: var(--paper-font-display);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+
+.paper-joined-line a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 800;
+  color: var(--paper-ink);
+}
+
+/* The note glows green once, and a stamp lands on its top corner */
+.paper-note--fresh {
+  position: relative;
+  animation: paper-joined-glow 1.3s 0.3s ease-out both;
+}
+
+.paper-note--fresh .paper-note__status {
+  padding-right: 62px;
+}
+
+/* On My sentences the corner holds the day: the note makes room above it
+   (named in full to win over .paper-mine__list .paper-note's padding) */
+.paper-mine__list .paper-note.paper-note--fresh {
+  padding-top: 38px;
+}
+
+.paper-mine__list .paper-note--fresh .paper-note__status {
+  padding-right: 0;
+}
+
+.paper-joined-stamp {
+  position: absolute;
+  top: -16px;
+  right: -4px;
+  width: 66px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.paper-joined-stamp__mark {
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 46px;
+  border: 2px solid var(--paper-done-ink);
+  border-radius: 12px;
+  background: var(--paper-white);
+  color: var(--paper-done-ink);
+  font-family: var(--paper-font-display);
+  font-weight: 900;
+  font-size: 0.7rem;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(-8deg);
+  animation: paper-joined-stamp 0.42s cubic-bezier(0.2, 1.6, 0.5, 1) both;
+}
+
+.paper-joined-stamp__bit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 10px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: paper-joined-bit 0.95s 0.3s cubic-bezier(0.2, 0.7, 0.4, 1) both;
+}
+
+@keyframes paper-joined-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2.2) rotate(-24deg);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-8deg);
+  }
+}
+
+@keyframes paper-joined-bit {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  55% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--turn));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 18px)) rotate(var(--turn));
+  }
+}
+
+@keyframes paper-joined-glow {
+  40% {
+    box-shadow: 0 5px 0 var(--paper-done-edge), 0 0 0 8px var(--paper-done-edge);
+  }
+}
+
+/* Less motion: the stamp and the line just show, with no bits */
+@media (prefers-reduced-motion: reduce) {
+  .paper-note--fresh,
+  .paper-joined-stamp__mark {
+    animation: none;
+  }
+
+  .paper-joined-stamp__bit {
+    display: none;
+  }
 }
 
 /* ---- Gallery ---- */

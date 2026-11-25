@@ -4,9 +4,12 @@ import { cleanup } from "@testing-library/react";
 // Readable checks such as expect(element).toBeInTheDocument()
 import "@testing-library/jest-dom/vitest";
 
-// Wipe the pretend screen after each test so tests can't affect each other.
+// Wipe the pretend screen and the browser's saved data after each test so
+// tests can't affect each other (useNewApprovals keeps what a student has
+// seen in localStorage).
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
 });
 
 // react-bootstrap ends each slide or fade with a short timer (5 ms here, as

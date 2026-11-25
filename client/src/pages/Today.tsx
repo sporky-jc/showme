@@ -2,6 +2,8 @@ import React, { type CSSProperties } from "react";
 import { Link } from "react-router";
 import { useSelector } from "react-redux";
 import Scribbles from "../components/Scribbles";
+import { JoinedLine, JoinedStamp } from "../components/GalleryJoined";
+import { useNewApprovals } from "../components/useNewApprovals";
 import PageLoading from "../components/PageLoading";
 import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
@@ -26,6 +28,8 @@ function Today() {
   // Scribbles' sense tip is part of the senseCoach feature (see features.ts)
   const senseCoach = useFeature("senseCoach");
   const { loaded, retry } = useStudentData();
+  // Sentences approved since the student last looked: celebrated once
+  const fresh = useNewApprovals(user.id, userSentences, loaded === "ready");
 
   if (loaded === "loading") return <PageLoading />;
   if (loaded === "failed") {
@@ -140,9 +144,12 @@ function Today() {
           </div>
         )}
         <div className="paper-today__scribbles">
+          {/* A sentence new to the gallery: he holds up his check and
+              cheers, once */}
           <Scribbles
-            mood={checking ? "thinking" : today ? "idle" : "happy"}
-            prop={checking ? "note" : "none"}
+            mood={fresh.size > 0 ? "happy" : checking ? "thinking" : today ? "idle" : "happy"}
+            prop={fresh.size > 0 ? "check" : checking ? "note" : "none"}
+            reaction={fresh.size > 0 ? "cheer" : undefined}
             size={120}
           />
         </div>
@@ -156,6 +163,7 @@ function Today() {
               See all<span className="visually-hidden"> my sentences</span>
             </Link>
           </div>
+          {fresh.size > 0 && <JoinedLine count={fresh.size} />}
           {checking && (
             <p className="paper-today__later">
               Come back later! Once Scribbles approves it, it will appear in
@@ -168,9 +176,13 @@ function Today() {
               return (
                 <li key={sentence._id}>
                   {/* One Scribbles sent back opens ready to rewrite */}
-                  <Link to={sentence.toRedo ? `/Write/${sentence._id}` : "/MySentences"} className={note}>
+                  <Link
+                    to={sentence.toRedo ? `/Write/${sentence._id}` : "/MySentences"}
+                    className={fresh.has(sentence._id) ? `${note} paper-note--fresh` : note}
+                  >
                     <span className="paper-note__status">{label}</span>
                     <span className="paper-note__show">{sentence.show}</span>
+                    {fresh.has(sentence._id) && <JoinedStamp />}
                     {tell && <span className="visually-hidden">for “{withoutAsk(tell)}”</span>}
                   </Link>
                 </li>
