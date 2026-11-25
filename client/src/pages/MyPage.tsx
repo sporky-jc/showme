@@ -3,6 +3,8 @@ import { Link } from "react-router";
 import { useSelector } from "react-redux";
 import PageLoading from "../components/PageLoading";
 import Scribbles from "../components/Scribbles";
+import { JoinedLine, JoinedStamp } from "../components/GalleryJoined";
+import { useNewApprovals } from "../components/useNewApprovals";
 import SignInPrompt from "../components/SignInPrompt";
 import { standing } from "../components/standing";
 import { useStudentData } from "../components/useStudentData";
@@ -22,6 +24,8 @@ function MyPage() {
 
   const { loaded, retry } = useStudentData();
   const [activePage, setActivePage] = useState(1);
+  // Sentences approved since the student last looked: celebrated once
+  const fresh = useNewApprovals(user.id, userSentences, loaded === "ready");
 
   if (!signedIn) {
     return (
@@ -74,6 +78,8 @@ function MyPage() {
         )}
       </div>
 
+      {fresh.size > 0 && <JoinedLine count={fresh.size} />}
+
       {userSentences.length === 0 ? (
         <p className="page-message">
           You haven&apos;t written a sentence yet. Your first Tell is waiting!
@@ -87,11 +93,12 @@ function MyPage() {
             const day = dayOf(sentence.title);
             const name = day ? `sentence ${day}` : `sentence “${sentence.show}”`;
             return (
-              <li key={sentence._id} className={note}>
+              <li key={sentence._id} className={fresh.has(sentence._id) ? `${note} paper-note--fresh` : note}>
                 <div className="paper-mine__head">
                   <span className="paper-note__status">{label}</span>
                   <span className="paper-mine__day">{day ? `Sentence ${day}` : "Sentence"}</span>
                 </div>
+                {fresh.has(sentence._id) && <JoinedStamp />}
                 <p className="paper-mine__show">{sentence.show}</p>
                 {/* The tip from the teacher's decision, in Scribbles' words:
                     how to fix it, or praise once it's in the gallery */}
@@ -100,6 +107,7 @@ function MyPage() {
                     <Scribbles
                       mood={sentence.approved ? "happy" : "thinking"}
                       prop={sentence.approved ? "check" : "note"}
+                      reaction={fresh.has(sentence._id) ? "cheer" : undefined}
                       size={56}
                       decorative
                     />
