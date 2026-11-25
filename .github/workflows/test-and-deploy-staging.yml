@@ -182,11 +182,12 @@ jobs:
           CLOUDFLARE_SENSE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_SENSE_ACCOUNT_ID }}
           CLOUDFLARE_SENSE_AI_TOKEN: ${{ secrets.CLOUDFLARE_SENSE_AI_TOKEN }}
           # The sense tagger's daily Neuron budget here: a cap, spent only as
-          # sentences are read. Staging and production share the sense
-          # account's 10,000 free a day with the weekly measure (~4,500).
-          # While nobody uses production: staging 5,000, production 500.
-          # When production goes live: staging 1,000, production 4,500.
-          TAGGER_NEURONS_PER_DAY: "5000"
+          # new approved sentences are read (about 50 each). Staging and
+          # production share the sense account's free 10,000, counted over
+          # any 24 hours, with the weekly measure (about 6,900).
+          # While nobody uses production: staging 2,500, production 500.
+          # When production has real classes: staging 500, production 2,500.
+          TAGGER_NEURONS_PER_DAY: "2500"
           # The features being tried out that are on for staging (see
           # backend/config/features.ts). Production's list is empty.
           FEATURES: "senseHighlights,senseCoach"
