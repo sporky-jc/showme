@@ -755,6 +755,117 @@ h3,
   }
 }
 
+/* His reactions (the reaction prop, Scribbles.tsx): each plays once, after
+   something the student did, and he goes back to his mood. "catch": the note
+   flies into his hand, then he nods. "cheer": one big jump with a spin, and
+   three sparks by his head. They come after the moods so they win over
+   them while they play. */
+.scribbles--catch .scribbles__held {
+  animation: scribbles-catch 0.65s cubic-bezier(0.34, 1.5, 0.6, 1) both;
+}
+
+.scribbles--catch .scribbles__body {
+  animation: scribbles-gotit 0.5s 0.55s ease-out both;
+}
+
+.scribbles--cheer .scribbles__body {
+  animation: scribbles-cheer 1.15s cubic-bezier(0.3, 0.9, 0.4, 1) both;
+}
+
+.scribbles--cheer .scribbles__shadow {
+  animation: scribbles-cheer-shadow 1.15s ease-out both;
+}
+
+.scribbles__spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: scribbles-spark 0.8s 0.3s ease-out both;
+}
+
+.scribbles__spark:nth-child(2) {
+  animation-delay: 0.38s;
+}
+
+.scribbles__spark:nth-child(3) {
+  animation-delay: 0.46s;
+}
+
+@keyframes scribbles-catch {
+  0% {
+    transform: translate(-110px, 90px) rotate(-50deg) scale(0.5);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Ends where thinking's sway starts, so he doesn't jump when it takes over */
+@keyframes scribbles-gotit {
+  0% {
+    transform: rotate(0);
+  }
+  35% {
+    transform: translateY(3px) scale(1.06, 0.94);
+  }
+  70% {
+    transform: translateY(-6px) rotate(-4deg);
+  }
+  100% {
+    transform: rotate(-7deg);
+  }
+}
+
+@keyframes scribbles-cheer {
+  0%,
+  100% {
+    transform: none;
+  }
+  14% {
+    transform: translateY(4px) scale(1.14, 0.86);
+  }
+  45% {
+    transform: translateY(-46px) scale(0.94, 1.08) rotate(-12deg);
+  }
+  62% {
+    transform: translateY(-40px) rotate(10deg);
+  }
+  80% {
+    transform: translateY(0) scale(1.1, 0.9);
+  }
+}
+
+@keyframes scribbles-cheer-shadow {
+  0%,
+  100% {
+    transform: none;
+  }
+  45%,
+  62% {
+    transform: scaleX(0.5);
+  }
+}
+
+@keyframes scribbles-spark {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-10px);
+  }
+}
+
 /* ---- Shared by the Welcome and Today pages ---- */
 
 /* A white card with a coral sheet of paper peeking out behind it */
@@ -1949,6 +2060,20 @@ h3,
   .scribbles__squiggle {
     animation: none;
     stroke-dashoffset: 0;
+  }
+
+  /* A reaction keeps its meaning without moving: he already holds the note
+     or the check, and the sparks stay away. (Named with the reaction, so
+     these win over the reaction's own rules.) */
+  .scribbles__spark {
+    display: none;
+  }
+
+  .scribbles--catch .scribbles__held,
+  .scribbles--catch .scribbles__body,
+  .scribbles--cheer .scribbles__body,
+  .scribbles--cheer .scribbles__shadow {
+    animation: none;
   }
 
   .scribbles__body,

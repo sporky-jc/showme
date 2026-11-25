@@ -145,6 +145,8 @@ function WriteSentence({ id }: { id: string | undefined }) {
             prop={sent.sentence.approved ? "check" : "note"}
             size={150}
             decorative
+            // Just sent: he catches it. Not for one sent before (again).
+            reaction={waiting && !sent.again ? "catch" : undefined}
           />
           <div>
             <h1 ref={sentHeading} tabIndex={-1}>
