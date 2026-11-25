@@ -14,6 +14,7 @@ import RefresherButton from "../components/RefresherButton";
 import { standing } from "../components/standing";
 import { SENSE_KEYS, SENSE_NAMES, SENSE_TIPS, repeatedTellWord, senseWords } from "../senses";
 import { useFeature } from "../features";
+import { WORD_GOAL, coachFor } from "./writeCoach";
 import type { OwnSentence } from "../api/types";
 import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 
@@ -22,9 +23,6 @@ import type { MAX_CHARACTERS } from "../../../backend/reviewer/contract";
 const SENSES = SENSE_KEYS.map((key) => ({ key, name: SENSE_NAMES[key], tips: SENSE_TIPS[key] }));
 // What senseWords finds in a sentence that uses no sense
 const NO_SENSES = senseWords("");
-
-// A sentence this long has room for a detail
-const WORD_GOAL = 8;
 
 // The longest Show sentence the server saves (MAX_CHARACTERS in the
 // backend's reviewer/contract.ts). Only its type is imported, so no backend
@@ -265,33 +263,15 @@ function WriteSentence({ id }: { id: string | undefined }) {
   const found = senseCoach ? senseWords(text) : NO_SENSES;
   const used = SENSES.filter(({ key }) => found[key]);
   const tellWord = repeatedTellWord(text, tell);
-  const clear = words >= WORD_GOAL && (!senseCoach || used.length >= 2) && !tellWord;
-
-  // What Scribbles says. It changes when the sentence reaches a new stage,
-  // not with every letter, so a screen reader isn't talked over.
-  const coach =
-    sense && asking
-      ? SENSES[sense.index].tips[sense.turn % SENSES[sense.index].tips.length]
-      : editing?.toRedo && typed === null
-      ? // A sentence sent back for another try, before any change
-        senseCoach
-        ? "Let's make it even better. Tap “Need an idea?” for a tip!"
-        : "Let's make it even better!"
-      : tellWord
-      ? `“${tellWord}” is the Tell word. Can you show it instead?`
-      : words === 0
-      ? senseCoach
-        ? "Stuck? Tap “Need an idea?” and I'll help you think!"
-        : "Write your sentence. I'll try to picture it!"
-      : words < WORD_GOAL
-      ? "It's getting clearer! Add a detail."
-      : !senseCoach
-      ? "I can picture it!"
-      : used.length === 0
-      ? "I see shapes, but no details yet. What would you see or hear?"
-      : used.length === 1
-      ? "Ooh, getting there! Can you add a second sense?"
-      : `I can picture it! You used ${used.length} senses.`;
+  // What Scribbles says and how he looks (see writeCoach.ts)
+  const coach = coachFor({
+    tip: sense && asking ? SENSES[sense.index].tips[sense.turn % SENSES[sense.index].tips.length] : null,
+    redoUntouched: Boolean(editing?.toRedo) && typed === null,
+    tellWord,
+    words,
+    usedSenses: used.length,
+    senseCoach,
+  });
 
   // The Tell's photo: small beside the Tell on a phone, in a frame of its
   // own on a wide screen (paper.css shows one of the two)
@@ -447,13 +427,13 @@ function WriteSentence({ id }: { id: string | undefined }) {
             </div>
             <div className="paper-write__talk">
               <Scribbles
-                mood={tellWord ? "worried" : clear ? "happy" : sense && asking ? "thinking" : "idle"}
-                prop={clear ? "none" : "note"}
+                mood={coach.mood}
+                prop={coach.prop}
                 size={110}
                 decorative
               />
               <p className="paper-bubble" aria-live="polite">
-                {coach}
+                {coach.text}
               </p>
             </div>
           </div>
