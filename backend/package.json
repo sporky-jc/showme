@@ -23,7 +23,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "compromise": "14.19.0",
+    "compromise": "14.20.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dictionary-en": "4.0.0",
