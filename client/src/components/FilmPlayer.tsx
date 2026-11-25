@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { lineAt, loadCaptions } from "../captions";
 import type { CaptionLine } from "../captions";
 import type { Film } from "../films";
@@ -18,6 +18,13 @@ import type { Film } from "../films";
 // element: iPhones won't load a video that has one.) If the video can't
 // play, a link opens it by itself. Styled in src/theme/paper.css.
 //
+// On a phone the picture in the page is small, so while the film plays it
+// fills the screen (`big`): the same video, held in place over the page, with
+// the Captions button and the words under it and a button back to the page.
+// Turning the phone on its side makes the picture fill the screen. It is our
+// own big view, not the browser's full screen, because an iPhone's full
+// screen can't show our captions.
+//
 // On the Films page, where there are many: `about` names the film in the
 // play button ("Watch the film: Simile"), the Captions button waits until
 // the film has started (`quiet`), and starting one film stops the others.
@@ -28,6 +35,9 @@ interface Props {
   quiet?: boolean;
 }
 
+// A phone, held either way up
+const onAPhone = () => window.matchMedia?.("(max-width: 640px), (max-height: 500px)").matches ?? false;
+
 function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const [started, setStarted] = useState(false);
   const [broken, setBroken] = useState(false);
@@ -35,7 +45,15 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const [lines, setLines] = useState<CaptionLine[] | null>(null);
   const [words, setWords] = useState("");
   const [playing, setPlaying] = useState(false);
+  const [big, setBig] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
+
+  // The page under the big view stays where it is
+  useEffect(() => {
+    if (!big) return;
+    document.documentElement.classList.add("paper-film-open");
+    return () => document.documentElement.classList.remove("paper-film-open");
+  }, [big]);
 
   const start = () => {
     const player = video.current;
@@ -43,6 +61,7 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
     // yet; the controls are showing by then, so the viewer can press play
     void player?.play()?.catch(() => undefined);
     setStarted(true);
+    setBig(onAPhone());
     onStart?.();
     player?.focus();
   };
@@ -59,7 +78,20 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const shown = lines && lines.length === 0 ? "The captions can’t show right now." : words;
 
   return (
-    <div className="paper-film-set">
+    <div
+      className={big ? "paper-film-set paper-film-set--big" : "paper-film-set"}
+      onKeyDown={(event) => {
+        // Esc leaves the big view first, before any pop-up around it
+        if (!big || event.key !== "Escape") return;
+        event.stopPropagation();
+        setBig(false);
+      }}
+    >
+      {big && (
+        <button type="button" className="paper-film__back" onClick={() => setBig(false)}>
+          Back to the page
+        </button>
+      )}
       <div className="paper-film">
         <video
           ref={video}
@@ -73,6 +105,7 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
           tabIndex={started ? 0 : -1}
           onPlay={(event) => {
             setPlaying(true);
+            setBig(onAPhone());
             // One film at a time
             const mine = event.currentTarget;
             document.querySelectorAll("video").forEach((other) => {
@@ -80,6 +113,7 @@ function FilmPlayer({ film, onStart, about, quiet }: Props) {
             });
           }}
           onPause={() => setPlaying(false)}
+          onEnded={() => setBig(false)}
           onTimeUpdate={(event) => lines && setWords(lineAt(lines, event.currentTarget.currentTime))}
         >
           <source src={film.video} type="video/mp4" onError={() => setBroken(true)} />
