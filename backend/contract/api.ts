@@ -16,6 +16,7 @@ import { MAX_CHARACTERS, REASONS, REVIEWER_MODES, VERDICTS } from "../reviewer/c
 import { MECHANICS } from "../reviewer/mechanics.js";
 import { tellForTitle } from "../public/tellList.js";
 import { SENSE_KEYS } from "../tagger/senseTags.js";
+import { FEATURES } from "../config/features.js";
 
 // ---- Requests --------------------------------------------------------------
 
@@ -396,6 +397,12 @@ export const SentenceLikes = z.object({
 });
 export const SentencesLikes = z.array(SentenceLikes);
 
+// GET /features: which features being tried out are on here (see
+// config/features.ts). Every flag is always sent, on or off.
+export const Features = z.object(
+  Object.fromEntries(FEATURES.map((name) => [name, z.boolean()])) as Record<(typeof FEATURES)[number], z.ZodBoolean>
+);
+
 // Any refused or failed request: why
 export const ErrorAnswer = z.object({ message: z.string() });
 
@@ -407,6 +414,7 @@ export type ReviewBody = z.infer<typeof ReviewBody>;
 export type LoginBody = z.infer<typeof LoginBody>;
 export type TestLoginBody = z.infer<typeof TestLoginBody>;
 export type TellSentence = z.infer<typeof TellSentence>;
+export type Features = z.infer<typeof Features>;
 export type Technique = (typeof TECHNIQUES)[number];
 export type User = z.infer<typeof User>;
 export type LoginAnswer = z.infer<typeof LoginAnswer>;

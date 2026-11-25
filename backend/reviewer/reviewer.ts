@@ -3,10 +3,16 @@
 //   1. The rule checks (rules.ts), on every sentence. They hold anything
 //      unsafe or personal for a person (held sentences go no further: no
 //      AI, not even the safety check, ever sees them), and find the one
-//      plain case, a copy of the Tell.
+//      plain case, a copy of the Tell. The one exception: a sentence held
+//      only for rude or unkind words is read by the welfare check (step 3),
+//      then either goes to a person as a Check in or back to the student
+//      with the kind-words tip (RUDE_ONLY below); and one held because the
+//      word lists can't read it well (another language, far too long) is
+//      read by the welfare check before it's left held (UNREADABLE below).
 //   2. The AI safety check: a model that only judges whether the sentence is
-//      safe. Unsafe, or no answer (not set up, failed, too slow, out of free
-//      requests), and it's held for a person: no AI reviewer reads it. A
+//      safe. Unsafe, and it's held for a person as worrying ("Check in"); no
+//      answer (not set up, failed, too slow, out of free requests), and it's
+//      held for a person all the same. Either way no AI reviewer reads it. A
 //      copy of the Tell the rules found is only sent back once this check
 //      says it's safe: "It is cold outside, help me." copies the Tell, and
 //      must still be read by a person if it's worrying.
@@ -75,8 +81,11 @@ export interface SafetyCheck {
 // {"concern": "yes"} or {"concern": "no"}), or it throws.
 export interface WelfareCheck {
   name: string;
-  check(input: ReviewInput, signal: AbortSignal): Promise<unknown>;
+  // "danger": the stricter question, for rude sentences (DANGER_INSTRUCTIONS
+  // in prompt.ts); the main question otherwise
+  check(input: ReviewInput, signal: AbortSignal, question?: WelfareQuestion): Promise<unknown>;
 }
+export type WelfareQuestion = "welfare" | "danger";
 
 // The checks asked before any AI reviewer, and how long each may take
 interface Checks {
@@ -92,6 +101,31 @@ interface Checks {
 // checks' tip doesn't go before these, since the words it's about are about
 // to be replaced
 const REWRITE_TIPS = new Set<TipId>(["onTopic", "ownWords"]);
+
+// Rule holds that are only about the words used: bad language, or unkind
+// words about someone. On its own that's a "Try again" with the kind-words
+// tip, not a hold for a person, so Scribbles sends it back without one. But
+// a child can tell us something serious in rude words, so the welfare check
+// asks its stricter question (serious or immediate danger only: kids will be
+// kids): "yes", and the sentence still goes back with the tip, and is a
+// Check in as well, so an adult reads it. (No answer, and it's held as
+// worrying until there is one.) The main question was worried about 23 of
+// 28 rude sentences in the held-out fair test, the stricter one about 2. Its text
+// goes to the welfare check's AI like any other sentence; a hold for
+// anything else (personal details, sensitive or worrying words, too long,
+// not in English) still goes to no AI at all. The safety check isn't asked:
+// it calls rude words themselves unsafe, which since that means "Check in"
+// would flag every one.
+const RUDE_ONLY = new Set<Reason>(["unsafe-words", "unkind", "names-someone"]);
+
+// Rule holds where the word lists can't read the sentence well: mostly in
+// another language (they're English lists, with only a few words in other
+// languages), or far longer than a Show sentence. The worrying list may not
+// see a worrying sentence written that way, so the welfare check reads it
+// (it reads other languages) before it's left for a person, held. Together
+// with rude or unkind words only; never with personal details or the
+// sensitive or worrying lists, which go to no AI.
+const UNREADABLE = new Set<Reason>(["not-english", "too-long"]);
 
 // How long one provider may take before the next one is asked
 export const PROVIDER_TIMEOUT_MS = 10_000;
@@ -188,7 +222,45 @@ const suggest = async (
   // Only the two texts are passed on, whatever else the caller's object holds
   const shown: ReviewInput = { tell: input.tell, show: input.show };
   const rules = checkRules(shown.tell, shown.show);
-  // Held: nothing more is asked, and nothing leaves our systems
+  // Held only for rude or unkind words: back to the student with the
+  // kind-words tip. The welfare check's stricter question reads it too:
+  // danger, and it's a Check in as well; no answer, and it's held as
+  // worrying (see RUDE_ONLY)
+  if (rules.outcome === "hold" && rules.reasons.every((reason) => RUDE_ONLY.has(reason))) {
+    const attempts: ProviderAttempt[] = [];
+    const held = await checkWelfare(shown, welfare, timeoutMs, attempts, "danger");
+    if (held && held.verdict === "unsure" && held.reasons.includes("welfare-check")) {
+      return {
+        suggestion: { verdict: "redo", tip: "kindWords", reasons: [...held.reasons, ...rules.reasons], decidedBy: held.decidedBy },
+        attempts,
+      };
+    }
+    if (held) return { suggestion: { ...held, reasons: [...held.reasons, ...rules.reasons] }, attempts };
+    return {
+      suggestion: { verdict: "redo", tip: "kindWords", reasons: rules.reasons, decidedBy: "rules" },
+      attempts,
+    };
+  }
+  // Held because the word lists can't read it well: mostly not in English, or
+  // far too long. A worrying sentence written that way would otherwise sit
+  // with the other holds, unflagged, so the welfare check reads it too (see
+  // UNREADABLE). Worried (or no clear "no"), and it's a Check in; otherwise
+  // it stays held for a person, as before.
+  if (
+    rules.outcome === "hold" &&
+    rules.reasons.some((reason) => UNREADABLE.has(reason)) &&
+    rules.reasons.every((reason) => UNREADABLE.has(reason) || RUDE_ONLY.has(reason))
+  ) {
+    const attempts: ProviderAttempt[] = [];
+    const held = await checkWelfare(shown, welfare, timeoutMs, attempts);
+    if (held) return { suggestion: { ...held, reasons: [...held.reasons, ...rules.reasons] }, attempts };
+    return {
+      suggestion: { verdict: "unsure", tip: null, reasons: rules.reasons, decidedBy: "rules" },
+      attempts,
+    };
+  }
+  // Held for anything else: nothing more is asked, and nothing leaves our
+  // systems
   if (rules.outcome === "hold") {
     return {
       suggestion: { verdict: "unsure", tip: null, reasons: rules.reasons, decidedBy: "rules" },
@@ -264,7 +336,12 @@ const checkSafety = async (
     outcome: safe ?? (checked.kind === "answer" ? "invalid" : checked.kind),
     ms: checked.ms,
   });
-  if (safe === "unsafe") return { verdict: "unsure", tip: null, reasons: ["safety-check"], decidedBy: safety.name };
+  // "Unsafe" from Llama Guard is nearly always a child who may need help
+  // (31 of 35 in the held-out fair test), so it's a "Check in": shown first
+  // and counted on the Teacher link's badge, with no further AI asked
+  if (safe === "unsafe") {
+    return { verdict: "unsure", tip: null, reasons: ["worrying", "safety-check"], decidedBy: safety.name };
+  }
   if (safe !== "safe") return { verdict: "unsure", tip: null, reasons: ["no-safety-check"], decidedBy: "none" };
   return null;
 };
@@ -277,7 +354,8 @@ const checkWelfare = async (
   shown: ReviewInput,
   welfare: WelfareCheck | undefined,
   timeoutMs: number,
-  attempts: ProviderAttempt[]
+  attempts: ProviderAttempt[],
+  question: WelfareQuestion = "welfare"
 ): Promise<Suggestion | null> => {
   const unchecked: Suggestion = {
     verdict: "unsure",
@@ -286,7 +364,7 @@ const checkWelfare = async (
     decidedBy: "none",
   };
   if (!welfare) return unchecked;
-  const checked = await ask({ review: (i, signal) => welfare.check(i, signal) }, shown, timeoutMs);
+  const checked = await ask({ review: (i, signal) => welfare.check(i, signal, question) }, shown, timeoutMs);
   const parsed = checked.kind === "answer" ? WelfareAnswer.safeParse(checked.answer) : undefined;
   const concern = parsed?.success ? parsed.data.concern : null;
   attempts.push({

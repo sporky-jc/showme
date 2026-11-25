@@ -84,7 +84,12 @@ async function ask(judge: Judge, show: string, must: readonly SenseKey[], asked:
     success?: boolean;
     result?: { usage?: { prompt_tokens?: number; completion_tokens?: number } } & Record<string, unknown>;
   } | null;
-  if (isOutOfNeurons(body)) fail("Out of today's free Neurons: run it again after 00:00 UTC.");
+  // Cloudflare's own words too: its free Neurons seem to run over a rolling
+  // 24 hours, not from 00:00 UTC (2026-11-24: refused with 3,670 used that
+  // day, but over 12,000 in the last 24 hours)
+  if (isOutOfNeurons(body)) {
+    fail(`Out of the free Neurons (Cloudflare: ${errorDetail(body) ?? "no reason given"}): run it again once the last 24 hours' use is under 10,000.`);
+  }
   // Busy for now (a 429 that isn't out of Neurons, or a server error): once more
   if (attempt === 1 && (response.status === 429 || response.status >= 500)) {
     await wait(10_000);

@@ -177,7 +177,13 @@ const anyPhrase = (reading: Reading, phrases: string[]) =>
 //     Never "skill", "kiln", "dye" or "olive".
 //   - "$" after each sentence's end mark, for phrases that end a sentence
 
-const CHAT: Record<string, string[]> = {
+// A word list a student's own word is looked up in. A plain `{}` also
+// "has" every name JavaScript gives all objects ("constructor", "toString"),
+// so the word "constructor" would come back as a function, not as no entry.
+// These lists hold only the words written in them.
+const wordList = <T>(words: Record<string, T>): Record<string, T> => Object.assign(Object.create(null), words);
+
+const CHAT: Record<string, string[]> = wordList({
   wanna: ["want", "to"], wana: ["want", "to"], wannna: ["want", "to"], gonna: ["going", "to"],
   gona: ["going", "to"], gunna: ["going", "to"], finna: ["going", "to"], gotta: ["got", "to"],
   imma: ["im", "going", "to"], ima: ["im", "going", "to"], u: ["you"], ur: ["your"],
@@ -185,8 +191,8 @@ const CHAT: Record<string, string[]> = {
   mum: ["mom"], mums: ["moms"], mummy: ["mommy"], neighbour: ["neighbor"],
   neighbours: ["neighbors"], grandad: ["grandpa"], granddad: ["grandpa"], nan: ["grandma"],
   nana: ["grandma"], granny: ["grandma"], selfharm: ["self", "harm"], pic: ["picture"],
-};
-const SPELLINGS: Record<string, string> = {
+});
+const SPELLINGS: Record<string, string> = wordList({
   kil: "kill", kll: "kill", kiil: "kill", kiill: "kill", kiled: "killed", kiling: "killing",
   ded: "dead", dedd: "dead", deadd: "dead", daed: "dead", aliv: "alive", allive: "alive",
   alivee: "alive", alve: "alive", alivr: "alive", diee: "die", sewerslide: "suicide",
@@ -204,7 +210,7 @@ const SPELLINGS: Record<string, string> = {
   stepmummy: "stepmom", neighbour: "neighbor", neighbours: "neighbors", babysiter: "babysitter",
   techer: "teacher", teecher: "teacher", cuting: "cutting", cuttin: "cutting", cutt: "cut",
   havent: "havent", hungrey: "hungry", alowed: "allowed",
-};
+});
 
 // Two words that are one person ("step dad", "grand pa", "grown up", "the
 // man next door"), joined in the plain reading
@@ -374,7 +380,7 @@ const FAMILY = new Set([
   "grandpa", "cousin", "friend", "stepbrother", "stepsister", "stepmom", "stepdad", "family",
   "aunt", "uncle", "parent",
 ]);
-const IRREGULAR_PLURALS: Record<string, string> = { men: "man", women: "woman", children: "kid", people: "someone" };
+const IRREGULAR_PLURALS = wordList({ men: "man", women: "woman", children: "kid", people: "someone" });
 const singular = (word: string | undefined) =>
   word === undefined ? undefined : IRREGULAR_PLURALS[word] ?? (word.endsWith("s") && word.length > 3 ? word.slice(0, -1) : word);
 const isPerson = (word: string | undefined) =>
@@ -1306,8 +1312,11 @@ export const checkRules = (tell: string, show: string): RuleOutcome => {
   // Safety first: these are held, whatever else is true of the sentence
   const reasons: Reason[] = [];
   if (isWorrying(show)) reasons.push("worrying");
-  // (Only when nothing already says "worrying", which covers it)
-  if (reasons.length === 0 && isSensitive(show)) reasons.push("sensitive-words");
+  // Words a grown-up should read first (bodies, drink, drugs, "kill me"):
+  // for a child that's a "Check in" too, so it's shown first and counted on
+  // the Teacher link's badge. (Only when nothing already says "worrying",
+  // which covers it.)
+  if (reasons.length === 0 && isSensitive(show)) reasons.push("worrying", "sensitive-words");
   if (isUnsafe(show)) reasons.push("unsafe-words");
   if (hasPersonalDetails(show)) reasons.push("personal-details");
   const unkind = isUnkind(show);

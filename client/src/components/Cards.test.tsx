@@ -25,9 +25,11 @@ const approved = (n: number, prefix = "Show"): GallerySentence[] =>
     author: { firstName: "Ada", lastName: "L" },
   }));
 
-const renderCards = (sentences: GallerySentence[]) =>
+// `lit`: the senseHighlights feature (see features.ts), on unless a test
+// turns it off
+const renderCards = (sentences: GallerySentence[], lit = true) =>
   renderWithApp(<Cards displaySentences={sentences} />, {
-    state: { tellsentences },
+    state: { tellsentences, features: { senseHighlights: lit, senseCoach: false } },
   });
 
 const pictures = () => screen.queryAllByRole("img");
@@ -71,6 +73,17 @@ describe("Cards", () => {
 
   // The Show sentence is the star: the words that use a sense light up in
   // that sense's color, and the card says which senses it uses
+  it("shows the sentence plain, with no senses named, when sense highlights are off", () => {
+    const [one] = approved(1);
+    renderCards([{ ...one, show: "Frost crunched under my boots, and my ears were cold." }], false);
+
+    expect(document.querySelector("mark")).toBeNull();
+    expect(document.querySelector(".paper-gallery__show")).toHaveTextContent(
+      "Frost crunched under my boots, and my ears were cold."
+    );
+    expect(screen.queryByText(/^Uses/)).not.toBeInTheDocument();
+  });
+
   it("lights up the words that use a sense", () => {
     const [one] = approved(1);
     renderCards([{ ...one, show: "Frost crunched under my boots, and my ears were cold." }]);
@@ -85,7 +98,9 @@ describe("Cards", () => {
     expect(document.querySelector(".paper-gallery__show")).toHaveTextContent(
       "Frost crunched under my boots, and my ears were cold."
     );
-    expect(screen.getByRole("img", { name: "Uses hear and feel" })).toBeInTheDocument();
+    // Named for screen readers, with no row of dots to see
+    expect(screen.getByText("Uses hear and feel")).toHaveClass("visually-hidden");
+    expect(document.querySelector(".paper-gallery__card .paper-gallery__dot")).toBeNull();
   });
 
   it("lights up the words two AI models agreed on, in the sense they agreed", () => {
@@ -109,21 +124,21 @@ describe("Cards", () => {
       ["sweet", "smell"],
       ["perfume", "smell"],
     ]);
-    expect(screen.getByRole("img", { name: "Uses hear and smell" })).toBeInTheDocument();
+    expect(screen.getByText("Uses hear and smell")).toBeInTheDocument();
   });
 
   it("names three or more senses in a list", () => {
     const [one] = approved(1);
     renderCards([{ ...one, show: "The bright soup smelled sweet and hot." }]);
 
-    expect(screen.getByRole("img", { name: "Uses see, feel, smell and taste" })).toBeInTheDocument();
+    expect(screen.getByText("Uses see, feel, smell and taste")).toBeInTheDocument();
   });
 
   it("has no senses to name for a sentence that uses none", () => {
     renderCards(approved(1));
 
     expect(document.querySelector("mark")).toBeNull();
-    expect(screen.queryByRole("img", { name: /^Uses/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Uses/)).not.toBeInTheDocument();
   });
 
   // Crossed out on screen; its text is the Tell's alone, as before

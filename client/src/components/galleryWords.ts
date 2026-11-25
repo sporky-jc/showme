@@ -2,7 +2,7 @@ import type { GallerySentence } from "../api/types";
 import { SENSE_NAMES } from "../senses";
 import type { SenseKey } from "../senses";
 
-// What the gallery's cards and Scribbles' pick share: how an author is named,
+// For the gallery's cards and its sense finder: how an author is named,
 // and the classes that light up a sense word or draw a sense's dot.
 
 // First name and last initial. The server sends only the initial as lastName

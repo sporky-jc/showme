@@ -31,14 +31,24 @@ export const LIKE_REQUESTS_PER_MINUTE = 120;
 // would share one address and one limit. It goes before the auth middleware,
 // so that auth's own database lookup is limited too. So it reads the user
 // from the login cookie itself: readSession checks the token's signature,
-// which can't be forged, without touching the database. Requests without a
-// valid login share one count; auth answers them 401 anyway.
+// which can't be forged, without touching the database.
+//
+// A request that auth then answers 401 is taken off the count again (see
+// notCountedWhenRefused): a login cancelled by a logout still names its
+// user here, and a copy of it must not use up that user's allowance.
 //
 // The count is kept in this server instance's memory. Cloud Functions may run
 // several instances, each counting on its own, so this damps abuse rather
 // than enforcing an exact limit.
 // (Exported so the tests can start each test with every count at zero.)
 export const likesRateLimitStore = new MemoryStore();
+
+// For every per-user limit: a request auth refuses (401: no login, or one
+// that was cancelled) doesn't count against the user it names
+const notCountedWhenRefused = {
+  skipFailedRequests: true,
+  requestWasSuccessful: (_req: Request, res: { statusCode: number }) => res.statusCode !== 401,
+};
 
 export const likesRateLimit = rateLimit({
   store: likesRateLimitStore,
@@ -48,6 +58,7 @@ export const likesRateLimit = rateLimit({
     const session = readSession(req);
     return session ? `user:${session.id}` : "signed-out";
   },
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many requests. Wait a minute, then try again." },
@@ -71,6 +82,7 @@ export const reviewTipsRateLimit = rateLimit({
     const session = readSession(req);
     return session ? `user:${session.id}` : "signed-out";
   },
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many requests. Wait a minute, then try again." },
@@ -104,6 +116,7 @@ const sentenceWritesPerMinute = rateLimit({
   limit: SENTENCE_WRITES_PER_MINUTE,
   keyGenerator: perUser,
   skip: (req: Request) => !readSession(req),
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many saves. Wait a minute, then try again." },
@@ -124,6 +137,7 @@ const sentenceWritesPerDay = rateLimit({
     const session = readSession(req);
     return !session || isTestAccount(session.id);
   },
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "That's a lot of saving for one day! Try again tomorrow." },
@@ -144,6 +158,7 @@ export const lookRateLimit = rateLimit({
   windowMs: 60 * 1000,
   limit: LOOK_WRITES_PER_MINUTE,
   keyGenerator: perUser,
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many tries. Wait a minute, then try again." },
@@ -160,6 +175,7 @@ export const refresherRateLimit = rateLimit({
   windowMs: 60 * 1000,
   limit: REFRESHER_WRITES_PER_MINUTE,
   keyGenerator: perUser,
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many tries. Wait a minute, then try again." },
@@ -182,6 +198,7 @@ export const decisionsRateLimit = rateLimit({
     const session = readSession(req);
     return session ? `user:${session.id}` : "signed-out";
   },
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many requests. Wait a minute, then try again." },
@@ -202,6 +219,7 @@ export const reviewCountRateLimit = rateLimit({
   windowMs: 60 * 1000,
   limit: REVIEW_COUNT_REQUESTS_PER_MINUTE,
   keyGenerator: perUser,
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many requests. Wait a minute, then try again." },
@@ -221,6 +239,7 @@ export const reviewerSwitchRateLimit = rateLimit({
   windowMs: 60 * 1000,
   limit: REVIEWER_SWITCH_REQUESTS_PER_MINUTE,
   keyGenerator: perUser,
+  ...notCountedWhenRefused,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many requests. Wait a minute, then try again." },

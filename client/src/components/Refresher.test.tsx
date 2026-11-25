@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Refresher from "./Refresher";
+import { FILMS } from "../films";
 import { REFRESHERS } from "../refreshers";
 
 // The refresher pop-up: five short steps, from refreshers.ts
@@ -106,5 +107,73 @@ describe("Refresher", () => {
 
     await user.tab({ shift: true });
     expect(last).toHaveFocus();
+  });
+
+  // A technique with a film (films.ts): the film takes the example's place on
+  // the first step, and only plays when it's asked for
+  describe("with a film", () => {
+    const senses = REFRESHERS.senses;
+    const film = FILMS.senses!;
+    const renderWithFilm = () => {
+      render(<Refresher words={senses} film={film} onClose={vi.fn()} />);
+      return userEvent.setup();
+    };
+
+    it("offers the film on the first step, without loading or playing it", () => {
+      const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+      const { container } = render(<Refresher words={senses} film={film} onClose={vi.fn()} />);
+
+      expect(screen.getByRole("button", { name: /^Watch the film/ })).toBeInTheDocument();
+      const video = container.querySelector("video")!;
+      expect(video).toHaveAttribute("preload", "none");
+      expect(video).not.toHaveAttribute("autoplay");
+      expect(video).not.toHaveAttribute("controls");
+      expect(play).not.toHaveBeenCalled();
+      // The written example waits for the last step
+      expect(screen.queryByText(senses.phrase)).not.toBeInTheDocument();
+      expect(screen.getByText(`Clue: ${senses.clue}`)).toBeInTheDocument();
+      play.mockRestore();
+    });
+
+    it("plays it from the press itself, with its controls and no captions of ours", async () => {
+      const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+      const user = renderWithFilm();
+      await user.click(screen.getByRole("button", { name: /^Watch the film/ }));
+
+      expect(play).toHaveBeenCalledTimes(1);
+      const video = screen.getByLabelText(film.title) as HTMLVideoElement;
+      expect(video.tagName).toBe("VIDEO");
+      expect(video.querySelector("source")).toHaveAttribute("src", film.video);
+      expect(video).toHaveAttribute("controls");
+      expect(video).toHaveFocus();
+      expect(screen.queryByRole("button", { name: /^Watch the film/ })).not.toBeInTheDocument();
+      // No <track> element (iPhones won't load a video that has one)
+      expect(video.querySelector("track")).toBeNull();
+      expect(screen.queryByRole("button", { name: /^Captions/ })).not.toBeInTheDocument();
+      play.mockRestore();
+    });
+
+    it("offers a link to the film if it can’t play", async () => {
+      const { container } = render(<Refresher words={senses} film={film} onClose={vi.fn()} />);
+      fireEvent.error(container.querySelector("source")!);
+
+      expect(screen.getByRole("link", { name: "Open the film" })).toHaveAttribute("href", film.video);
+    });
+
+    it("stops the film when the step is left, and shows the written example at the end", async () => {
+      const user = renderWithFilm();
+      const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+      await user.click(screen.getByRole("button", { name: /^Watch the film/ }));
+      play.mockRestore();
+      await user.click(screen.getByRole("button", { name: "Let’s try it" }));
+      expect(document.querySelector("video")).toBeNull();
+
+      for (const step of [senses.spot, senses.finish, senses.check]) {
+        await user.click(screen.getByRole("button", { name: step.choices[step.answer] }));
+        await user.click(screen.getByRole("button", { name: "Next" }));
+      }
+      expect(screen.getByRole("heading", { name: "You’ve got it!" })).toBeInTheDocument();
+      expect(screen.getByText(senses.phrase).tagName).toBe("MARK");
+    });
   });
 });

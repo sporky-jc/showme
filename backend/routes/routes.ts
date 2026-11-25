@@ -27,6 +27,9 @@ import {
   unlikeSentence,
 } from "../controllers/likes.js";
 import auth from "../middlewares/auth.js";
+import { features } from "../config/features.js";
+import { Features } from "../contract/api.js";
+import { answer } from "../utils/answer.js";
 import admin from "../middlewares/admin.js";
 import {
   decisionsRateLimit,
@@ -49,6 +52,12 @@ router.get("/", getTellSentences); // Fetch Tell sentences on the home route
 // staging and to confirm what reached production.
 router.get("/version", (req, res) => {
   res.json({ version: process.env.APP_VERSION || "local" });
+});
+
+// Which features being tried out are on here (config/features.ts). Anyone
+// may ask: the website needs it before sign-in, and it holds no secrets.
+router.get("/features", (req, res) => {
+  answer(res, 200, Features, features());
 });
 
 router.post("/auth", googleAuth); // Google authentication route

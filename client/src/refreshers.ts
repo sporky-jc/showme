@@ -178,16 +178,16 @@ export const REFRESHERS: Record<Technique, Refresher> = {
     ask: "What’s onomatopoeia?",
     meaning:
       "Onomatopoeia (say it: on-uh-mat-uh-PEE-uh) is a word that sounds like the noise it names.",
-    clue: "Look for a sound word, like buzz or splash.",
-    tell: "The bee was near me.",
-    before: "The bee ",
-    phrase: "buzzed",
-    after: " right past my ear.",
+    clue: "Look for a sound word, like boom or splash.",
+    tell: "The fireworks went off.",
+    before: "",
+    phrase: "Boom!",
+    after: " The fireworks lit up the sky.",
     spot: {
       q: "Tap the sound word.",
-      choices: ["The bacon", "sizzled", "in the pan."],
+      choices: ["The door", "slammed", "shut."],
       answer: 1,
-      yes: "Yes! Sizzle sounds like bacon cooking.",
+      yes: "Yes! Slam sounds like a door shutting hard.",
       hint: "Say each part out loud. Which one is a sound?",
     },
     finish: {
@@ -286,7 +286,7 @@ export const REFRESHERS: Record<Technique, Refresher> = {
       q: "Tap the allusion.",
       choices: [
         "On Saturdays,",
-        "my sister sleeps like Sleeping Beauty",
+        "my sister turns into Sleeping Beauty",
         "until noon.",
       ],
       answer: 1,
@@ -295,11 +295,11 @@ export const REFRESHERS: Record<Technique, Refresher> = {
     },
     finish: {
       q: "Finish the allusion.",
-      start: "He ran so fast, he was like",
-      choices: ["the Flash.", "a boy.", "very quick."],
+      start: "My dad lifted the couch. He is a real",
+      choices: ["Hercules.", "strong man.", "dad."],
       answer: 0,
-      yes: "Yes! The Flash is a hero known for being fast.",
-      hint: "Pick a name everyone knows for being fast.",
+      yes: "Yes! Hercules is a hero known for being very strong.",
+      hint: "Pick a name everyone knows for being strong.",
     },
     check: {
       q: "Which one is an allusion?",

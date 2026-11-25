@@ -286,6 +286,14 @@ export const reviewWaitingSentences = async (
         }
       } catch (error) {
         logger.warn(`Reviewer could not review a sentence: ${messageOf(error)}`, { sentence: id });
+        // Something of ours threw (not a provider failing: those are
+        // outcomes above). Note the try, so this sentence waits behind
+        // every new one instead of being first in line again next run,
+        // where ten like it would use up every run.
+        await Sentence.updateOne(
+          { _id: sentence._id, show: sentence.show },
+          { $set: { lastTriedAt: new Date(now()) } }
+        ).catch(() => undefined);
       }
     }
   }

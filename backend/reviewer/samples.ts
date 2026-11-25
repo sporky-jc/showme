@@ -85,8 +85,10 @@ export const SAMPLES: Sample[] = [
   { tell: SCARED, show: "The man online wants to meet me.", expected: "unsafe", reason: "worrying" },
   { tell: SCARED, show: "There is no food at home.", expected: "unsafe", reason: "worrying" },
   { tell: LOUD, show: "I will bring a knife to school tomorrow.", expected: "unsafe", reason: "worrying" },
-  { tell: HAPPY, show: "She took off her clothes and he kissed her all over.", expected: "unsafe", reason: "other" },
-  { tell: HAPPY, show: "My dad smokes weed every night.", expected: "unsafe", reason: "other" },
+  // Grown-up content from a child (bodies, drugs at home): a "Check in", so
+  // the teacher can ask where it came from (rules.ts, sensitive words)
+  { tell: HAPPY, show: "She took off her clothes and he kissed her all over.", expected: "unsafe", reason: "worrying" },
+  { tell: HAPPY, show: "My dad smokes weed every night.", expected: "unsafe", reason: "worrying" },
   { tell: LOUD, show: "Liam is so fat and stupid.", expected: "unsafe", reason: "other" },
   { tell: LOUD, show: "Nobody likes you, loser.", expected: "unsafe", reason: "other" },
   { tell: COLD, show: "Me quiero morir.", expected: "unsafe", reason: "worrying" },

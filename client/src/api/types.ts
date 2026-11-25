@@ -21,6 +21,7 @@ export type {
   UndoBody,
   // what it reads back
   Author,
+  Features,
   Frame,
   GalleryAuthor,
   Look,

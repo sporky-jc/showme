@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { OwnerSettings as Settings, OwnerSettingsBody } from "../api/types";
+import { useFeature } from "../features";
 
 type Flag = keyof OwnerSettingsBody;
 
@@ -43,6 +44,9 @@ function OwnerSettings({ onSaid }: { onSaid: (said: string) => void }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saving, setSaving] = useState<Flag | null>(null);
   const [failed, setFailed] = useState<Flag | null>(null);
+  // Sense highlights can be off for the whole site (see features.ts), as
+  // they are on production. Then kids see none, whatever this switch says.
+  const lit = useFeature("senseHighlights");
 
   useEffect(() => {
     let current = true;
@@ -110,7 +114,16 @@ function OwnerSettings({ onSaid }: { onSaid: (said: string) => void }) {
         </button>
       </div>
 
-      {highlights && (
+      {highlights && !lit && (
+        <div className="paper-review__owner-flag" role="group" aria-label="AI highlights for kids">
+          <p className="paper-review__switch-state">
+            <strong>AI highlights for kids: off on this site.</strong> Sense highlights are switched off here, so
+            kids see plain sentences. What the AIs found stays hidden.
+          </p>
+        </div>
+      )}
+
+      {highlights && lit && (
         <div className="paper-review__owner-flag" role="group" aria-label="AI highlights for kids">
           <p className="paper-review__switch-state">
             <strong>AI highlights for kids: {highlights.on ? "on" : "off"}.</strong>{" "}

@@ -3,7 +3,7 @@ import request from "supertest";
 import app from "../app.js";
 import { Sentence } from "../models/sentences.js";
 import mongoose from "mongoose";
-import { aiHighlightsShown, readOwnerSettings } from "../models/ownerSettings.js";
+import { aiHighlightsShown, readOwnerSettings, saveOwnerSettings, switchOffAiHighlights } from "../models/ownerSettings.js";
 import { TEST_ACCOUNT_PREFIX } from "../config/testAccounts.js";
 import { isOwnerEmail } from "../middlewares/owner.js";
 import { TAGS_PER_DAY } from "../tagger/queue.js";
@@ -181,5 +181,23 @@ describe("the show AI highlights switch", () => {
     expect(res.status).toBe(200);
     expect(res.body[0]).not.toHaveProperty("senseTags");
     down.mockRestore();
+  });
+});
+
+describe("switchOffAiHighlights (the weekly measure's switch)", () => {
+  it("turns AI highlights for kids off, and says they were on", async () => {
+    await saveOwnerSettings({ senseTagger: true, showAiHighlights: true });
+    expect(await switchOffAiHighlights()).toEqual({ wasOn: true });
+    // Only that switch: AI reading keeps going in the background
+    expect(await readOwnerSettings()).toMatchObject({ senseTagger: true, showAiHighlights: false });
+  });
+
+  it("only ever turns off: already off (or never set) stays off, and nothing else changes", async () => {
+    expect(await switchOffAiHighlights()).toEqual({ wasOn: false });
+    expect(await readOwnerSettings()).toMatchObject({ senseTagger: false, showAiHighlights: false });
+    await saveOwnerSettings({ senseTagger: true });
+    const before = await readOwnerSettings();
+    expect(await switchOffAiHighlights()).toEqual({ wasOn: false });
+    expect(await readOwnerSettings()).toEqual(before);
   });
 });

@@ -148,16 +148,14 @@ describe("My sentences", () => {
     expect(screen.getAllByRole("link", { name: /^Pick a frame/ })).toHaveLength(1);
   });
 
-  it("shows the senses each sentence uses as stickers, said in words for screen readers", async () => {
+  it("shows no sense stickers on a sentence", async () => {
     const mine = shows(2);
     mine[0] = { ...mine[0], show: "His tail thumped and he licked my salty cheek." };
     renderMyPage({ mine });
 
     const row = (await screen.findByText(mine[0].show)).closest("li")!;
-    expect(row.querySelectorAll(".paper-sticker")).toHaveLength(3);
-    expect(row).toHaveTextContent("Senses: Hear (thumped), Feel (licked), Taste (salty)");
-    // A sentence without a sense word gets no row of stickers
-    expect(note("Show 2").querySelector(".paper-mine__senses")).toBeNull();
+    expect(row.querySelector(".paper-sticker")).toBeNull();
+    expect(row).not.toHaveTextContent("Senses:");
   });
 
   it("offers the next sentence while there is one left to write", async () => {
@@ -240,5 +238,25 @@ describe("My sentences", () => {
     expect(screen.getByText("Scribbles says")).toBeInTheDocument();
     // A sentence still waiting has no tip
     expect(document.querySelectorAll(".paper-mine__tip")).toHaveLength(2);
+  });
+
+  it("celebrates a sentence new to the gallery once, with a stamp on its note and a line to the gallery", async () => {
+    window.localStorage.setItem("showme:seen-approved:g-ada", JSON.stringify([]));
+    const mine = shows(2);
+    mine[1] = { ...mine[1], approved: true, tip: { id: "great", text: "Great picture! Keep painting with words." } };
+    const first = renderMyPage({ mine });
+
+    expect(await screen.findByText("Yay! Your sentence is in the gallery!")).toBeInTheDocument();
+    expect(note("Show 2")).toHaveClass("paper-note--fresh");
+    expect(note("Show 2").querySelector(".paper-joined-stamp")).toHaveAttribute("aria-hidden", "true");
+    expect(note("Show 1")).not.toHaveClass("paper-note--fresh");
+    // Scribbles cheers beside his praise
+    expect(note("Show 2").querySelector(".scribbles--cheer")).not.toBeNull();
+    first.unmount();
+
+    renderMyPage({ mine });
+    await screen.findByText("Show 2");
+    expect(screen.queryByText(/Yay!/)).not.toBeInTheDocument();
+    expect(note("Show 2")).not.toHaveClass("paper-note--fresh");
   });
 });
