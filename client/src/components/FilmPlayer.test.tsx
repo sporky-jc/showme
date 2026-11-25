@@ -81,7 +81,7 @@ describe("FilmPlayer", () => {
     const track = { mode: "disabled", addCue: vi.fn() };
     const tracks: unknown[] = [];
     const proto = HTMLVideoElement.prototype as unknown as Record<string, unknown>;
-    proto.webkitEnterFullscreen = () => undefined;
+    proto.webkitSupportsPresentationMode = () => true;
     Object.defineProperty(proto, "textTracks", { get: () => tracks, configurable: true });
     proto.addTextTrack = () => {
       tracks.push(track);
@@ -100,7 +100,7 @@ describe("FilmPlayer", () => {
       fireEvent(video, new Event("webkitendfullscreen"));
       expect(track.mode).toBe("hidden");
     } finally {
-      delete proto.webkitEnterFullscreen;
+      delete proto.webkitSupportsPresentationMode;
       delete proto.textTracks;
       delete proto.addTextTrack;
     }

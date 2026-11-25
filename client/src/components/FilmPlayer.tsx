@@ -42,10 +42,10 @@ interface Props {
 // A phone, held either way up
 const onAPhone = () => window.matchMedia?.("(max-width: 640px), (max-height: 500px)").matches ?? false;
 
-// An iPhone: no full screen for a part of the page, only for a video
-const ownPlayer = () =>
-  typeof document.documentElement.requestFullscreen !== "function" &&
-  "webkitEnterFullscreen" in HTMLVideoElement.prototype;
+// Safari (every browser on an iPhone is Safari inside). An iPhone says it
+// can make a part of the page full screen but doesn't do it, so there the
+// film goes to the phone's own player. Only Safari has this property.
+const ownPlayer = () => "webkitSupportsPresentationMode" in HTMLVideoElement.prototype;
 
 function FilmPlayer({ film, onStart, about, quiet }: Props) {
   const [started, setStarted] = useState(false);
