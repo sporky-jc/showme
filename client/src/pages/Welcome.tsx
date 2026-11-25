@@ -14,6 +14,34 @@ const AFTER_A_PICK_MS = 8000;
 const wantsLessMotion = () =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
+// The Show sentence comes in a few words at a time, after the brush has
+// passed. Screen readers get it whole.
+function ShowWords({ sentence }: { sentence: string }) {
+  // Each word with where it starts in the sentence, which names it
+  const words = sentence.split(" ").reduce<{ word: string; at: number; order: number }[]>(
+    (list, word) => {
+      const last = list[list.length - 1];
+      return [...list, { word, at: last ? last.at + last.word.length + 1 : 0, order: list.length }];
+    },
+    []
+  );
+  return (
+    <>
+      <span className="visually-hidden">{sentence}</span>
+      <span aria-hidden="true">
+        {words.map(({ word, at, order }) => (
+          <React.Fragment key={at}>
+            {order > 0 && " "}
+            <span className="paper-welcome__word" style={{ "--i": order } as React.CSSProperties}>
+              {word}
+            </span>
+          </React.Fragment>
+        ))}
+      </span>
+    </>
+  );
+}
+
 // The first screen for someone who isn't signed in: what Show ME is, a way to
 // sign in, and the same sentence told and then shown.
 function Welcome() {
@@ -132,6 +160,21 @@ function Welcome() {
                   onError={photoDone}
                 />
               </picture>
+              {/* Turning to Show: the photo is clear at once, and a gray
+                  copy of it slides away with a coral brush bar on its edge,
+                  so the color looks painted in. A new one for each Show, so
+                  it plays each time; still under less motion (paper.css). */}
+              {showing && (
+                <span className="paper-welcome__wipe" key={example.key} aria-hidden="true">
+                  <span className="paper-welcome__wipe-in">
+                    <picture>
+                      <source media={phonePhotoMedia} srcSet={example.phonePicture} />
+                      <img className="paper-welcome__faded" src={example.picture} alt="" />
+                    </picture>
+                  </span>
+                  <span className="paper-welcome__brush" />
+                </span>
+              )}
               <div className="paper-toggle" role="group" aria-label="Tell or show">
                 <button
                   type="button"
@@ -178,7 +221,7 @@ function Welcome() {
                   showing ? "paper-welcome__sentence" : "paper-welcome__sentence paper-welcome__sentence--tell"
                 }
               >
-                {showing ? example.show : example.tell}
+                {showing ? <ShowWords key={example.key} sentence={example.show} /> : example.tell}
               </p>
             </div>
           </div>

@@ -969,12 +969,91 @@ h3,
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* The Tell half: the same photo with the life taken out of it. It fades
+   back in; turning to Show, the brush below takes it away instead. */
+.paper-welcome__photo img.paper-welcome__faded {
+  filter: grayscale(1) blur(2px) brightness(1.05);
   transition: filter 0.4s ease;
 }
 
-/* The Tell half: the same photo with the life taken out of it */
-.paper-welcome__photo img.paper-welcome__faded {
-  filter: grayscale(1) blur(2px) brightness(1.05);
+/* Turning to Show (Welcome.tsx): a gray copy over the clear photo slides
+   off to the right while the copy inside it slides the other way, so only
+   its left edge moves, with a coral brush bar on it. Both are transforms,
+   which phones draw smoothly. About 0.9 s. */
+.paper-welcome__wipe,
+.paper-welcome__wipe-in {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.paper-welcome__wipe {
+  animation: paper-welcome-wipe 0.9s cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+
+.paper-welcome__wipe-in {
+  animation: paper-welcome-wipe-in 0.9s cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+
+.paper-welcome__brush {
+  position: absolute;
+  top: -12%;
+  bottom: -12%;
+  left: 0;
+  width: 28px;
+  border-radius: 16px;
+  background: var(--paper-action);
+  transform: rotate(7deg);
+}
+
+@keyframes paper-welcome-wipe {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(105%);
+  }
+}
+
+@keyframes paper-welcome-wipe-in {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-105%);
+  }
+}
+
+/* The Show words rise in once the brush is well on its way */
+.paper-welcome__word {
+  display: inline-block;
+  animation: paper-welcome-word 0.42s cubic-bezier(0.2, 1.3, 0.5, 1) both;
+  animation-delay: calc(0.4s + var(--i) * 30ms);
+}
+
+@keyframes paper-welcome-word {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Less motion: the photo and the words just change, as before */
+@media (prefers-reduced-motion: reduce) {
+  .paper-welcome__wipe {
+    display: none;
+  }
+
+  .paper-welcome__word {
+    animation: none;
+  }
 }
 
 .paper-welcome__photo .paper-toggle {
