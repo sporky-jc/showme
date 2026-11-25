@@ -3,19 +3,40 @@
 // should, and how long it takes. Uses the real providers, so it needs their
 // keys; it never reads the database, so no real student's sentence is sent.
 //
-// Run from GitHub: Actions → "Measure the AI reviewer" → Run workflow. Or
+// Run from GitHub: Actions → "Measure the AI reviewer" → Run workflow (or
+// "Measure small open models", which sets LOCAL_AI_URL: see below). Or
 // locally with the keys in .env.local: npm run measure:reviewer
 import { appendFileSync } from "node:fs";
 import { reviewSentence } from "../reviewer/reviewer.js";
-import { reviewerSetup } from "../reviewer/settings.js";
+import { reviewerSetup, type ReviewerSetup } from "../reviewer/settings.js";
+import { localReviewer, localSafety, localWelfare } from "../reviewer/providers/local.js";
 import { SAMPLES } from "../reviewer/samples.js";
 import { outcomeOf, scoreOf, type Outcome, type Score } from "../reviewer/measure.js";
 
-const setup = reviewerSetup({ ...process.env, REVIEWER_MODE: "suggest" });
+// Small open models on a machine of our own instead (providers/local.ts),
+// when LOCAL_AI_URL is set: the "Measure small open models" workflow. Only
+// this script can ask them; the live reviewer's settings never do.
+const { LOCAL_AI_URL: url, LOCAL_REVIEW_MODEL: model, LOCAL_SAFETY_MODEL: safetyModel } = process.env;
+if (url && (!model || !safetyModel)) {
+  console.error("With LOCAL_AI_URL, set LOCAL_REVIEW_MODEL and LOCAL_SAFETY_MODEL too.");
+  process.exit(1);
+}
+const setup: ReviewerSetup =
+  url && model && safetyModel
+    ? {
+        mode: "suggest",
+        safety: localSafety({ url, model: safetyModel }),
+        welfare: localWelfare({ url, model }),
+        providers: [localReviewer({ url, model })],
+      }
+    : reviewerSetup({ ...process.env, REVIEWER_MODE: "suggest" });
 if (!setup.safety || !setup.welfare || setup.providers.length === 0) {
   console.error("No safety check or AI provider is set up: set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN.");
   process.exit(1);
 }
+// A model on a few shared cores is slow: it gets two minutes an answer, not
+// the live reviewer's ten seconds
+const timeoutMs = url ? 120_000 : undefined;
 
 const rows: {
   expected: string;
@@ -30,7 +51,7 @@ const rows: {
 
 for (const sample of SAMPLES) {
   const started = Date.now();
-  const { suggestion } = await reviewSentence(sample, setup.providers, { safety: setup.safety, welfare: setup.welfare });
+  const { suggestion } = await reviewSentence(sample, setup.providers, { safety: setup.safety, welfare: setup.welfare, timeoutMs });
   const ms = Date.now() - started;
   const got = outcomeOf(suggestion);
   const score = scoreOf(sample, suggestion);

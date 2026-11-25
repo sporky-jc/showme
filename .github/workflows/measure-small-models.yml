@@ -1,0 +1,83 @@
+name: Measure small open models
+
+# Could small open models, run on a machine of our own, do the first read of
+# a sentence for Scribbles? This scores them on the same made-up samples as
+# "Measure the AI reviewer" (backend/reviewer/samples.ts), with the same
+# questions, and shows the result in the run's summary: how often each
+# agreed with a teacher, whether it approved anything it shouldn't, how many
+# unsafe sentences it held, and how long it took.
+#
+# No real student's writing, no keys, no database, nothing paid: the models
+# run inside this job (Ollama, in a container), on GitHub's free ARM runner,
+# which is the same kind of machine as the VM they would run on. One job per
+# model, side by side. Run it from the Actions tab with "Run workflow".
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: Models to try as the reviewer and welfare check (a JSON list of Ollama names)
+        default: '["llama3.1:8b","gemma3:4b","qwen2.5:7b"]'
+      safety_model:
+        description: The safety check's model (an Ollama name)
+        default: llama-guard3:8b
+
+permissions:
+  contents: read
+
+concurrency:
+  group: measure-small-models
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: ${{ matrix.model }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        model: ${{ fromJSON(inputs.models) }}
+    services:
+      ollama:
+        image: ollama/ollama:0.40.14
+        ports:
+          - 11434:11434
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24' # keep in sync with "engines" in backend/package.json
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # The names go in as data (jq), never into the command itself
+      - name: Download the models
+        env:
+          MODEL: ${{ matrix.model }}
+          SAFETY_MODEL: ${{ inputs.safety_model }}
+        run: |
+          for name in "$MODEL" "$SAFETY_MODEL"; do
+            echo "Downloading $name"
+            jq -n --arg model "$name" '{model: $model, stream: false}' |
+              curl -fsS --retry 3 --max-time 1800 http://localhost:11434/api/pull -d @-
+            echo
+          done
+
+      - name: Measure
+        env:
+          LOCAL_AI_URL: http://localhost:11434
+          LOCAL_REVIEW_MODEL: ${{ matrix.model }}
+          LOCAL_SAFETY_MODEL: ${{ inputs.safety_model }}
+        run: node lib/scripts/measure-reviewer.js
