@@ -30,8 +30,8 @@ describe("FilmPlayer", () => {
     play();
     expect(set()).toHaveClass("paper-film-set--big");
     expect(document.documentElement).toHaveClass("paper-film-open");
-    // The captions come on with it, and the viewer can turn them off
-    expect(screen.getByRole("button", { name: /^Captions/ })).toHaveAttribute("aria-pressed", "true");
+    // No captions of ours: the device shows its own
+    expect(screen.queryByRole("button", { name: /^Captions/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back to the page" }));
     expect(set()).not.toHaveClass("paper-film-set--big");
@@ -76,31 +76,18 @@ describe("FilmPlayer", () => {
     }
   });
 
-  it("on an iPhone, leaves the full screen to the phone's own player and gives it the words", () => {
+  it("on an iPhone, leaves the full screen to the phone's own player", () => {
     onAPhone(true);
-    const track = { mode: "disabled", addCue: vi.fn() };
     const proto = HTMLVideoElement.prototype as unknown as Record<string, unknown>;
     proto.webkitSupportsPresentationMode = () => true;
-    const add = vi.fn(() => track);
-    proto.addTextTrack = add;
     try {
       render(<FilmPlayer film={WELCOME_FILM} />);
-      const video = document.querySelector("video")!;
       // No playsinline: that is what sends an iPhone to its own player
-      expect(video).not.toHaveAttribute("playsinline");
+      expect(document.querySelector("video")).not.toHaveAttribute("playsinline");
       play();
       expect(set()).not.toHaveClass("paper-film-set--big");
-      expect(track.mode).toBe("hidden");
-      // Playing again doesn't make a second track (every line would show twice)
-      fireEvent.play(video);
-      expect(add).toHaveBeenCalledTimes(1);
-      fireEvent(video, new Event("webkitbeginfullscreen"));
-      expect(track.mode).toBe("showing");
-      fireEvent(video, new Event("webkitendfullscreen"));
-      expect(track.mode).toBe("hidden");
     } finally {
       delete proto.webkitSupportsPresentationMode;
-      delete proto.addTextTrack;
     }
   });
 

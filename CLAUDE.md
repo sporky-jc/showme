@@ -45,7 +45,8 @@ A "show, don't tell" writing app for kids in grades 4–7. The client is in
 - Narration and on-screen words follow the house rules above: American
   spelling, short plain words, no surnames.
 - In the app, a film never plays by itself: it has a real play `<button>`.
-  Captions are there but off until the viewer turns them on.
+  The app shows no captions of its own: the viewer's device shows its own.
+  On a phone a playing film goes full screen.
 - Don't use the Clawd character or the Mascot Screencast style (Anthropic's,
   not licensed), or the narration from Lemo Opuscar's own demo films.
 
