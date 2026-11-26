@@ -68,6 +68,20 @@ describe("step 2: is the child OK?", () => {
     });
   });
 
+  it("sends it to a teacher when both local models see a worry, whatever the safety model says", () => {
+    // The safety model looks for harmful words, not for a child who isn't OK
+    expect(decide(allIn({ welfare: { first: "yes", second: "yes" } }))).toEqual({ step: "teacher", because: "worry" });
+    // ... even with personal details, or rude words only
+    expect(decide(allIn({ rules: hold("personal-details"), welfare: { first: "yes", second: "yes" } }))).toEqual({
+      step: "teacher",
+      because: "worry",
+    });
+    expect(decide(allIn({ rules: hold("unkind"), welfare: { first: "yes", second: "yes" } }))).toEqual({
+      step: "teacher",
+      because: "worry",
+    });
+  });
+
   it.each([
     ["the safety model alone", { safety: "unsafe" as const }],
     ["one local model", { welfare: { first: "yes" as const, second: "no" as const } }],
@@ -166,19 +180,19 @@ describe("step 4: the verdict", () => {
   });
 
   it.each([
-    ["approve and redo", APPROVE, REDO_MORE],
-    ["redo and approve", REDO_SEE, APPROVE],
-    ["approve and unsure", APPROVE, UNSURE],
-    ["unsure and redo", UNSURE, REDO_SEE],
-  ])("asks the hosted model when they disagree (%s)", (_name, first, second) => {
-    expect(decide(allIn({ verdicts: { first, second } }))).toEqual({
-      step: "ask-hosted",
-      question: "welfare",
-      about: "verdict",
-    });
-  });
+    ["approve and redo", APPROVE, REDO_MORE, "more"],
+    ["redo and approve", REDO_SEE, APPROVE, "see"],
+    ["approve and unsure", APPROVE, UNSURE, "kindWords"],
+    ["unsure and redo", UNSURE, REDO_SEE, "kindWords"],
+    ["redo and unsure", REDO_SEE, UNSURE, "see"],
+  ])(
+    "sends it back when they disagree (%s), with the tip of one that didn't approve: no hosted model",
+    (_name, first, second, tip) => {
+      expect(decide(allIn({ verdicts: { first, second } }))).toEqual({ step: "send-back", tip });
+    }
+  );
 
-  it("follows the hosted model's answer on a split verdict", () => {
+  it("follows the hosted model's verdict when it was asked about a worry, even if the local verdicts split", () => {
     const split = { verdicts: { first: APPROVE, second: REDO_MORE } };
     expect(decide(allIn({ ...split, hosted: hosted("no", APPROVE) }))).toEqual({ step: "approve", tip: "great" });
     expect(decide(allIn({ ...split, hosted: hosted("no", REDO_SEE) }))).toEqual({ step: "send-back", tip: "see" });
@@ -205,11 +219,10 @@ describe("when something is down", () => {
     expect(decide(allIn({ verdicts: { second: APPROVE } }))).toEqual({ step: "ask-local", question: "welfare" });
   });
 
-  it("keeps asking the hosted model while it can't answer, for a split verdict however long it waits", () => {
+  it("never waits for the hosted model over a split verdict", () => {
     expect(decide(allIn({ verdicts: { first: APPROVE, second: UNSURE }, worryWaitedMs: 10 * WORRY_WAIT_MS }))).toEqual({
-      step: "ask-hosted",
-      question: "welfare",
-      about: "verdict",
+      step: "send-back",
+      tip: "kindWords",
     });
   });
 
