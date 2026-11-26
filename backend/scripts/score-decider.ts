@@ -13,7 +13,13 @@
 import { appendFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { READERS } from "../reviewer/decide.js";
-import { formatDecideReport, reportOf, scoreDecider, type AnswerFile } from "../reviewer/eval/decideScore.js";
+import {
+  answersTable,
+  formatDecideReport,
+  reportOf,
+  scoreDecider,
+  type AnswerFile,
+} from "../reviewer/eval/decideScore.js";
 import { DECIDE_SET } from "../reviewer/eval/decideSet.js";
 
 const dir = process.env.ANSWERS_DIR ?? ".";
@@ -44,6 +50,9 @@ for (const reader of READERS) {
   files.push({ ...parts[0].file, answers: parts.flatMap(({ file }) => file.answers) });
 }
 
-const report = formatDecideReport(reportOf(scoreDecider(DECIDE_SET, files)), DECIDE_SET, files);
+const scored = scoreDecider(DECIDE_SET, files);
+const report = formatDecideReport(reportOf(scored), DECIDE_SET, files);
 console.log(report);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${report}\n`);
+// In the log only: every answer, by sentence number
+console.log(`\n### Every answer\n\n${answersTable(scored)}`);
