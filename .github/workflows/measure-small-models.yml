@@ -10,22 +10,33 @@ name: Measure small open models
 # No real student's writing, no keys, no database, nothing paid: the models
 # run inside this job (Ollama, in a container), on GitHub's free ARM runner,
 # which is the same kind of machine as the VM they would run on. One job per
-# model, side by side. Run it from the Actions tab with "Run workflow".
+# model, side by side: a model whose name is wrong, or that can't answer in
+# the fixed form, fails or scores badly by itself. Run it from the Actions
+# tab with "Run workflow". It also runs on a pull request that changes this
+# file or the local models' code, with the default models, so a change to
+# either is tried before it's merged.
+#
+# The default models are in two places below (the inputs and the matrix):
+# keep them the same.
 on:
   workflow_dispatch:
     inputs:
       models:
         description: Models to try as the reviewer and welfare check (a JSON list of Ollama names)
-        default: '["llama3.1:8b","gemma3:4b","qwen2.5:7b"]'
+        default: '["qwen3.5:9b","qwen3:8b","gemma4:e4b","llama3.1:8b"]'
       safety_model:
         description: The safety check's model (an Ollama name)
         default: llama-guard3:8b
+  pull_request:
+    paths:
+      - .github/workflows/measure-small-models.yml
+      - backend/reviewer/providers/local.ts
 
 permissions:
   contents: read
 
 concurrency:
-  group: measure-small-models
+  group: measure-small-models-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -36,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: ${{ fromJSON(inputs.models) }}
+        model: ${{ fromJSON(inputs.models || '["qwen3.5:9b","qwen3:8b","gemma4:e4b","llama3.1:8b"]') }}
     services:
       ollama:
         image: ollama/ollama:0.40.14
@@ -66,7 +77,7 @@ jobs:
       - name: Download the models
         env:
           MODEL: ${{ matrix.model }}
-          SAFETY_MODEL: ${{ inputs.safety_model }}
+          SAFETY_MODEL: ${{ inputs.safety_model || 'llama-guard3:8b' }}
         run: |
           for name in "$MODEL" "$SAFETY_MODEL"; do
             echo "Downloading $name"
@@ -79,5 +90,5 @@ jobs:
         env:
           LOCAL_AI_URL: http://localhost:11434
           LOCAL_REVIEW_MODEL: ${{ matrix.model }}
-          LOCAL_SAFETY_MODEL: ${{ inputs.safety_model }}
+          LOCAL_SAFETY_MODEL: ${{ inputs.safety_model || 'llama-guard3:8b' }}
         run: node lib/scripts/measure-reviewer.js
