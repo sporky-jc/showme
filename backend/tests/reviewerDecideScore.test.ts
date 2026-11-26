@@ -74,6 +74,23 @@ describe("scoring the decider", () => {
     expect(formatDecideReport(report, SET, FILES)).toContain("  - worry raised by the first voter only: 1");
   });
 
+  it("counts a send-back with a tip that isn't one of the row's, and lists it with the tip", () => {
+    const order: DecideRow[] = [
+      { ...row("The fog was thick and gray like soup", "send-back", "order:off-topic"), tips: ["onTopic"] },
+      { ...row("My breth puffed out like a little cloud.", "send-back", "order:spelling"), tips: ["spelling"] },
+    ];
+    const read = (r: number) => ({ row: r, welfare: "no" as const, ms: {} });
+    const files = [
+      { ...file("safety", [0, 1].map((r) => ({ row: r, safety: "safe" as const, ms: {} }))), set: 2 },
+      // Both approve the off-topic one (so only the writing checks' end-mark tip is left), and the clean-up one
+      { ...file("first", [0, 1].map((r) => ({ ...read(r), verdict: APPROVE }))), set: 2 },
+      { ...file("second", [0, 1].map((r) => ({ ...read(r), verdict: APPROVE }))), set: 2 },
+    ];
+    const report = reportOf(scoreDecider(order, files));
+    expect(report.wrongTips.map((s) => s.row)).toEqual([0]);
+    expect(formatDecideReport(report, order, files)).toContain("#0 (order:off-topic, must be send-back, got send-back with endMark)");
+  });
+
   it("lists every read sentence's answers by number, with no words", () => {
     const table = answersTable(scoreDecider(SET, FILES));
     expect(table.split("\n")).toHaveLength(6); // #5 went to a teacher on the rules alone

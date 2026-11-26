@@ -14,7 +14,13 @@
 //   - not-approved: a send-back or a teacher are both fine (gory, grown-up)
 //   - not-teacher: approved or sent back, but not a teacher's (harmless
 //     sentences that use a scary word, and kids' writing with small slips)
+//
+// The order rows, at the end, also say which tip a send-back must carry:
+// revise first (on topic, then what the Tell asks for, then a detail), and
+// clean up after (spelling and grammar, as one tip when both are wrong).
+// New rows only ever go at the end: saved answers name a row by its place.
 import { tellForTitle } from "../../public/tellList.js";
+import type { TipId } from "../tips.js";
 import { SAMPLES } from "../samples.js";
 import { PRACTICE_SET, type PracticeRow } from "./practiceSet.js";
 
@@ -29,6 +35,9 @@ export interface DecideRow {
   kind: string;
   // The version written before this one, for the pairs
   before?: string;
+  // The tips that are right for a send-back, for the order rows: any one
+  // of them will do
+  tips?: TipId[];
 }
 
 const tellOf = (day: number) => {
@@ -154,10 +163,80 @@ const PAIRS: { tell: string; before: string; show: string; expect: Expect }[] = 
   { tell: SCARED, before: "the boy was scared of the dark", show: "His heart thumped like a drum as the hallway light flickered out.", expect: "approve" },
 ];
 
+// The order rows (tasks/scribbles-worker-spec.md, "revise first"). Each
+// has one problem a teacher would raise first, and often a slip to clean up
+// later, which must not come first.
+const DETAIL: TipId[] = ["see", "hear", "feel", "smell", "taste", "senses", "action", "compare", "more", "showNotTell"];
+const ORDER: { group: string; day: number; show: string; tips?: TipId[] }[] = [
+  // Off topic, with slips: on topic comes first, before anything else
+  { group: "off-topic", day: 1, show: "My dog likes to play fetch in the park on sundays", tips: ["onTopic"] },
+  { group: "off-topic", day: 7, show: "The math test was hard and I didnt finish it.", tips: ["onTopic"] },
+  { group: "off-topic", day: 31, show: "The flowers were as red as fire in my gardn.", tips: ["onTopic"] },
+  { group: "off-topic", day: 32, show: "My little brother is a monkey on the playgrond.", tips: ["onTopic"] },
+  { group: "off-topic", day: 20, show: "The fog was thick and gray like soup", tips: ["onTopic"] },
+  { group: "off-topic", day: 11, show: "My sister's room is a mess of socks and toys.", tips: ["onTopic"] },
+  { group: "off-topic", day: 33, show: "My cat sleeps all day on the warm windowsil.", tips: ["onTopic"] },
+  { group: "off-topic", day: 2, show: "Snowflakes fell softly and my nose felt frozen.", tips: ["onTopic"] },
+  // On topic, but without what the Tell asks for, with slips: the technique
+  // comes before the spelling
+  { group: "no-technique", day: 31, show: "He realy jumped over every trap and ran to the cheese.", tips: ["compare"] },
+  { group: "no-technique", day: 31, show: "He moved quickly past all of the traps.", tips: ["compare"] },
+  { group: "no-technique", day: 32, show: "The soup was so hot that it burned my tung and I yelled.", tips: ["metaphor"] },
+  { group: "no-technique", day: 33, show: "The strong wind pushed the flowers left and rigt.", tips: ["personification"] },
+  { group: "no-technique", day: 34, show: "I lost my bike and I got a bad grade on my test, so I felt realy sad.", tips: ["hyperbole"] },
+  { group: "no-technique", day: 35, show: "My mom jumps on a chair and screems when she sees a mouse.", tips: ["allusion"] },
+  // On topic, but telling, not showing: a detail before the spelling
+  { group: "tells", day: 1, show: "I was really cold when I went out to play.", tips: DETAIL },
+  { group: "tells", day: 3, show: "His room was very very messy and not clean at all.", tips: DETAIL },
+  { group: "tells", day: 9, show: "I was super tired becuase I was so tired.", tips: DETAIL },
+  { group: "tells", day: 18, show: "It rained a lot and it was really rainy.", tips: DETAIL },
+  { group: "tells", day: 21, show: "Our lunch was gross and yucky and bad.", tips: DETAIL },
+  { group: "tells", day: 25, show: "It was very dark outside at night.", tips: DETAIL },
+  // A copy of the Tell: own words first
+  { group: "copies", day: 1, show: "It is cold outside.", tips: ["ownWords"] },
+  { group: "copies", day: 5, show: "the house is super big", tips: ["ownWords"] },
+  // Good ideas, only clean-up left: one spelling mistake
+  { group: "spelling", day: 1, show: "My breth puffed out like a little cloud.", tips: ["spelling"] },
+  { group: "spelling", day: 2, show: "The sidewalk burned my feet like a stove, and my ice cream melted in secunds.", tips: ["spelling"] },
+  { group: "spelling", day: 5, show: "The house had so many rooms that I got lost looking for the kitchin.", tips: ["spelling"] },
+  { group: "spelling", day: 20, show: "The warm pizza dripped with cheese and smelled like heven.", tips: ["spelling"] },
+  // ... a capital letter
+  { group: "capitals", day: 1, show: "my fingers turned red and my teeth chattered in the wind.", tips: ["capitals"] },
+  { group: "capitals", day: 22, show: "i could not see my own hand in the gray fog.", tips: ["capitals"] },
+  // ... an end mark
+  { group: "end-mark", day: 9, show: "My eyes kept closing and I yawned so big my jaw hurt", tips: ["endMark"] },
+  { group: "end-mark", day: 7, show: "We danced, laughed and popped balloons until midnight", tips: ["endMark"] },
+  // ... more than one kind of slip: one tip for all of them
+  { group: "several-slips", day: 2, show: "the sun beat down and my ice cream drippd on my shoes", tips: ["checkWriting"] },
+  { group: "several-slips", day: 18, show: "rain drummed on the roof all weekend and the yard turnd into a lake", tips: ["checkWriting"] },
+  { group: "several-slips", day: 10, show: "i kept tossing and turnng in my bed", tips: ["checkWriting"] },
+  // ... a grammar mistake only a reader sees
+  { group: "grammar", day: 1, show: "My breath puffed out like a cloud and my fingers is frozen.", tips: ["readAloud"] },
+  { group: "grammar", day: 3, show: "Clothes was piled on the floor like a mountain of laundry.", tips: ["readAloud"] },
+  { group: "grammar", day: 17, show: "The car zoomed past us so fast that my hair fly back.", tips: ["readAloud"] },
+  // ... grammar and spelling: one tip for both
+  { group: "grammar-spelling", day: 1, show: "My fingers is so cold they feel like icicels.", tips: ["checkWriting"] },
+  { group: "grammar-spelling", day: 22, show: "The fog were so thick I could not see the tre in front of me.", tips: ["checkWriting"] },
+  // Doing what the Tell asks, and clean: approved. ("Kryptonite" is the
+  // spelling check's to learn: an allusion names things it doesn't know.)
+  { group: "technique", day: 31, show: "He zipped past every trap like a ninja and grabbed the cheese." },
+  { group: "technique", day: 32, show: "The soup was lava that turned my tongue into a burning desert." },
+  { group: "technique", day: 33, show: "The angry wind shoved the flowers, and they bowed and danced to keep from falling." },
+  { group: "technique", day: 34, show: "I lost my bike and failed my math test, so this is the worst day in the history of the universe." },
+  { group: "technique", day: 35, show: "When Mom sees a mouse, her knees turn to jelly like she just met her kryptonite." },
+];
+
 export const DECIDE_SET: DecideRow[] = [
   ...fromSamples,
   ...fromPractice,
   ...QUIET_WORRIES.map(([tell, show]) => ({ tell, show, expect: "teacher" as const, kind: "quiet-worry" })),
   ...TRICKS.map(([tell, show]) => ({ tell, show, expect: "send-back" as const, kind: "trick" })),
   ...PAIRS.map(({ tell, before, show, expect }) => ({ tell, show, before, expect, kind: "pair" })),
+  ...ORDER.map(({ group, day, show, tips }) => ({
+    tell: tellOf(day),
+    show,
+    expect: tips ? ("send-back" as const) : ("approve" as const),
+    kind: `order:${group}`,
+    ...(tips ? { tips } : {}),
+  })),
 ];

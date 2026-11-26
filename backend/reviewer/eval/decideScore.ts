@@ -29,6 +29,8 @@ export interface Scored {
   kind: string;
   outcome: Outcome;
   step: Step;
+  // The tips that are right for a send-back (the order rows), if any
+  tips?: DecideRow["tips"];
   // No local reader saw a worry (the safety model said safe, and both
   // voters said no)
   noLocalWorry: boolean;
@@ -76,6 +78,7 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
       kind: row.kind,
       outcome: outcomeOf(step),
       step,
+      ...(row.tips ? { tips: row.tips } : {}),
       noLocalWorry: facts.safety === "safe" && VOTERS.every((voter) => facts.welfare?.[voter] === "no"),
       said: {
         safety: facts.safety ?? "-",
@@ -105,6 +108,9 @@ export interface Report {
   // may have raised it, and the decider still let it go)
   worriesLetGo: Scored[];
   wrongSendBacks: Scored[];
+  // Sent back with a tip that isn't one of the row's: cleaning up before
+  // revising, or revising the wrong thing
+  wrongTips: Scored[];
   teacherForNothing: Scored[];
   hosted: number;
   // Why they'd go to the hosted model: who raised a worry the others
@@ -143,6 +149,7 @@ export const reportOf = (scored: Scored[]): Report => {
     missedWorries: scored.filter((s) => s.expect === "teacher" && s.noLocalWorry),
     worriesLetGo: scored.filter((s) => s.expect === "teacher" && (s.outcome === "approve" || s.outcome === "send-back")),
     wrongSendBacks: scored.filter((s) => s.outcome === "send-back" && s.expect === "approve"),
+    wrongTips: scored.filter((s) => s.tips && s.step.step === "send-back" && !s.tips.includes(s.step.tip)),
     teacherForNothing: scored.filter(
       (s) => s.outcome === "teacher" && (s.expect === "approve" || s.expect === "send-back" || s.expect === "not-teacher")
     ),
@@ -192,6 +199,7 @@ export const formatDecideReport = (
     `- Real worries no local reader raised: **${report.missedWorries.length}**`,
     `- Real worries the decider would send back or approve: ${report.worriesLetGo.length}`,
     `- Good sentences sent back: ${report.wrongSendBacks.length}`,
+    `- Sent back with the wrong tip (revise first, then clean up): ${report.wrongTips.length}`,
     `- Sent to a teacher with no need: ${report.teacherForNothing.length}`,
     `- To the hosted model: **${report.hosted}** of ${report.read} (${percent(report.hosted, report.read)})`,
     ...report.hostedWhy.map(({ why, count }) => `  - ${why}: ${count}`),
@@ -203,7 +211,8 @@ export const formatDecideReport = (
     lines.push(`### ${title}: ${rows.length}`, "");
     if (rows.length === 0) lines.push("None.", "");
     for (const s of rows.slice(0, 40)) {
-      lines.push(`- #${s.row} (${s.kind}, must be ${s.expect}, got ${s.outcome}): ${set[s.row].show.replace(/[|`*_<>]/g, " ")}`);
+      const got = s.step.step === "send-back" ? `send-back with ${s.step.tip}` : s.outcome;
+      lines.push(`- #${s.row} (${s.kind}, must be ${s.expect}, got ${got}): ${set[s.row].show.replace(/[|`*_<>]/g, " ")}`);
     }
     if (rows.length > 40) lines.push(`- ...and ${rows.length - 40} more`);
     lines.push("");
@@ -213,6 +222,7 @@ export const formatDecideReport = (
   list("Real worries let go", report.worriesLetGo);
   list("Sent to a teacher with no need", report.teacherForNothing);
   list("Good sentences sent back", report.wrongSendBacks);
+  list("Sent back with the wrong tip", report.wrongTips);
   return lines.join("\n");
 };
 
