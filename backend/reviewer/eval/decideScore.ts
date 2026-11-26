@@ -5,7 +5,9 @@
 //
 // The hosted model isn't asked either. A sentence the decider would send
 // to it is counted as such: the share of those is one of the numbers.
-import type { ProviderAnswer } from "../contract.js";
+import tellList from "../../public/tellList.js";
+import type { ChecklistAnswer } from "../contract.js";
+import { techniqueFound } from "../techniques.js";
 import { decide, VOTERS, type Facts, type Step, type Voter } from "../decide.js";
 import { writingTipFor } from "../reviewer.js";
 import { checkRules } from "../rules.js";
@@ -34,9 +36,10 @@ export interface Scored {
   // No local reader saw a worry (the safety model said safe, and both
   // voters said no)
   noLocalWorry: boolean;
-  // What each local reader said, short: "safe", "unsafe", "yes", "no",
-  // "approve", "redo", "unsure", or "-" for no answer
-  said: { safety: string; welfare: Record<Voter, string>; verdict: Record<Voter, string> };
+  // What each local reader said, short: the safety model's answer, the
+  // welfare and gallery answers per voter, and the first voter's checklist,
+  // or "-" for no answer
+  said: { safety: string; welfare: Record<Voter, string>; suitable: Record<Voter, string>; checklist: string };
 }
 
 const outcomeOf = (step: Step): Outcome =>
@@ -54,23 +57,39 @@ const outcomeOf = (step: Step): Outcome =>
 // decider asks again
 const answered = <T extends string>(value: T | undefined, ok: readonly string[]) =>
   value !== undefined && ok.includes(value) ? value : undefined;
-const verdictOf = (value: Collected["verdict"]) =>
-  value && typeof value === "object" ? (value as ProviderAnswer) : undefined;
+const checklistOf = (value: Collected["checklist"]) =>
+  value && typeof value === "object" ? value : undefined;
+const shortChecklist = (answer: ChecklistAnswer | undefined) =>
+  answer
+    ? `topic:${answer.onTopic} technique:${answer.technique} shows:${answer.shows}(${answer.detail}) grammar:${answer.grammar}`
+    : "-";
+
+// What each Tell asks for, by its words (public/tellList.ts)
+const TECHNIQUE_OF = new Map(tellList.map(({ tell, technique }) => [tell, technique]));
 
 export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] => {
   const byReader = new Map(files.map((file) => [file.reader, new Map(file.answers.map((a) => [a.row, a]))]));
   return set.map((row, index) => {
     const rules = checkRules(row.tell, row.show);
-    const facts: Facts = { rules, writingTip: writingTipFor(row.show) };
+    const technique = TECHNIQUE_OF.get(row.tell);
+    const facts: Facts = {
+      rules,
+      writingTip: writingTipFor(row.show),
+      ...(technique ? { technique, techniqueFound: techniqueFound(technique, row.show) === true } : {}),
+    };
     const safety = byReader.get("safety")?.get(index);
     facts.safety = answered(safety?.safety, ["safe", "unsafe"]) as Facts["safety"];
     facts.welfare = {};
-    facts.verdicts = {};
+    facts.suitable = {};
     for (const voter of VOTERS) {
       const answers = byReader.get(voter)?.get(index);
       facts.welfare[voter] = answered(answers?.welfare, ["yes", "no"]) as "yes" | "no" | undefined;
-      facts.verdicts[voter] = verdictOf(answers?.verdict);
+      facts.suitable[voter] = answered(answers?.suitable, ["yes", "unsure"]) as "yes" | "unsure" | undefined;
     }
+    // Only the first voter answers the checklist (the second checks it only
+    // after send-backs: never in a made-up set, which has no history)
+    const checklist = checklistOf(byReader.get("first")?.get(index)?.checklist);
+    if (checklist) facts.checklist = checklist;
     const step = decide(facts);
     return {
       row: index,
@@ -83,7 +102,8 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
       said: {
         safety: facts.safety ?? "-",
         welfare: { first: facts.welfare.first ?? "-", second: facts.welfare.second ?? "-" },
-        verdict: { first: facts.verdicts.first?.verdict ?? "-", second: facts.verdicts.second?.verdict ?? "-" },
+        suitable: { first: facts.suitable.first ?? "-", second: facts.suitable.second ?? "-" },
+        checklist: shortChecklist(facts.checklist),
       },
     };
   });
@@ -130,7 +150,7 @@ export const whyHosted = ({ step, said }: Scored): string => {
     ].filter(Boolean);
     return `worry raised by the ${raised.join(" and ")} only`;
   }
-  return `verdicts split: first ${said.verdict.first}, second ${said.verdict.second}`;
+  return "not a worry";
 };
 
 const tallied = (whys: string[]) => {
@@ -234,6 +254,6 @@ export const answersTable = (scored: Scored[]) =>
     .filter((s) => !(s.step.step === "teacher" && (s.step.because === "worrying-words" || s.step.because === "too-long")))
     .map(
       ({ row, expect, outcome, said }) =>
-        `#${row} ${expect}->${outcome} safety:${said.safety} first:${said.welfare.first}/${said.verdict.first} second:${said.welfare.second}/${said.verdict.second}`
+        `#${row} ${expect}->${outcome} safety:${said.safety} welfare:${said.welfare.first}/${said.welfare.second} gallery:${said.suitable.first}/${said.suitable.second} ${said.checklist}`
     )
     .join("\n");

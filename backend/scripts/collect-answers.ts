@@ -10,14 +10,15 @@
 //     ANSWERS_FILE=answers-first.json node lib/scripts/collect-answers.js
 //
 // READER is "safety" (asked safe or unsafe) or a voter, "first" or
-// "second" (asked the welfare question and for a verdict). PART, such as
+// "second" (asked the welfare and gallery questions; the first is asked the
+// writing checklist too, decide.ts). PART, such as
 // "1/2", reads only that share of the sentences, for a slow model split
 // between jobs; the score script joins the files back up.
 import { appendFileSync, writeFileSync } from "node:fs";
 import { READERS, type Reader } from "../reviewer/decide.js";
 import { collectAnswers, summaryOf, type Asker } from "../reviewer/eval/collect.js";
 import { DECIDE_SET } from "../reviewer/eval/decideSet.js";
-import { localReviewer, localSafety, localWelfare } from "../reviewer/providers/local.js";
+import { localChecklist, localSafety, localSuitable, localWelfare } from "../reviewer/providers/local.js";
 
 const { LOCAL_AI_URL: url, LOCAL_MODEL: model, READER: reader, ANSWERS_FILE: file, PART: partSetting = "1/1" } = process.env;
 if (!url || !model || !file || !(READERS as readonly string[]).includes(reader ?? "")) {
@@ -42,7 +43,8 @@ const asker: Asker =
     ? { safety: (input, signal) => localSafety(settings).check(input, signal) }
     : {
         welfare: (input, signal, question) => localWelfare(settings).check(input, signal, question),
-        verdict: (input, signal) => localReviewer(settings).review(input, signal),
+        suitable: (input, signal) => localSuitable(settings).check(input, signal),
+        ...(reader === "first" ? { checklist: (input, signal) => localChecklist(settings).check(input, signal) } : {}),
       };
 
 const save = (answers: unknown[]) =>
