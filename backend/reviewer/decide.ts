@@ -20,16 +20,20 @@
 //      asked, so only a small share of sentences go to it.
 //   3. Certain reasons to send it back: personal details, rude or unkind
 //      words, not in English, copying the Tell.
-//   4. Is it fine for other children to read? Both local models are asked;
-//      either one unsure sends it back with the kind-words tip.
-//   5. Revise, as a teacher does, first problem first: on topic, then what
-//      the Tell asks for (a simile, a metaphor...), then showing with a
-//      detail. These are the first model's (Gemma 4 E4B when this was
-//      written), the more accurate one: the second only checks it after a
-//      child has been sent back three times for the same thing.
-//   6. Clean up: spelling, capitals and punctuation (the code's) and
-//      grammar (the first model's), as one tip when both are wrong.
-//   7. Approve.
+//   4-6. The first model's checklist (Gemma 4 E4B when this was written,
+//      the more accurate one), first problem first, as a teacher reviews:
+//      4. fine for other children to read? If not, the kind-words tip.
+//      5. Revise: on topic, then what the Tell asks for (a simile, a
+//         metaphor...), then showing with a detail.
+//      6. Clean up: spelling, capitals and punctuation (the code's) and
+//         grammar, as one tip when both are wrong.
+//   7. Before approving, the second model answers the same checklist, and
+//      any problem it finds sends the sentence back with its tip: an
+//      approval needs both models.
+//   8. Approve.
+//   When the two models keep disagreeing on one check (the child has been
+//   sent back RECHECK_AFTER times for it), the check passes, so one model
+//   can't keep a child in a loop; when both say no, it goes back as usual.
 import type { Technique } from "../contract/api.js";
 import type { ChecklistAnswer } from "./contract.js";
 import type { RuleOutcome } from "./rules.js";
@@ -37,8 +41,8 @@ import { firstTip, PRAISE, TECHNIQUE_TIP, type TipId } from "./tips.js";
 import type { WelfareQuestion } from "./reviewer.js";
 
 // The two local models. "first" is the more accurate one (Gemma 4 E4B when
-// this was written): it answers the writing checklist. Both answer the
-// welfare and gallery questions.
+// this was written): its checklist decides what's wrong first. Both answer
+// the welfare question, and the second the checklist before an approval.
 export const VOTERS = ["first", "second"] as const;
 export type Voter = (typeof VOTERS)[number];
 
@@ -55,13 +59,16 @@ export const MAX_FAILED_TRIES = 3;
 // model before a teacher reads it instead
 export const WORRY_WAIT_MS = 6 * 60 * 60 * 1000;
 
-// After this many send-backs for the same revise check, the second model
-// checks the first one's "no" before the child is sent back for it again
+// After this many send-backs for the same check, the two models must agree
+// that it fails before the child is sent back for it again
 export const RECHECK_AFTER = 3;
 
-// The revise checks, in a teacher's order
+// The revise checks, in a teacher's order, and the checks that count
+// send-backs (grammar too)
 export const REVISE_CHECKS = ["onTopic", "technique", "shows"] as const;
 export type ReviseCheck = (typeof REVISE_CHECKS)[number];
+export const CHECKS = [...REVISE_CHECKS, "grammar"] as const;
+export type Check = (typeof CHECKS)[number];
 
 // The hosted model's answer: only whether the child is OK
 export interface HostedAnswer {
@@ -84,15 +91,14 @@ export interface Facts {
   // The local readers' answers so far; a missing one hasn't come in yet
   safety?: "safe" | "unsafe";
   welfare?: Partial<Record<Voter, "yes" | "no">>;
-  suitable?: Partial<Record<Voter, "yes" | "unsure">>;
-  // The first model's writing checklist
+  // The first model's checklist
   checklist?: ChecklistAnswer;
-  // The second model's, asked only to check a "no" after RECHECK_AFTER
-  // send-backs for it (step 5)
-  recheck?: ChecklistAnswer;
-  // How many times this child has been sent back for each revise check on
-  // this Tell (the send-back step names its check: the caller counts them)
-  sentBackFor?: Partial<Record<ReviseCheck, number>>;
+  // The second model's, asked only when it's needed: before an approval,
+  // or to check the first's "no" after RECHECK_AFTER send-backs for it
+  second?: ChecklistAnswer;
+  // How many times this child has been sent back for each check on this
+  // Tell (the send-back step names its check: the caller counts them)
+  sentBackFor?: Partial<Record<Check, number>>;
   hosted?: HostedAnswer;
   // Failed tries per local reader on these words
   failedTries?: Partial<Record<Reader, number>>;
@@ -111,11 +117,11 @@ export type TeacherBecause =
 export type Step =
   | { step: "approve"; tip: TipId }
   // check: the revise check it was sent back for, for the caller to count
-  | { step: "send-back"; tip: TipId; check?: ReviseCheck }
+  | { step: "send-back"; tip: TipId; check?: Check }
   | { step: "teacher"; because: TeacherBecause }
   | { step: "ask-local"; question: WelfareQuestion }
-  // The second model's checklist, to check the first one's "no"
-  | { step: "ask-recheck" }
+  // The second model's checklist, before an approval or to check a "no"
+  | { step: "ask-second" }
   | { step: "ask-hosted"; question: WelfareQuestion; about: "worry" };
 
 // Rule holds that are only about the words used: asked the stricter welfare
@@ -140,24 +146,27 @@ const certainTip = ({ rules }: Facts): TipId | null => {
   return null;
 };
 
-// Step 5: does this checklist pass this revise check? A Tell that asks for
-// the senses (or for nothing) has no technique of its own to check: showing
-// with a detail is the same thing. One the code found passes.
-const passes = (check: ReviseCheck, answer: ChecklistAnswer, facts: Facts) => {
+// Does this checklist pass this check? A Tell that asks for the senses (or
+// for nothing) has no technique of its own to check: showing with a detail
+// is the same thing. One the code found passes.
+const passes = (check: Check, answer: ChecklistAnswer, facts: Facts) => {
   if (check === "technique") {
     if (!facts.technique || facts.technique === "senses" || facts.techniqueFound) return true;
   }
   return answer[check] === "yes";
 };
 
-const reviseTip = (check: ReviseCheck, checklist: ChecklistAnswer, technique?: Technique): TipId => {
+const tipFor = (check: Check, checklist: ChecklistAnswer, facts: Facts): TipId => {
   if (check === "onTopic") return "onTopic";
-  if (check === "technique") return (technique && TECHNIQUE_TIP[technique]) || "compare";
-  return checklist.detail;
+  if (check === "technique") return (facts.technique && TECHNIQUE_TIP[facts.technique]) || "compare";
+  if (check === "shows") return checklist.detail;
+  return firstTip("readAloud", facts.writingTip)!;
 };
 
+const sentBackOften = (check: Check, facts: Facts) => (facts.sentBackFor?.[check] ?? 0) >= RECHECK_AFTER;
+
 export const decide = (facts: Facts): Step => {
-  const { rules, undone, safety, welfare = {}, suitable = {}, checklist, hosted, failedTries = {} } = facts;
+  const { rules, undone, safety, welfare = {}, checklist, second, hosted, failedTries = {} } = facts;
   const reasons: string[] = reasonsOf(rules);
   const question = welfareQuestion(rules);
 
@@ -178,13 +187,7 @@ export const decide = (facts: Facts): Step => {
 
   // Every local answer first: none is ever guessed
   const worries = [safety, welfare.first, welfare.second];
-  if (
-    worries.some((answer) => answer === undefined) ||
-    VOTERS.some((voter) => !suitable[voter]) ||
-    !checklist
-  ) {
-    return { step: "ask-local", question };
-  }
+  if (worries.some((answer) => answer === undefined) || !checklist) return { step: "ask-local", question };
 
   // The hosted model, when it has been asked: a worry is final
   if (hosted?.concern === "yes") return { step: "teacher", because: "worry" };
@@ -204,23 +207,29 @@ export const decide = (facts: Facts): Step => {
   if (tip) return { step: "send-back", tip };
 
   // 4. Fine for other children to read?
-  if (VOTERS.some((voter) => suitable[voter] === "unsure")) return { step: "send-back", tip: "kindWords" };
+  if (checklist.suitable === "unsure") return { step: "send-back", tip: "kindWords" };
 
-  // 5. Revise, first problem first
-  for (const check of REVISE_CHECKS) {
+  // 5-6. The first model's checklist, first problem first. A "no" the
+  // child has been sent back for often must be the second model's too.
+  for (const check of CHECKS) {
     if (passes(check, checklist, facts)) continue;
-    // Sent back for this already and again: the second model checks first
-    if ((facts.sentBackFor?.[check] ?? 0) >= RECHECK_AFTER) {
-      if (!facts.recheck) return { step: "ask-recheck" };
-      if (passes(check, facts.recheck, facts)) continue;
+    if (sentBackOften(check, facts)) {
+      if (!second) return { step: "ask-second" };
+      if (passes(check, second, facts)) continue;
     }
-    return { step: "send-back", tip: reviseTip(check, checklist, facts.technique), check };
+    return { step: "send-back", tip: tipFor(check, checklist, facts), check };
+  }
+  if (facts.writingTip) return { step: "send-back", tip: facts.writingTip };
+
+  // 7. Before approving: the second model's checklist too
+  if (!second) return { step: "ask-second" };
+  if (second.suitable === "unsure") return { step: "send-back", tip: "kindWords" };
+  for (const check of CHECKS) {
+    // (A check the models keep disagreeing on passes: see the top)
+    if (passes(check, second, facts) || sentBackOften(check, facts)) continue;
+    return { step: "send-back", tip: tipFor(check, second, facts), check };
   }
 
-  // 6. Clean up: one tip for the writing checks' mistakes and a grammar one
-  const cleanUp = firstTip(checklist.grammar === "no" ? "readAloud" : null, facts.writingTip);
-  if (cleanUp) return { step: "send-back", tip: cleanUp };
-
-  // 7. Ready for the gallery
+  // 8. Ready for the gallery
   return { step: "approve", tip: PRAISE };
 };
