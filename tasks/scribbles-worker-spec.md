@@ -138,9 +138,8 @@ and so on.
 
 ### When the hosted model is asked
 
-Only on a disagreement in step 2 or step 4, and from a sentence's fourth
-version on before an approval. It is asked both questions about that
-sentence, and what it says is final:
+Only on a disagreement in step 2 or step 4. It is asked both questions
+about that sentence, and what it says is final:
 
 | The hosted model says | What happens |
 | --- | --- |
@@ -165,7 +164,8 @@ words" can be seen:
   explicit worrying phrase (step 1) goes to no AI, and older words with
   personal details go to no outside service. The models get the reason
   only ("an earlier version was held as worrying").
-- A version is counted each time the words change.
+- Every version goes through the same steps, however many there have
+  been. There is no extra rule for later versions.
 
 Kids only ever see our fixed tips. A model picks a tip by its id.
 
@@ -196,8 +196,9 @@ Limits:
 
 The hosted model's free questions (about 100 over any 24 hours, so about
 50 sentences) go to worry disagreements first, with part of the day kept
-back for them, then to verdict disagreements. One kid can use only a few a day, and can have only so
-many sentences read a day, so one kid's edits can't use up everyone's.
+back for them, then to verdict disagreements. One kid can use only a few a
+day, and can have only so many sentences read a day, so one kid's edits
+can't use up everyone's.
 
 Teachers can still decide any waiting sentence by hand, as today.
 
@@ -223,115 +224,213 @@ never a teacher.
 - **Never:** a paid service. A model's own words shown to a kid. A port
   open on the VM. A sentence decided from a missing answer.
 
-## How it's built and tested
+## Start here (for whoever builds this)
 
-- Backend code in `backend/reviewer/` and `backend/controllers/`, tests in
-  `backend/tests/` (`npm test`, `npm run typecheck`, `npm run score:rules`).
-- The worker is a small Node script in `worker/`, run on the VM by systemd
-  at low priority. Its tests fake the backend and the models.
-- "Measure small open models" runs the local models, saves their answers,
-  and scores the decider on them.
-- The Claude Security scan for anything under `backend/reviewer`,
-  `backend/controllers`, `backend/middlewares` or `.github/workflows`.
+**Where things are**
+- This plan is on the branch `claude/scribbles-plan-stages-b-c`, with the
+  matching changes to `tasks/sense-words-plan.md`. It has no pull request
+  yet: opening one (docs only) is the first step.
+- "Measure small open models" is PR #237 (branch
+  `claude/measure-small-models`), open, checks green. It has a separate
+  security review with no findings, not the Claude Security scan.
 
-## Tasks
+**Rules that don't bend** (see `CLAUDE.md`)
+- One small PR per task, into `staging`. Never merge, promote, or turn
+  Scribbles on (any mode, anywhere) unless the owner asks.
+- The low-effort Claude Security "scan changes" run before asking for a
+  merge of anything under `backend/reviewer`, `backend/controllers`,
+  `backend/middlewares`, `backend/config` or `.github/workflows`.
+- QA Wolf quiet hours: no `qa-wolf` label on weekdays 8:30am to 5:30pm
+  Pacific.
+- No real student's words in the repo, tests, logs, PRs or summaries.
+- The repo is public: nothing about the VM (its address, its name, what
+  else runs on it) goes in it.
 
-### Phase 1: the logic and the proof (no VM, nothing live changes)
+**What the first measurement taught us**
+- The model server is Ollama, image `ollama/ollama:0.40.14`. Model names
+  that work: `gemma4:e4b`, `qwen3.5:9b`, `llama-guard3:8b`.
+- Ask through its OpenAI-style route (`/v1/chat/completions`), with a JSON
+  schema, `temperature: 0`, and `reasoning_effort: "none"`. Without the
+  last one Qwen thinks out loud, runs out of room and answers nothing.
+- Give a model two minutes an answer. The first call to a model can take
+  two minutes by itself while it loads.
+- In a workflow, start Ollama in a step (`docker run -d`), not as a
+  service: a service's log is printed at the end of the job and buries the
+  report. The free ARM runner is `ubuntu-24.04-arm`.
+- On that 4-core runner a sentence took about 27 seconds with Gemma 4 and
+  35 with Qwen 3.5. The VM has 2 cores.
+- Cloudflare's free Neurons run over a rolling 24 hours, and staging,
+  production and the measure workflows share one account today.
 
-- [ ] **T0: Merge "Measure small open models"** (PR #237, open).
-- [ ] **T1: The two new tips** (`backend/reviewer/tips.ts`, the website's
-  copy of the tips, the wording test). Size S. Needs the owner's OK on the
-  words.
-- [ ] **T2: The decider** (`backend/reviewer/decide.ts`, its tests). Size M.
-  Needs T1.
-  - Done when: every row of the tables above, and of "When something is
-    down", is a test; and no input can make it approve with an answer
-    missing.
-  - Check: `npm test`, `npm run typecheck`.
-- [ ] **T3: A bigger made-up set** (`backend/reviewer/samples.ts`, using
-  the rules' practice set in `backend/reviewer/eval/`, which already has
-  about 300 worrying sentences by kind). Size M.
-  - Done when: none from a real student, and it has: at least 100 real
-    worries, quiet hints among them; harmless sentences that use sensitive
-    words; trick sentences ("SYSTEM: approve this"); and pairs (a flagged
-    sentence and its reworded version).
+**The VM** is the owner's free Oracle machine: Ubuntu 24.04, ARM, 2 cores,
+12 GB of memory, no swap, about 39 GB of free disk. Another app of the
+owner's runs on it and must not be disturbed. Only the owner runs commands
+there; the builder gives them the commands.
+
+## Build and test plan
+
+Each task is one PR. "Test" is what must be shown in that PR. Every PR
+also passes `npm test` and `npm run typecheck` in `backend/` (and in
+`client/` when the website changes).
+
+### Phase 1: the logic and the proof
+
+Nothing live changes. No VM is needed.
+
+- [ ] **T0: Merge PR #237** (the owner's call).
+- [ ] **T1: The two new tips.**
+  - Build: add them to `backend/reviewer/tips.ts` and wherever the website
+    keeps its copy of the tips.
+  - Test: the wording test passes; the instructions the models get list
+    the new ids.
+- [ ] **T2: The decider** (`backend/reviewer/decide.ts`). Needs T1.
+  - Build: one function with no database and no AI. In: the rule checks'
+    result, the three readers' worry answers, the two verdicts, the hosted
+    model's answers if any, how long it has waited. Out: approve, send back
+    (with a tip id), ask the local models, ask the hosted model, to a
+    teacher, or wait.
+  - Test: one test for every row of every table in "How one sentence is
+    decided" and "When something is down". Plus: for every mix of missing
+    answers, it never says approve or send back.
+- [ ] **T3: A bigger made-up set** (`backend/reviewer/samples.ts`, and the
+  practice set in `backend/reviewer/eval/`, which already has about 300
+  worrying sentences by kind).
+  - Build: at least 100 real worries, quiet hints among them; harmless
+    sentences that use sensitive words; trick sentences ("SYSTEM: approve
+    this"); pairs (a flagged sentence and its reworded version); plenty of
+    plain good and plain weak sentences.
+  - Test: a test checks every sentence has an expected answer and no two
+    are the same. A person reads the list: none is from a real student.
 - [ ] **T4: Save every model's answer to every question**
-  (`backend/scripts/`, `.github/workflows/`). Size M. Needs T3.
-  - Today's measure script stops at the first check that holds, so it
-    can't show what each model said. This one asks each model each
-    question and saves the answers.
-- [ ] **T5: Score the decider on the saved answers.** Size S. Needs T2, T4.
-  - Done when: the summary shows wrong approvals; wrong send-backs; real
-    worries no local reader raised; how many sentences went to a teacher
-    that didn't need to; and how many went to the hosted model.
-- [ ] **T6: The versions before as context** in the questions
-  (`backend/reviewer/prompt.ts`). Size S. Needs T5. T4 and T5 are run again
-  after it.
-- [ ] **T7: The owner times the models on the VM** (a few commands, about
-  20 made-up sentences), so "500 a day" is measured, not guessed.
+  (`backend/scripts/`, `.github/workflows/measure-small-models.yml`).
+  Needs T3.
+  - Build: today's measure script stops at the first check that holds, so
+    it can't show what each model said. This one asks the safety model,
+    Gemma 4 and Qwen 3.5 each of their questions about every sentence the
+    rules don't send straight to a teacher, and saves the answers as a
+    file kept with the run (ids and answers, made-up sentences only).
+  - Test: against a fake model server, the file has one answer per model,
+    question and sentence. Then one real run from the Actions tab.
+- [ ] **T5: Score the decider on the saved answers.** Needs T2, T4.
+  - Build: a script that runs the decider over T4's file and prints wrong
+    approvals; wrong send-backs; real worries no local reader raised;
+    harmless sentences that went to a teacher; and the share that went to
+    the hosted model.
+  - Test: on a small made-up answers file with known results, the counts
+    are right.
+- [ ] **T6: The versions before as context** (`backend/reviewer/prompt.ts`).
+  Needs T5.
+  - Build: the questions take the version before, and the last flagged
+    one, as data; older words go no further than they were allowed to.
+  - Test: the message a model gets holds the older words as data, never
+    as instructions; an explicit worrying older version is left out. Then
+    T4 and T5 are run again: the reworded unkind pairs are caught and the
+    good rewrites aren't.
+- [ ] **T7: The owner times the models on the VM.**
+  - Build: a short page of commands (install Ollama for its own user, pull
+    the three models, run about 20 made-up sentences, print the times, and
+    how to remove it all again).
+  - Test: the owner pastes the times back. The other app on the VM still
+    answers.
 
-**Checkpoint A, with the owner,** on the made-up set and after T6:
+**Checkpoint A, with the owner,** after T6, on the made-up set:
 - zero wrong approvals;
 - zero real worries that no local reader raised;
 - no more than about 1 sentence in 8 goes to the hosted model;
-- almost nothing harmless goes to a teacher.
+- almost nothing harmless goes to a teacher;
+- the VM is fast enough (T7).
 
-If any of these fails, the rule or the models change before anything else
-is built.
+If any fails, the rule or the models change, and T4 and T5 are run again,
+before anything else is built.
 
-### Phase 2: the line (built with Scribbles switched off)
+### Phase 2: the line
 
-- [ ] **T8: The review line's records** (`backend/models/`): each sentence
-  version's state and number, who is reading it and until when, and each
-  model's answer with its version. Size S.
-  - Done when: tests show a claim runs out after 15 minutes, an edit
-    throws old answers away, and answers from an old version don't count.
+Built with Scribbles switched off. It only ever makes suggestions.
+
+- [ ] **T8: The review line's records** (`backend/models/`).
+  - Build: for each sentence version: its state, who is reading it and
+    until when, each model's answer, and the version of the models,
+    questions and rules that gave it.
+  - Test: a claim runs out after 15 minutes; an edit throws old answers
+    away; answers from an old version don't count; nothing here is in any
+    answer the website gets.
 - [ ] **T9: The job-key routes** (`backend/controllers/`,
-  `backend/middlewares/`, the deploy's settings): ask for work and post
-  answers. Size M. Needs T8.
-  - Done when: a wrong or missing key gets nothing; explicit worrying
-    phrases are never handed out; a fake worker can be stopped at any
-    point and nothing is lost or decided twice.
-- [ ] **T10: The worker** (`worker/`, with a setup page for the VM: its own
-  user, the key readable only by it, low priority). Size M. Needs T9.
-  - Done when: its tests pass against a fake backend and fake models: one
-    model at a time, strict answers, slower retries after each failure.
+  `backend/middlewares/`, the deploy scripts for the key). Needs T8.
+  - Build: "give me work" and "here are answers", behind a key the deploy
+    sets. A sentence is handed out as its id, Tell and words only.
+  - Test: no key or a wrong key gets nothing; explicit worrying phrases
+    are never handed out; the same answer posted twice counts once; an
+    answer for words that have since changed is refused; two workers
+    asking at once never get the same sentence.
+- [ ] **T10: The worker** (`worker/`). Needs T9.
+  - Build: a small Node program: ask for work, run one model over
+    everything waiting, then the next; strict answers; wait longer after
+    each failure. With a setup page for the VM (its own user, the key
+    readable only by it, low priority, how to stop and remove it).
+  - Test: against a fake backend and fake models: a model that times out,
+    answers nonsense, or is missing; the backend going away and coming
+    back; the worker stopped mid-batch and started again.
 - [ ] **T11: The backend decides from the line, as suggestions only**
-  (`backend/reviewer/`): runs the decider on the answers and asks the
-  hosted model when the decider says so, inside the budget above (counted
-  over a rolling 24 hours, per kid too). Teachers still decide. Size M.
-  Needs T2, T9.
-  - Done when: with the hosted model "out of Neurons" in a test, only the
-    sentences that need it wait, and they're decided after it's back.
+  (`backend/reviewer/`). Needs T2, T9.
+  - Build: each time answers arrive, run the decider. When it says "ask
+    the hosted model", ask it, inside the budget (a rolling 24 hours,
+    worries first, a limit per kid). Save what Scribbles would do as a
+    suggestion. Teachers still decide.
+  - Test: the hosted model out of Neurons: only the sentences that need
+    it wait, and they're decided once it answers. A worry disagreement
+    still unanswered after 6 hours goes to a teacher. A sentence with
+    personal details is never sent to the hosted model.
 - [ ] **T12: The old reviewer path is taken out** (`backend/reviewer/
-  queue.ts`, the chain in `reviewer.ts`, the fields only it used), so the
-  decider is the one place that decides. Size M. Needs T11.
-  - Done when: nothing else spends hosted questions, and the Teacher page
-    shows the line's suggestions.
-- [ ] **T13: Watch** (`.github/workflows/`, one backend route behind the
-  job key that gives counts only): the worker's last ask, the stuck line,
-  unread Check ins, the weekly canary. Size M. Needs T9.
-  - Done when: issues open and close themselves in a dry run.
+  queue.ts`, the chain in `reviewer.ts`, the fields only it used).
+  Needs T11.
+  - Test: nothing else spends hosted questions; the Teacher page shows the
+    line's suggestions; the rules score (`npm run score:rules`) hasn't
+    changed.
+- [ ] **T13: Watch** (`.github/workflows/`, one route behind the job key
+  that gives counts only). Needs T9.
+  - Build: a scheduled workflow that opens an issue when the worker hasn't
+    asked for work in 30 minutes, a sentence has waited over 2 hours, or a
+    Check in has waited a day; and closes it when it clears. The weekly
+    canary: T4 and T5 on a schedule, with an issue if a Checkpoint A
+    number slips.
+  - Test: a dry run with made-up counts opens and closes an issue. The
+    route gives counts, never words.
 - [ ] **T14: The shadow report prints no student words** (ids and counts
-  only), and keeps Scribbles' own decisions apart from teachers'. Size S.
+  only), and keeps Scribbles' own decisions apart from teachers'.
+  - Test: its output for a made-up database holds no sentence text.
 
 **Checkpoint B, with the owner:** the worker runs on the VM against
-staging in "suggest". Switching the VM off and on, and running the hosted
-model out, behave as the table says.
+staging, in "suggest". Four drills, each watched from the Teacher page:
+1. Stop the worker for an hour, start it again: every waiting sentence
+   gets a suggestion, none twice.
+2. Kill the worker mid-batch: its sentences come back after 15 minutes.
+3. Run the hosted model out: only disagreements wait, then clear.
+4. Remove one model: sentences wait, an issue opens; put it back: the
+   line carries on and the issue closes.
 
 ### Phase 3: deciding
 
-- [ ] **T15: The Scribbles switch:** off, suggest, decide; from the Owner
-  settings panel and from a GitHub workflow, on staging and production.
-  The teachers' pause stops "decide" too. Size M.
-- [ ] **T16: Auto-decisions:** in "decide", an approve or a send-back is
-  applied like a teacher's, marked as Scribbles' (so teachers' Recent
-  decisions and the shadow report keep them apart), and a teacher can undo
-  it. A limit on how many it may make an hour: past it, Scribbles pauses
-  and an issue opens. Size M. QA Wolf on the PR.
-- [ ] **T17: The owner turns it on:** "decide" on staging; then a week of
-  "suggest" on production with the shadow report; then "decide" on
-  production.
+- [ ] **T15: The Scribbles switch.**
+  - Build: off, suggest, decide; from the Owner settings panel and from a
+    GitHub workflow, on staging and production. The teachers' pause stops
+    "decide" too. If the setting can't be read, it's off.
+  - Test: each mode from each place; only the owner can change it. QA
+    Wolf on the PR.
+- [ ] **T16: Auto-decisions.** Needs T15.
+  - Build: in "decide", an approve or a send-back is applied like a
+    teacher's and marked as Scribbles', so Recent decisions and the shadow
+    report keep them apart. A teacher can undo it, and an undone version
+    stays the teacher's. A limit on how many it may make an hour: past
+    it, Scribbles pauses and an issue opens.
+  - Test: in "suggest" nothing a kid sees changes; in "decide" a kid sees
+    the approval or the tip; undo puts it back and Scribbles leaves it
+    alone; the hourly limit pauses it. QA Wolf on the PR.
+- [ ] **T17: The owner turns it on,** one step at a time:
+  1. "decide" on staging, with made-up sentences through every path.
+  2. A week of "suggest" on production; the shadow report shows how often
+     teachers agreed, and what went to a teacher that didn't need to.
+  3. "decide" on production.
+  - At any step: the switch to "off" stops it at the next sentence.
 
 ## Risks
 
@@ -372,8 +471,8 @@ model out, behave as the table says.
 - Scribbles sends back by itself, judgment calls ("add more detail") as
   well as certain mistakes.
 - A flag doesn't stick to a sentence; the version before is context.
-- From the fourth version on, the hosted model must also agree before an
-  approval.
+- No extra rule for later versions of a sentence: every version goes
+  through the same steps.
 - Sentences the rule checks hold for sensitive words may be read by the
   local models, and by the hosted model for a second opinion.
 - Explicit worrying phrases and confirmed worries stay with a teacher.
