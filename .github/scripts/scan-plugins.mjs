@@ -10,7 +10,8 @@
 // 2. .claude/settings.json: every marketplace it adds must be on GitHub (or
 //    git) and pinned to one exact commit, and every plugin it turns on must
 //    come from such a marketplace. Then it downloads each marketplace at that
-//    commit and scans the skills inside.
+//    commit and scans the skills of the plugins turned on from it (a
+//    marketplace can hold many plugins this repo never loads).
 //
 // It fails (exit 1) when something is rated HIGH or CRITICAL, unless
 // .github/plugin-review.json lists it as read by a person, with the same
@@ -166,11 +167,38 @@ for (const [name, { source = {} } = {}] of Object.entries(marketplaces)) {
     );
     continue;
   }
+  // Only the plugins turned on from this marketplace: a plugin that is never
+  // turned on never loads. Each one's folder comes from the marketplace's own
+  // list (.claude-plugin/marketplace.json, "source": "./plugins/name").
+  const enabled = Object.entries(settings.enabledPlugins ?? {})
+    .filter(([plugin, on]) => on && plugin.split("@")[1] === name)
+    .map(([plugin]) => plugin.split("@")[0]);
+  if (enabled.length === 0) continue;
+  let listed = [];
+  try {
+    listed = JSON.parse(fs.readFileSync(path.join(clone, ".claude-plugin", "marketplace.json"), "utf8")).plugins ?? [];
+  } catch {
+    problems.push(`Marketplace \`${name}\` has no readable .claude-plugin/marketplace.json, so its plugins can't be found. Read it by hand.`);
+    continue;
+  }
+  const roots = [];
+  for (const plugin of enabled) {
+    const source = listed.find((entry) => entry?.name === plugin)?.source;
+    const root = typeof source === "string" ? path.posix.normalize(source) : null;
+    if (!root || root.startsWith("..") || path.posix.isAbsolute(root)) {
+      problems.push(
+        `Plugin \`${plugin}@${name}\` isn't a folder inside its marketplace (its source is ${JSON.stringify(source ?? null)}), so it can't be scanned. Read it by hand.`
+      );
+      continue;
+    }
+    roots.push(root === "." ? "" : `${root}/`);
+  }
   const skillDirs = filesIn(clone)
     .filter((file) => path.posix.basename(file) === "SKILL.md")
-    .map((file) => path.posix.dirname(file));
-  if (skillDirs.length === 0) {
-    problems.push(`Marketplace \`${name}\` has no SKILL.md files to scan. Read it by hand.`);
+    .map((file) => path.posix.dirname(file))
+    .filter((dir) => roots.some((root) => `${dir}/`.startsWith(root)));
+  if (roots.length > 0 && skillDirs.length === 0) {
+    problems.push(`The plugins turned on from \`${name}\` have no SKILL.md files to scan. Read them by hand.`);
   }
   if (skillDirs.length > MAX_MARKETPLACE_SKILLS) {
     problems.push(
