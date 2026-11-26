@@ -61,6 +61,21 @@ export const TIP_IDS = Object.keys(TIPS) as [TipId, ...TipId[]];
 // The tip that goes with "approve"; every other tip goes with "redo"
 export const PRAISE: TipId = "great";
 
+// The tips that ask for one more detail: what a model picks when a sentence
+// tells instead of showing (contract.ts, ChecklistAnswer)
+export const DETAIL_TIPS = [
+  "see",
+  "hear",
+  "feel",
+  "smell",
+  "taste",
+  "senses",
+  "action",
+  "compare",
+  "more",
+  "showNotTell",
+] as const satisfies readonly TipId[];
+
 // The tip for a sentence that doesn't use what its Tell asks for
 // (contract/api.ts, TECHNIQUES). A simile is a comparison, and the senses
 // have their own tip. No Tell asks for onomatopoeia or alliteration yet:

@@ -10,8 +10,20 @@ import {
   CLOUDFLARE_WELFARE_MODEL,
 } from "../reviewer/providers/cloudflare.js";
 import { groqReviewer } from "../reviewer/providers/groq.js";
-import { localReviewer, localSafety, localWelfare } from "../reviewer/providers/local.js";
-import { DANGER_INSTRUCTIONS, REVIEW_INSTRUCTIONS, reviewMessage, WELFARE_INSTRUCTIONS, WELFARE_SCHEMA } from "../reviewer/prompt.js";
+import { localChecklist, localReviewer, localSafety, localSuitable, localWelfare } from "../reviewer/providers/local.js";
+import {
+  CHECKLIST_INSTRUCTIONS,
+  CHECKLIST_SCHEMA,
+  DANGER_INSTRUCTIONS,
+  REVIEW_INSTRUCTIONS,
+  reviewMessage,
+  SUITABLE_INSTRUCTIONS,
+  SUITABLE_SCHEMA,
+  WELFARE_INSTRUCTIONS,
+  WELFARE_SCHEMA,
+} from "../reviewer/prompt.js";
+import { ChecklistAnswer, SuitableAnswer } from "../reviewer/contract.js";
+import { DETAIL_TIPS } from "../reviewer/tips.js";
 import { reviewerMode, reviewerSetup } from "../reviewer/settings.js";
 import { reviewSentence } from "../reviewer/reviewer.js";
 import { ProviderError } from "../reviewer/providers/http.js";
@@ -268,6 +280,27 @@ describe("the local models (measuring only)", () => {
     expect(sent(fetchMock).body.messages[0].content).toBe(DANGER_INSTRUCTIONS);
   });
 
+  it("asks the writing checklist and the gallery question, each with its own instructions and form", async () => {
+    let fetchMock = fakeFetch(200, answer('{"onTopic":"yes","technique":"yes","shows":"no","detail":"smell","grammar":"yes"}'));
+    expect(await localChecklist(LOCAL).check(INPUT, signal())).toEqual({
+      onTopic: "yes",
+      technique: "yes",
+      shows: "no",
+      detail: "smell",
+      grammar: "yes",
+    });
+    expect(sent(fetchMock).body.messages).toEqual([
+      { role: "system", content: CHECKLIST_INSTRUCTIONS },
+      { role: "user", content: reviewMessage(INPUT) },
+    ]);
+    expect(sent(fetchMock).body.response_format.json_schema.schema).toEqual(CHECKLIST_SCHEMA);
+    expect(sent(fetchMock).body.reasoning_effort).toBe("none");
+    fetchMock = fakeFetch(200, answer('{"suitable":"unsure"}'));
+    expect(await localSuitable(LOCAL).check(INPUT, signal())).toEqual({ suitable: "unsure" });
+    expect(sent(fetchMock).body.messages[0].content).toBe(SUITABLE_INSTRUCTIONS);
+    expect(sent(fetchMock).body.response_format.json_schema.schema).toEqual(SUITABLE_SCHEMA);
+  });
+
   it("fails on an answer with no content", async () => {
     fakeFetch(200, { choices: [] });
     await expect(localReviewer(LOCAL).review(INPUT, signal())).rejects.toBeInstanceOf(ProviderError);
@@ -477,5 +510,41 @@ describe("the Cloudflare welfare check", () => {
     fakeFetch(200, usedUp);
     const error = await cloudflareWelfare(CF).check(INPUT, signal()).catch((e: unknown) => e);
     expect((error as ProviderError).status).toBe(429);
+  });
+});
+
+describe("what the writing checklist and the gallery question are told", () => {
+  it("asks about the writing only, in a teacher's order, and names every technique a Tell asks for", () => {
+    const order = ["onTopic:", "technique:", "shows:", "detail:", "grammar:"].map((q) => CHECKLIST_INSTRUCTIONS.indexOf(q));
+    expect(order.every((at) => at >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    for (const technique of ["simile", "metaphor", "personification", "hyperbole", "allusion"]) {
+      expect(CHECKLIST_INSTRUCTIONS.toLowerCase()).toContain(technique);
+    }
+    for (const tip of DETAIL_TIPS) expect(CHECKLIST_INSTRUCTIONS).toContain(`- ${tip}:`);
+    // Spelling and punctuation are the code's; a Show that talks to the reviewer is off topic
+    expect(CHECKLIST_INSTRUCTIONS).toContain("Ignore spelling, capital letters and punctuation");
+    expect(CHECKLIST_INSTRUCTIONS).toContain('answer onTopic "no"');
+  });
+
+  it("asks the gallery question with the reviewer's own list of what isn't for other children", () => {
+    for (const example of ["Liam fell in the mud", "dirty rag", "snowman's eyes", "kissed under", "beer can", "Ella Ruiz"]) {
+      expect(SUITABLE_INSTRUCTIONS).toContain(example);
+      expect(REVIEW_INSTRUCTIONS).toContain(example);
+    }
+    expect(SUITABLE_INSTRUCTIONS).toContain('answer "unsure"');
+  });
+
+  it("takes only answers in the fixed forms", () => {
+    const good = { onTopic: "no", technique: "yes", shows: "yes", detail: "hear", grammar: "no" };
+    expect(ChecklistAnswer.safeParse(good).success).toBe(true);
+    expect(ChecklistAnswer.safeParse({ ...good, detail: "spelling" }).success).toBe(false); // not a detail tip
+    expect(ChecklistAnswer.safeParse({ ...good, onTopic: "maybe" }).success).toBe(false);
+    expect(ChecklistAnswer.safeParse({ ...good, why: "nice" }).success).toBe(false);
+    const { grammar: _grammar, ...missing } = good;
+    expect(ChecklistAnswer.safeParse(missing).success).toBe(false);
+    expect(SuitableAnswer.safeParse({ suitable: "yes" }).success).toBe(true);
+    expect(SuitableAnswer.safeParse({ suitable: "no" }).success).toBe(false);
+    expect(SuitableAnswer.safeParse({ suitable: "yes", note: "fine" }).success).toBe(false);
   });
 });
