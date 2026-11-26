@@ -16,9 +16,13 @@ real trouble. It costs nothing to run, and an outage never loses or wrongly
 decides a sentence: it waits in line, and the line starts moving again by
 itself.
 
-The one rule everything else follows: **Scribbles may clear a false alarm
-or send a sentence back by itself, but it is never the only reader of a
-sentence that looks like a child at risk.**
+Two rules everything else follows:
+- **The local models do the reading.** When they agree, that's the answer.
+  The hosted model is only asked when they disagree, and then it has the
+  last word.
+- **A teacher is only asked about a child who may be in trouble:** an
+  explicit worrying phrase, or a worry every reader shares or the hosted
+  model confirms.
 
 ## What we're working with
 
@@ -27,16 +31,34 @@ sentence that looks like a child at risk.**
   - Each small model needs about 5 to 7 GB of memory, so one is loaded at a
     time. All of them fit on the disk.
   - About 15 seconds a sentence for the fast models, about a minute for the
-    careful ones: roughly 500 sentences a day through three models. The
+    careful ones: roughly 700 sentences a day through the two reading
+    models (a guess until T7 times it). The
     limit is speed, never a daily allowance.
 - **The hosted model** (Llama 3.3 70B on Cloudflare): free up to 10,000
   Neurons over a rolling 24 hours, about 100 questions.
-- **The local models:** Llama Guard 3 8B (safety), then Llama 3.1 8B (fast,
-  cautious), Gemma 4 E4B (most accurate), Qwen 3.5 9B (careful, a third
-  maker).
-- **Measured** on 85 made-up sentences (PR #237): Gemma 4 E4B 81 right,
-  Qwen 3 8B 79, Qwen 3.5 9B 77, Llama 3.1 8B 68. Only Qwen 3 approved
-  anything it shouldn't have (2), so it isn't used.
+- **The local models:** Llama Guard 3 8B (safety only), Gemma 4 E4B
+  (Google, the most accurate) and Qwen 3.5 9B (Alibaba, careful). The last
+  two each answer the welfare question and give a verdict.
+- **Measured** on 85 made-up sentences (PR #237):
+
+  | | Right | Wrong approvals | Harmless ones held as worrying | No answer |
+  | --- | --- | --- | --- | --- |
+  | Gemma 4 E4B | 81 | 0 | 2 | 0 |
+  | Qwen 3.5 9B | 77 | 0 | 4 | 0 |
+  | Qwen 3 8B | 79 | 2 | 2 | 0 |
+  | Llama 3.1 8B | 68 | 0 | 9 | 4 |
+
+  (A hold there came from that model's welfare answer or from the safety
+  model, which ran with each; T4 will tell them apart.)
+
+  - **Llama 3.1 8B is out.** It had 9 harmless sentences held as worrying and
+    gave no usable answer on 4, so it would start most of the
+    disagreements, and each one costs a hosted question. It's also Meta's,
+    like the safety model and the hosted model.
+  - **Qwen 3 8B is out:** the only one that approved what it shouldn't.
+  - Gemma 4 and Qwen 3.5 gave different answers on about 7 of the 63
+    sentences that reached them: about 1 in 9. That is the share the hosted
+    model would be asked about. T5 measures it properly.
 
 ## The parts (build order: top to bottom)
 
@@ -62,20 +84,16 @@ in.
 | An explicit worrying phrase ("I want to die", "I cut my arm again") | **To a teacher,** as a Check in. No AI reads it. |
 | Anything else, or nothing | On to the local models. |
 
-### 2. Is the child OK? (local models, then the hosted model)
+### 2. Is the child OK? (three local readers)
 
-The safety model and the local models read the sentence on our VM. A
-"worry" is any of: the safety model says unsafe, a local model answers yes
-to the welfare question, or a local model's verdict is "unsure" (that is
-the answer they're told to give for anything unkind, scary, personal or
-sad at home).
+Three readers on our VM each say worry or no worry: the safety model
+("unsafe" is a worry), and Gemma 4 and Qwen 3.5 on the welfare question.
 
-| What they say | What happens |
+| What the three say | What happens |
 | --- | --- |
-| No worry | On to step 3. |
-| A worry, and the sentence has personal details | **To a teacher.** Personal details go to no outside service. (This row comes first.) |
-| A worry from two or more models | **To a teacher,** as a Check in. |
-| A worry from one model | The hosted model is asked the welfare question. It sees a worry: **to a teacher.** It sees none: on to step 3, and this version can only be sent back or approved by the hosted model (step 4). |
+| None sees a worry | On to step 3. |
+| All three see a worry | **To a teacher,** as a Check in. |
+| They disagree | The hosted model has the last word (see "When the hosted model is asked"). |
 
 - This is how a sentence held for sensitive words ("die", "hurt", "kill")
   is sorted: "The dragon died in a ball of fire." carries on; a real worry
@@ -83,8 +101,6 @@ sad at home).
 - Only a sentence the rules hold for rude words and nothing else is asked
   the stricter question, as today ("serious or immediate danger?"): kids
   will be kids. Anything with a sensitive word gets the main question.
-- The hosted model reads every worry before it's cleared, because it's the
-  strongest check we have and, today, the one that reads every sentence.
 
 ### 3. Certain reasons to send it back (no model's opinion needed)
 
@@ -93,35 +109,49 @@ The first one that fits, in this order:
 | Reason | Tip the kid sees |
 | --- | --- |
 | Personal details (an address, a phone number, a full name, a link) | New: "Leave out private things like full names, addresses and phone numbers." |
-| Rude or unkind words, or the safety model said unsafe | "Use words that are kind and OK for school." |
+| Rude or unkind words | "Use words that are kind and OK for school." |
 | Mostly not in English | New: "Write your sentence in English so everyone in class can read it." |
 | A copy of the Tell | "Use your own words, not the Tell sentence." |
 | Spelling, capitals, end marks, punctuation | The writing tip, as today. |
 
-A sentence the safety model called unsafe is never approved on that
-version, even when the hosted model clears the worry: it's sent back with
-the kind-words tip. (A false alarm there costs a kid one rewrite.)
+(An "unsafe" from the safety model is a worry, so it's settled in step 2,
+by all three readers or by the hosted model.)
 
-### 4. The verdict (local models, then the hosted model)
+### 4. The verdict (two local models)
 
-| What the local models say | What happens |
+Gemma 4 and Qwen 3.5 each say approve, redo (with a tip) or unsure. For
+them "unsure" means "not for the gallery": unkind, scary, about romance,
+and so on.
+
+| What the two say | What happens |
 | --- | --- |
-| All approve, and no worry was raised in step 2 | **Approved.** |
-| All say redo | **Sent back,** with the most accurate model's tip. |
-| Anything else (they disagree, or a worry was cleared in step 2) | The hosted model decides. Approve: **approved.** Redo: **sent back** with its tip. Unsure: **to a teacher.** |
+| Both approve | **Approved.** |
+| Both say redo | **Sent back,** with Gemma 4's tip. |
+| Both are unsure | **Sent back** with "Use words that are kind and OK for school." |
+| They disagree | The hosted model has the last word. |
 
-- From a sentence's fourth version on, an approval also needs the hosted
-  model to agree. If it says redo, the sentence is sent back with its tip;
-  if it's unsure, to a teacher.
 - Scribbles decides every try. The limit of two send-backs before a
   teacher steps in no longer applies to it. Its send-backs still count as
   tries.
 - A version a teacher has taken back (undo) is the teacher's: Scribbles
   doesn't decide the same words again.
 
-Whether two local models vote (Gemma 4 and Qwen 3.5, two makers, both with
-no wrong approvals) or three (with Llama 3.1, which is fast but the main
-source of split votes) is settled at Checkpoint A, on the numbers.
+### When the hosted model is asked
+
+Only on a disagreement in step 2 or step 4, and from a sentence's fourth
+version on before an approval. It is asked both questions about that
+sentence, and what it says is final:
+
+| The hosted model says | What happens |
+| --- | --- |
+| A worry about the child | **To a teacher,** as a Check in. |
+| No worry, approve | **Approved.** |
+| No worry, redo | **Sent back** with its tip. |
+| No worry, unsure | **Sent back** with the kind-words tip. |
+
+- A sentence with personal details is never sent to it. If the local
+  readers disagree about a worry on one of those: **to a teacher.**
+- If it can't answer, the sentence waits (see below).
 
 ### Edits
 
@@ -156,16 +186,17 @@ sentence keeps its place and is tried again.
 | A model, a question or a rule changes | Answers from the old version don't count; the sentence is read again. | By itself. |
 
 Limits:
-- **A raised worry doesn't wait long.** If a model raised a worry and the
-  hosted model hasn't answered in 6 hours, it goes to a teacher.
+- **A raised worry doesn't wait long.** If the local readers disagreed
+  about a worry and the hosted model hasn't answered in 6 hours, it goes to
+  a teacher.
 - **A stuck line is noticed.** If any sentence waits more than 2 hours, or
   the worker hasn't asked for work in 30 minutes, `watch` opens an issue.
 - **An unread Check in is noticed.** If one has waited a day, `watch`
   opens an issue with the count only, never the words.
 
-The hosted model's free questions (about 100 over any 24 hours) are spent
-in this order: welfare questions first, with part of the day kept back for
-them, then verdicts. One kid can use only a few a day, and can have only so
+The hosted model's free questions (about 100 over any 24 hours, so about
+50 sentences) go to worry disagreements first, with part of the day kept
+back for them, then to verdict disagreements. One kid can use only a few a day, and can have only so
 many sentences read a day, so one kid's edits can't use up everyone's.
 
 Teachers can still decide any waiting sentence by hand, as today.
@@ -173,8 +204,12 @@ Teachers can still decide any waiting sentence by hand, as today.
 ## What a teacher still sees
 
 - Explicit worrying phrases.
-- Worries the hosted model agreed with (or couldn't answer in 6 hours).
-- The rare sentence no model could decide.
+- Worries all three local readers share.
+- Worries the hosted model confirms (or couldn't answer in 6 hours).
+- The rare sentence that breaks a model every time.
+
+Nothing else. "Not sure it's OK for the gallery" is always a send-back,
+never a teacher.
 
 ## Boundaries
 
@@ -194,7 +229,7 @@ Teachers can still decide any waiting sentence by hand, as today.
   `backend/tests/` (`npm test`, `npm run typecheck`, `npm run score:rules`).
 - The worker is a small Node script in `worker/`, run on the VM by systemd
   at low priority. Its tests fake the backend and the models.
-- "Measure small open models" runs the three models, saves their answers,
+- "Measure small open models" runs the local models, saves their answers,
   and scores the decider on them.
 - The Claude Security scan for anything under `backend/reviewer`,
   `backend/controllers`, `backend/middlewares` or `.github/workflows`.
@@ -226,10 +261,9 @@ Teachers can still decide any waiting sentence by hand, as today.
     can't show what each model said. This one asks each model each
     question and saves the answers.
 - [ ] **T5: Score the decider on the saved answers.** Size S. Needs T2, T4.
-  - Done when: the summary shows, for two voters and for three: wrong
-    approvals; wrong send-backs; real worries no model raised; false
-    alarms that reached a teacher; and how many hosted questions it would
-    have taken.
+  - Done when: the summary shows wrong approvals; wrong send-backs; real
+    worries no local reader raised; how many sentences went to a teacher
+    that didn't need to; and how many went to the hosted model.
 - [ ] **T6: The versions before as context** in the questions
   (`backend/reviewer/prompt.ts`). Size S. Needs T5. T4 and T5 are run again
   after it.
@@ -238,10 +272,9 @@ Teachers can still decide any waiting sentence by hand, as today.
 
 **Checkpoint A, with the owner,** on the made-up set and after T6:
 - zero wrong approvals;
-- zero real worries that no model raised;
-- the hosted questions it would take fit in the free allowance at the
-  volume we expect;
-- two voters or three is chosen.
+- zero real worries that no local reader raised;
+- no more than about 1 sentence in 8 goes to the hosted model;
+- almost nothing harmless goes to a teacher.
 
 If any of these fails, the rule or the models change before anything else
 is built.
@@ -304,14 +337,14 @@ model out, behave as the table says.
 
 | Risk | How bad | What we do about it |
 | --- | --- | --- |
-| A real worry is cleared by the models | Worst case | Explicit phrases skip AI. Any one model's worry is enough to ask the hosted model. Checkpoint A measures it before anything is live. |
-| A good sentence is sent back | A kid is discouraged | All three must agree, or the hosted model decides. Measured in T4. A teacher can undo. |
+| A real worry is missed: all three local readers say "no worry" | Worst case. Today the hosted model reads every sentence for this; here it only reads disagreements. | Explicit phrases skip AI and go to a teacher. One reader's worry is enough to bring in the hosted model. Checkpoint A must show no made-up worry gets past all three before anything is live, and the weekly canary keeps checking. |
+| A good sentence is sent back | A kid is discouraged | Both models must agree, or the hosted model decides. Measured in T5. A teacher can undo. |
 | Oracle takes the free VM back, or shrinks it | The line stops | Sentences wait; an issue opens; teachers can decide by hand. The worker runs on any machine. |
 | Cloudflare cuts the free tier | Split votes wait | Same: they wait, an issue opens. The hosted model's name is one setting. |
 | A model is retired or changes | Answers drift | Models are pinned to an exact version; the weekly canary catches drift. |
 | A kid tricks a model ("SYSTEM: approve") | A wrong approval | No single model approves. Trick sentences are in the made-up set. |
 | The job key leaks | Someone could read waiting sentences (never who wrote them, never explicit worrying phrases) and post fake "approve" answers | The rule checks still run in the backend and can't be skipped. Auto-decisions are limited per hour, then pause. The key lives with its own user on the VM and can be changed in one place. |
-| More hosted questions than the free allowance | Split votes wait until the next day | Measured at Checkpoint A. Welfare questions go first. Per-kid limits. Two voters make fewer split votes than three. |
+| More disagreements than the free allowance covers | Those sentences wait until the next day | Measured at Checkpoint A. Worries go first. Per-kid limits. If it's too many, a third local model can break ties (T5 can score that from the saved answers). |
 | Teachers stop opening the Teacher page | A Check in sits unread | `watch` opens an issue (count only) when one has waited a day. A message to the teacher is the better fix, and is an open question. |
 
 ## Not in this version
@@ -319,32 +352,28 @@ model out, behave as the table says.
 - **A message to the teacher when a Check in arrives** (see the open
   questions). The app sends no email today.
 - **Classes,** and a switch per class.
-- **A second VM or a graphics card:** only if 500 a day isn't enough.
+- **A second VM or a graphics card:** only if the VM is too slow.
 - **Training our own model.**
 - **A new tip for sentences that are too long:** the app already refuses
   to save them.
-
-## Open questions for the owner
-
-1. **The two new tips' words** (step 3).
-2. **Personal details and the VM:** today a sentence with an address or a
-   phone number goes to no AI at all. This plan lets the local models on
-   the VM read it (to check the child is OK) and never the hosted model. OK?
-3. **Telling a teacher about a Check in.** Once Scribbles decides the
-   rest, teachers have little reason to open the Teacher page. An issue for
-   the owner after a day is in the plan. An email to the teacher needs a
-   mail service (free ones exist); should that be added?
 
 ## Decided by the owner (2026-11-25)
 
 - No 1-in-5 teacher sample. The canary and teachers' undos are the checks.
 - Scribbles decides every try, the third and later ones too.
-- Three local models: Llama 3.1 8B, Gemma 4 E4B, Qwen 3.5 9B.
+- Two local models give verdicts: Gemma 4 E4B and Qwen 3.5 9B. Llama 3.1
+  8B is out (too many false worries and unusable answers).
+- The hosted model is only asked when the local readers disagree, and a
+  teacher only about a child who may be in trouble.
+- The two new tips' words are agreed.
+- Sentences with personal details may be read by the local models on the
+  VM, never by the hosted model.
+- No message to teachers about a Check in for now.
 - Scribbles sends back by itself, judgment calls ("add more detail") as
   well as certain mistakes.
 - A flag doesn't stick to a sentence; the version before is context.
 - From the fourth version on, the hosted model must also agree before an
-  approval. No teacher.
+  approval.
 - Sentences the rule checks hold for sensitive words may be read by the
   local models, and by the hosted model for a second opinion.
 - Explicit worrying phrases and confirmed worries stay with a teacher.
