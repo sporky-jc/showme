@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { checkRules, hasPersonalDetails, isUnsafe, isWorrying } from "../reviewer/rules.js";
 import { reviewSentence, type ReviewProvider, type SafetyCheck, type WelfareCheck } from "../reviewer/reviewer.js";
 import { ProviderAnswer, WelfareAnswer } from "../reviewer/contract.js";
-import { PRAISE, TIPS, TIP_IDS } from "../reviewer/tips.js";
+import { PRAISE, TECHNIQUE_TIP, TIPS, TIP_IDS } from "../reviewer/tips.js";
+import tellList from "../public/tellList.js";
 import { ProviderError } from "../reviewer/providers/http.js";
 
 // The reviewer: rule checks first, then AI providers, then a person.
@@ -21,6 +22,11 @@ describe("the tips", () => {
 
   it("include the praise that goes with approve", () => {
     expect(TIP_IDS).toContain(PRAISE);
+  });
+
+  it("have one for what every Tell asks for", () => {
+    for (const { id, technique } of tellList) expect(TECHNIQUE_TIP[technique], `${id}: ${technique}`).toBeDefined();
+    expect(TECHNIQUE_TIP.simile).toBe("compare");
   });
 });
 

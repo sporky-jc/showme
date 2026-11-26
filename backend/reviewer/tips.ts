@@ -6,6 +6,7 @@
 // Written by people, in Scribbles' voice: short, kind, one idea each, and
 // something a student can act on. Change the words freely; keep the ids
 // (saved suggestions and the providers' instructions refer to them).
+import type { Technique } from "../contract/api.js";
 
 export const TIPS = {
   // What to add
@@ -18,6 +19,13 @@ export const TIPS = {
   action: "Show someone doing something. What are they doing?",
   compare: "Try comparing it to something, like \"as cold as…\" or \"like a…\"",
   more: "Add a little more. One more detail makes the picture clearer.",
+
+  // What a Tell asks for, when the sentence doesn't use it (TECHNIQUE_TIP
+  // below). The examples aren't about any Tell, so they don't give one away.
+  metaphor: "Try a metaphor: say one thing is another, like \"The snow was a blanket.\"",
+  personification: "Make it act like a person, like \"The sun smiled down at us.\"",
+  hyperbole: "Stretch the truth to make it big, like \"I waited a million years.\"",
+  allusion: "Name a story or hero everyone knows, like Superman or Cinderella.",
 
   // How it's written
   showNotTell: "Instead of saying how it is, show what makes it that way.",
@@ -52,6 +60,19 @@ export const TIP_IDS = Object.keys(TIPS) as [TipId, ...TipId[]];
 
 // The tip that goes with "approve"; every other tip goes with "redo"
 export const PRAISE: TipId = "great";
+
+// The tip for a sentence that doesn't use what its Tell asks for
+// (contract/api.ts, TECHNIQUES). A simile is a comparison, and the senses
+// have their own tip. No Tell asks for onomatopoeia or alliteration yet:
+// they get the general tips until one does.
+export const TECHNIQUE_TIP: Partial<Record<Technique, TipId>> = {
+  senses: "senses",
+  simile: "compare",
+  metaphor: "metaphor",
+  personification: "personification",
+  hyperbole: "hyperbole",
+  allusion: "allusion",
+};
 
 // Clean-up tips: the writing itself (spelling, capitals, punctuation,
 // grammar). Every other tip asks the child to revise (stay on topic, use
