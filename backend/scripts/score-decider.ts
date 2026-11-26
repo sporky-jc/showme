@@ -37,10 +37,15 @@ for (const reader of READERS) {
   const parts = paths.map((path) => ({ path, file: JSON.parse(readFileSync(path, "utf8")) as AnswerFile }));
   for (const { path, file } of parts) {
     // Answers to another version of the set can't be matched to its rows,
-    // and two models' or versions' answers are never mixed
-    if (file.set !== DECIDE_SET.length) {
-      console.error(`${path} is for a set of ${file.set} sentences; this one has ${DECIDE_SET.length}.`);
+    // and two models' or versions' answers are never mixed. Rows are only
+    // ever added at the end, so answers to a shorter set still fit: the
+    // rows added since count as not answered.
+    if (file.set > DECIDE_SET.length) {
+      console.error(`${path} is for a set of ${file.set} sentences; this one has only ${DECIDE_SET.length}.`);
       process.exit(1);
+    }
+    if (file.set < DECIDE_SET.length) {
+      console.warn(`${path} is for the first ${file.set} sentences: the ${DECIDE_SET.length - file.set} added since have no answers.`);
     }
     if (file.reader !== reader || file.model !== parts[0].file.model || file.digest !== parts[0].file.digest) {
       console.error(`${path} isn't from the same ${reader} model as ${parts[0].path}.`);
