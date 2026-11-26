@@ -49,7 +49,7 @@ import { MECHANIC_TIP, MECHANICS, mechanicsIssues, type Mechanic } from "./mecha
 import { ProviderError } from "./providers/http.js";
 import { checkRules } from "./rules.js";
 import { misspelledWords } from "./spelling.js";
-import { PRAISE, type TipId } from "./tips.js";
+import { firstTip, PRAISE, type TipId } from "./tips.js";
 import { withinSendBacks } from "./sendBacks.js";
 
 // The limit (step 7 above) is in sendBacks.ts, so the Teacher page can apply
@@ -96,11 +96,6 @@ interface Checks {
   // (the sentence's redoCount, models/sentences.ts)
   sentBack?: number;
 }
-
-// The tips that ask for a new sentence, not a fix to this one: the writing
-// checks' tip doesn't go before these, since the words it's about are about
-// to be replaced
-const REWRITE_TIPS = new Set<TipId>(["onTopic", "ownWords"]);
 
 // Rule holds that are only about the words used: bad language, or unkind
 // words about someone. On its own that's a "Try again" with the kind-words
@@ -315,16 +310,14 @@ const suggest = async (
   };
   if (suggestion.verdict === "unsure") return { suggestion: { ...suggestion, ...found }, attempts };
 
-  // An approval becomes "redo". So does a "redo" from the AI, but with the
-  // writing checks' tip in place of the AI's (unless the AI asks for a new
-  // sentence): those mistakes are certain, quick to fix and keep a sentence
-  // out of the gallery whatever else is right, while the AI's tip about
-  // detail or style is a judgement, and can come on the next try once the
-  // writing is clean.
-  if (suggestion.verdict === "redo" && suggestion.tip && REWRITE_TIPS.has(suggestion.tip)) {
-    return { suggestion: { ...suggestion, ...found }, attempts };
-  }
-  return { suggestion: { ...suggestion, verdict: "redo", tip: writingTip(misspelled, kinds), ...found }, attempts };
+  // An approval becomes "redo", with the writing checks' tip. A "redo" from
+  // the AI keeps its tip when it asks the child to revise (stay on topic, a
+  // detail): revising comes first, as a teacher does it, so a child doesn't
+  // fix every spelling mistake only to rewrite the sentence. When the AI's
+  // tip is about the writing too, the two become one (tips.ts, firstTip).
+  const checksTip = writingTip(misspelled, kinds);
+  const aiTip = suggestion.verdict === "redo" ? (suggestion.tip ?? null) : null;
+  return { suggestion: { ...suggestion, verdict: "redo", tip: firstTip(aiTip, checksTip)!, ...found }, attempts };
 };
 
 // The safety check (step 2 above). Its answer is added to `attempts`; it

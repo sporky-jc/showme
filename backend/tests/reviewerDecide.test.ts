@@ -138,8 +138,6 @@ describe("step 3: certain reasons to send it back", () => {
     ["unkind words", hold("unkind", "names-someone"), null, "kindWords"],
     ["mostly not in English", hold("not-english"), null, "inEnglish"],
     ["a copy of the Tell", { outcome: "redo", tip: "ownWords", reasons: ["copies-tell"] } as RuleOutcome, null, "ownWords"],
-    ["a spelling mistake", PASS, "spelling", "spelling"],
-    ["several kinds of mistake", PASS, "checkWriting", "checkWriting"],
   ] as const)("sends back %s with its tip, whatever the models said", (_name, rules, writingTip, tip) => {
     expect(decide(allIn({ rules, writingTip }))).toEqual({ step: "send-back", tip });
   });
@@ -205,6 +203,44 @@ describe("step 4: the verdict", () => {
     // The facts hold no count of tries or versions, so none can change the step
     expect(Object.keys(allIn())).not.toContain("redoCount");
     expect(decide(allIn({ verdicts: { first: REDO_SEE, second: REDO_SEE } }))).toEqual({ step: "send-back", tip: "see" });
+  });
+});
+
+describe("step 5: revise first, then clean up", () => {
+  it("sends an approval back with the writing checks' tip: a mistake never reaches the gallery", () => {
+    expect(decide(allIn({ writingTip: "spelling" }))).toEqual({ step: "send-back", tip: "spelling" });
+  });
+
+  it.each([
+    ["off topic", { verdict: "redo", tip: "onTopic" }, "onTopic"],
+    ["a detail to add", REDO_SEE, "see"],
+    ["not for the gallery", UNSURE, "kindWords"],
+  ] as const)("puts a model's tip to revise (%s) before the spelling tip", (_name, verdict, tip) => {
+    const answer = verdict as ProviderAnswer;
+    expect(decide(allIn({ writingTip: "spelling", verdicts: { first: answer, second: answer } }))).toEqual({
+      step: "send-back",
+      tip,
+    });
+  });
+
+  it("joins a model's grammar tip and the writing checks' spelling tip into one", () => {
+    const grammar: ProviderAnswer = { verdict: "redo", tip: "readAloud" };
+    expect(decide(allIn({ writingTip: "spelling", verdicts: { first: grammar, second: grammar } }))).toEqual({
+      step: "send-back",
+      tip: "checkWriting",
+    });
+    // The same tip twice is still that tip
+    const spelling: ProviderAnswer = { verdict: "redo", tip: "spelling" };
+    expect(decide(allIn({ writingTip: "spelling", verdicts: { first: spelling, second: spelling } }))).toEqual({
+      step: "send-back",
+      tip: "spelling",
+    });
+  });
+
+  it("still puts the certain reasons first: personal details before a model's tip", () => {
+    expect(
+      decide(allIn({ rules: hold("personal-details"), writingTip: "spelling", verdicts: { first: REDO_SEE, second: REDO_SEE } }))
+    ).toEqual({ step: "send-back", tip: "privateDetails" });
   });
 });
 

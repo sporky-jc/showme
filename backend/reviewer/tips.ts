@@ -52,3 +52,26 @@ export const TIP_IDS = Object.keys(TIPS) as [TipId, ...TipId[]];
 
 // The tip that goes with "approve"; every other tip goes with "redo"
 export const PRAISE: TipId = "great";
+
+// Clean-up tips: the writing itself (spelling, capitals, punctuation,
+// grammar). Every other tip asks the child to revise (stay on topic, use
+// their own words, add a detail, kinder words...), and revising comes
+// first: a child shouldn't fix every spelling mistake only to find the
+// sentence has to be written again.
+export const CLEAN_UP_TIPS: ReadonlySet<TipId> = new Set<TipId>([
+  "spelling",
+  "capitals",
+  "endMark",
+  "punctuation",
+  "checkWriting",
+  "readAloud",
+]);
+
+// The one tip to send back, given a model's tip and the writing checks' tip
+// (either may be missing). A revise tip goes first. Two different clean-up
+// tips become one that covers both, so they're fixed in one try.
+export const firstTip = (modelTip: TipId | null, writingTip: TipId | null): TipId | null => {
+  if (modelTip && !CLEAN_UP_TIPS.has(modelTip)) return modelTip;
+  if (!modelTip || !writingTip || modelTip === writingTip) return writingTip ?? modelTip;
+  return "checkWriting";
+};

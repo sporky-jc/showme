@@ -18,15 +18,20 @@
 //      the hosted model has the last word (never for a sentence with
 //      personal details: then a teacher). This is the only time the
 //      hosted model is asked, so only a small share of sentences go to it.
-//   3. Certain reasons to send it back, no model's opinion needed.
+//   3. Certain reasons to send it back, no model's opinion needed:
+//      personal details, rude or unkind words, not in English, copying
+//      the Tell.
 //   4. The verdict from the two local models. Agree: done. Split: sent
 //      back, with the tip of a model that didn't approve (the first's when
 //      neither did). The worst this does is ask a child to look again at
 //      a good sentence; it never puts one in the gallery that a model
 //      doubted.
+//   5. Revise first, then clean up: a model's tip about the idea (on
+//      topic, a detail) goes before the writing checks' spelling and
+//      punctuation tip, and those two kinds of writing tip become one.
 import type { ProviderAnswer } from "./contract.js";
 import type { RuleOutcome } from "./rules.js";
-import { PRAISE, type TipId } from "./tips.js";
+import { firstTip, PRAISE, type TipId } from "./tips.js";
 import type { WelfareQuestion } from "./reviewer.js";
 
 // The two local models that give verdicts. "first" is the more accurate one
@@ -99,14 +104,23 @@ export const welfareQuestion = (rules: RuleOutcome): WelfareQuestion => {
   return reasons.length > 0 && reasons.every((reason) => RUDE.has(reason)) ? "danger" : "welfare";
 };
 
-// Step 3: the certain reasons, in order; null when there are none
-const certainTip = ({ rules, writingTip }: Facts): TipId | null => {
+// Step 3: the certain reasons, in order; null when there are none. The
+// writing checks' tip isn't one of them: it waits for step 5.
+const certainTip = ({ rules }: Facts): TipId | null => {
   const reasons: string[] = reasonsOf(rules);
   if (reasons.includes("personal-details")) return "privateDetails";
   if (reasons.some((reason) => RUDE.has(reason))) return "kindWords";
   if (reasons.includes("not-english")) return "inEnglish";
   if (rules.outcome === "redo") return rules.tip;
-  return writingTip;
+  return null;
+};
+
+// Step 5: the writing checks after the verdict. Never an approval with a
+// mistake in it.
+const withWriting = (step: Step, writingTip: TipId | null): Step => {
+  if (step.step === "approve") return writingTip ? { step: "send-back", tip: writingTip } : step;
+  if (step.step !== "send-back") return step;
+  return { step: "send-back", tip: firstTip(step.tip, writingTip)! };
 };
 
 // One model's verdict turned into a step. "Unsure" means "not for the
@@ -165,6 +179,10 @@ export const decide = (facts: Facts): Step => {
 
   // 4. The verdict. The hosted model's, when it was asked about a worry
   // (it gives both answers together), is final.
+  return withWriting(verdictStep(facts), facts.writingTip);
+};
+
+const verdictStep = ({ verdicts = {}, hosted }: Facts): Step => {
   if (hosted) return fromVerdict(hosted.verdict);
   const first = verdicts.first!;
   const second = verdicts.second!;
