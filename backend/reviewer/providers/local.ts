@@ -10,9 +10,13 @@
 import type { ReviewInput, ReviewProvider, SafetyCheck, WelfareCheck, WelfareQuestion } from "../reviewer.js";
 import {
   ANSWER_SCHEMA,
+  CHECKLIST_INSTRUCTIONS,
+  CHECKLIST_SCHEMA,
   DANGER_INSTRUCTIONS,
   REVIEW_INSTRUCTIONS,
   reviewMessage,
+  SUITABLE_INSTRUCTIONS,
+  SUITABLE_SCHEMA,
   WELFARE_INSTRUCTIONS,
   WELFARE_SCHEMA,
 } from "../prompt.js";
@@ -92,4 +96,34 @@ export const localWelfare = (settings: LocalSettings): WelfareCheck => ({
       },
       signal
     ),
+});
+
+// The writing checklist and the gallery question (prompt.ts), for the
+// decider (decide.ts). Each returns the raw answer; the caller checks it
+// against its fixed form (contract.ts: ChecklistAnswer, SuitableAnswer).
+const ask =
+  (settings: LocalSettings, name: string, instructions: string, schema: unknown, maxTokens: number) =>
+  (input: ReviewInput, signal: AbortSignal) =>
+    chat(
+      settings,
+      {
+        messages: [
+          { role: "system", content: instructions },
+          { role: "user", content: reviewMessage(input) },
+        ],
+        response_format: form(name, schema),
+        max_tokens: maxTokens,
+        ...NO_THINKING,
+      },
+      signal
+    );
+
+export const localChecklist = (settings: LocalSettings) => ({
+  name: `local-checklist:${settings.model}`,
+  check: ask(settings, "checklist", CHECKLIST_INSTRUCTIONS, CHECKLIST_SCHEMA, 60),
+});
+
+export const localSuitable = (settings: LocalSettings) => ({
+  name: `local-suitable:${settings.model}`,
+  check: ask(settings, "suitable", SUITABLE_INSTRUCTIONS, SUITABLE_SCHEMA, 20),
 });

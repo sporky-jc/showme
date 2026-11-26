@@ -20,7 +20,7 @@
 // clean up after (spelling and grammar, as one tip when both are wrong).
 // New rows only ever go at the end: saved answers name a row by its place.
 import { tellForTitle } from "../../public/tellList.js";
-import type { TipId } from "../tips.js";
+import { DETAIL_TIPS, type TipId } from "../tips.js";
 import { SAMPLES } from "../samples.js";
 import { PRACTICE_SET, type PracticeRow } from "./practiceSet.js";
 
@@ -166,7 +166,7 @@ const PAIRS: { tell: string; before: string; show: string; expect: Expect }[] = 
 // The order rows (tasks/scribbles-worker-spec.md, "revise first"). Each
 // has one problem a teacher would raise first, and often a slip to clean up
 // later, which must not come first.
-const DETAIL: TipId[] = ["see", "hear", "feel", "smell", "taste", "senses", "action", "compare", "more", "showNotTell"];
+const DETAIL: TipId[] = [...DETAIL_TIPS];
 const ORDER: { group: string; day: number; show: string; tips?: TipId[] }[] = [
   // Off topic, with slips: on topic comes first, before anything else
   { group: "off-topic", day: 1, show: "My dog likes to play fetch in the park on sundays", tips: ["onTopic"] },

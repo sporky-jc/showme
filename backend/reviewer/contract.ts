@@ -4,7 +4,7 @@
 // thrown away if it is anything else (extra fields, free text, an unknown
 // tip): nothing a model writes is ever shown, stored as text or run.
 import { z } from "zod";
-import { PRAISE, TIP_IDS } from "./tips.js";
+import { DETAIL_TIPS, PRAISE, TIP_IDS } from "./tips.js";
 import type { MechanicsIssue } from "./mechanics.js";
 
 // Longer than any Show sentence. The rule checks hold anything longer (see
@@ -104,6 +104,29 @@ export type ProviderAnswer = z.infer<typeof ProviderAnswer>;
 export const WELFARE_CONCERNS = ["yes", "no"] as const;
 export const WelfareAnswer = z.object({ concern: z.enum(WELFARE_CONCERNS) }).strict();
 export type WelfareAnswer = z.infer<typeof WelfareAnswer>;
+
+// The writing checklist's answer (prompt.ts, CHECKLIST_INSTRUCTIONS),
+// exactly: four yes-or-no questions about the writing, in a teacher's
+// order, and the detail tip that would help most. The decider picks the tip
+// a child sees from these (decide.ts); the model never chooses one freely.
+export const YES_NO = ["yes", "no"] as const;
+export const ChecklistAnswer = z
+  .object({
+    onTopic: z.enum(YES_NO),
+    technique: z.enum(YES_NO),
+    shows: z.enum(YES_NO),
+    detail: z.enum(DETAIL_TIPS),
+    grammar: z.enum(YES_NO),
+  })
+  .strict();
+export type ChecklistAnswer = z.infer<typeof ChecklistAnswer>;
+
+// The gallery question's answer (prompt.ts, SUITABLE_INSTRUCTIONS), exactly:
+// "yes", or "unsure" for anything that shouldn't go in front of other
+// children. Anything else is invalid, and is asked again.
+export const SUITABLE = ["yes", "unsure"] as const;
+export const SuitableAnswer = z.object({ suitable: z.enum(SUITABLE) }).strict();
+export type SuitableAnswer = z.infer<typeof SuitableAnswer>;
 
 // What the reviewer decided about one sentence
 export interface Suggestion {
