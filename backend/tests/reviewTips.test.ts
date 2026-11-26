@@ -179,6 +179,9 @@ describe("GET /Admin/tips", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toContainEqual({ id: "spelling", text: TIPS.spelling });
+    // The tips for personal details and for writing in English
+    expect(res.body).toContainEqual({ id: "privateDetails", text: TIPS.privateDetails });
+    expect(res.body).toContainEqual({ id: "inEnglish", text: TIPS.inEnglish });
     expect(res.body.map((tip: { id: string }) => tip.id)).not.toContain("great");
     expect(refused.status).toBe(403);
   });
