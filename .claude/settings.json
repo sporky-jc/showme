@@ -6,10 +6,18 @@
         "repo": "lemomo-ai/lemo-opuscar",
         "ref": "8ca0dd805e214bcc1d30714cd5b9d21cc02a454b"
       }
+    },
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official",
+        "ref": "0fbfda5a91f4adc311daca25acc99132f40f0b6e"
+      }
     }
   },
   "enabledPlugins": {
-    "lemo-opuscar@lemolab": true
+    "lemo-opuscar@lemolab": true,
+    "claude-security@claude-plugins-official": true
   },
   "hooks": {
     "PreToolUse": [
