@@ -5,6 +5,11 @@
       "sha256": "26f1965998038d1b3274ddcabc0933e1fccc06891d4721742545031622993433",
       "date": "2026-11-24",
       "why": "Two Markdown files of security advice, no scripts. Every flagged line names a risk to guard against: .env files not to commit, the cloud metadata address to block, 'rotate it first, then purge history' for a leaked secret. The 'not fully inspected' findings are the scanner's own size limit on the reference file."
+    },
+    "marketplace claude-plugins-official: plugins/claude-security/skills/claude-security": {
+      "sha256": "7945a9e56491f2837ad4be3f67c134c3c7d5129984e7d732d289f5db161cf4ed",
+      "date": "2026-11-26",
+      "why": "Anthropic's Claude Security skill, pinned in .claude/settings.json. The HIGH lines are a safety stop (it refuses to go on if a .claude/workflows, .claude/output-styles or linked .claude appears in the scan folder) and an example finding in its patch spec (GET /thumb?name=../../etc/passwd), not a command. The MEDIUM ones are limits on itself: never tell the user to delete a scan's report, and don't ask the user to allow scheduling tools Claude Code refused. Signed off by the owner."
     }
   }
 }
