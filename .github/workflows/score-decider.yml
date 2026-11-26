@@ -1,0 +1,109 @@
+name: Score the decider
+
+# How Scribbles' decider (backend/reviewer/decide.ts) does on the made-up
+# set (backend/reviewer/eval/decideSet.ts), with the local models it would
+# use (tasks/scribbles-worker-spec.md, T4 and T5).
+#
+# Each local reader runs in a job of its own and saves its answer to every
+# question about every sentence as a file kept with the run, so the decider
+# can be scored on them without asking the models again.
+#
+# No real student's writing, no keys, no database, nothing paid: the models
+# run inside the jobs (Ollama, in a container), on GitHub's free ARM runner,
+# the same kind of machine as the VM they'd run on. A run takes a few hours.
+# Run it from the Actions tab with "Run workflow". It also runs on a pull
+# request that changes this file or the code it runs.
+on:
+  workflow_dispatch:
+    inputs:
+      safety_model:
+        description: The safety model (an Ollama name)
+        default: llama-guard3:8b
+      first_model:
+        description: The first voter, the more accurate one (an Ollama name)
+        default: gemma4:e4b
+      second_model:
+        description: The second voter (an Ollama name)
+        default: qwen3.5:9b
+  pull_request:
+    paths:
+      - .github/workflows/score-decider.yml
+      - backend/scripts/collect-answers.ts
+      - backend/reviewer/eval/collect.ts
+      - backend/reviewer/providers/local.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: score-decider-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  collect:
+    name: Answers from ${{ matrix.reader }} (${{ matrix.model }})
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - reader: safety
+            model: ${{ inputs.safety_model || 'llama-guard3:8b' }}
+          - reader: first
+            model: ${{ inputs.first_model || 'gemma4:e4b' }}
+          - reader: second
+            model: ${{ inputs.second_model || 'qwen3.5:9b' }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24' # keep in sync with "engines" in backend/package.json
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Started here, not as a service: a service's whole log is printed at
+      # the end of the job, and Ollama's is thousands of lines
+      - name: Start Ollama
+        run: |
+          docker run -d --name ollama -p 11434:11434 ollama/ollama:0.40.14
+          for try in $(seq 1 30); do
+            curl -fsS http://localhost:11434/api/version && exit 0
+            sleep 2
+          done
+          echo "Ollama didn't start" && exit 1
+
+      # The name goes in as data (jq), never into the command itself
+      - name: Download the model
+        env:
+          MODEL: ${{ matrix.model }}
+        run: |
+          jq -n --arg model "$MODEL" '{model: $model, stream: false}' |
+            curl -fsS --retry 3 --max-time 1800 http://localhost:11434/api/pull -d @-
+
+      - name: Collect answers
+        env:
+          LOCAL_AI_URL: http://localhost:11434
+          LOCAL_MODEL: ${{ matrix.model }}
+          READER: ${{ matrix.reader }}
+          ANSWERS_FILE: answers-${{ matrix.reader }}.json
+        run: node lib/scripts/collect-answers.js
+
+      - name: Keep the answers
+        uses: actions/upload-artifact@v4
+        with:
+          name: answers-${{ matrix.reader }}
+          path: backend/answers-${{ matrix.reader }}.json
+          retention-days: 30
