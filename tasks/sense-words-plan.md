@@ -215,7 +215,8 @@ account. Each returns its sense words, each with a sense.
 `tasks/scribbles-worker-spec.md` (free local models first, the hosted model
 only when needed, sending back as well as approving, no teacher sample).
 Where that spec and the text below differ, the spec is right; B1 (the
-switch), B2, B3 and B7 still stand, as its tasks T9, T7, T5 and T8.
+switch), B2 (the shadow report), B3 (a version on every answer) and B7
+(the canary) still stand, as its tasks T15, T14, T8 and T13.
 
 Reworked 2026-11-25, after a review of this part of the plan. Stage A is
 further along and easier: it only reads sentences a teacher has already
