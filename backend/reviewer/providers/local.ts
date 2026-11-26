@@ -44,6 +44,12 @@ const form = (name: string, schema: unknown) => ({
   json_schema: { name, strict: true, schema },
 });
 
+// No thinking out loud first. Some models (Qwen 3) do by default, and it
+// uses up the few tokens an answer is allowed, leaving the answer empty: in
+// the first measurement they answered nothing at all. Models that don't
+// think take no notice.
+const NO_THINKING = { reasoning_effort: "none" };
+
 export const localReviewer = (settings: LocalSettings): ReviewProvider => ({
   name: `local:${settings.model}`,
   review: (input: ReviewInput, signal: AbortSignal) =>
@@ -56,6 +62,7 @@ export const localReviewer = (settings: LocalSettings): ReviewProvider => ({
         ],
         response_format: form("review", ANSWER_SCHEMA),
         max_tokens: 40,
+        ...NO_THINKING,
       },
       signal
     ),
@@ -81,6 +88,7 @@ export const localWelfare = (settings: LocalSettings): WelfareCheck => ({
         ],
         response_format: form("welfare", WELFARE_SCHEMA),
         max_tokens: 20,
+        ...NO_THINKING,
       },
       signal
     ),

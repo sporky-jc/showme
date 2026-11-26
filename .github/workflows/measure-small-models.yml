@@ -48,11 +48,6 @@ jobs:
       fail-fast: false
       matrix:
         model: ${{ fromJSON(inputs.models || '["qwen3.5:9b","qwen3:8b","gemma4:e4b","llama3.1:8b"]') }}
-    services:
-      ollama:
-        image: ollama/ollama:0.40.14
-        ports:
-          - 11434:11434
     defaults:
       run:
         working-directory: backend
@@ -72,6 +67,17 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Started here, not as a service: a service's whole log is printed at
+      # the end of the job, and Ollama's is thousands of lines
+      - name: Start Ollama
+        run: |
+          docker run -d --name ollama -p 11434:11434 ollama/ollama:0.40.14
+          for try in $(seq 1 30); do
+            curl -fsS http://localhost:11434/api/version && exit 0
+            sleep 2
+          done
+          echo "Ollama didn't start" && exit 1
 
       # The names go in as data (jq), never into the command itself
       - name: Download the models

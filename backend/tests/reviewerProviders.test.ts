@@ -244,12 +244,15 @@ describe("the local models (measuring only)", () => {
       { role: "user", content: reviewMessage(INPUT) },
     ]);
     expect(body.response_format.json_schema.strict).toBe(true);
+    // No thinking first: it would use up the answer's few tokens
+    expect(body.reasoning_effort).toBe("none");
   });
 
   it("reads the safety model's answer strictly, and sends it only the Show sentence", async () => {
     const fetchMock = fakeFetch(200, answer("unsafe\nS11"));
     expect(await localSafety(LOCAL).check(INPUT, signal())).toBe("unsafe");
     expect(sent(fetchMock).body.messages).toEqual([{ role: "user", content: INPUT.show }]);
+    expect(sent(fetchMock).body.reasoning_effort).toBeUndefined();
     fakeFetch(200, answer("Sure! This looks safe to me."));
     await expect(localSafety(LOCAL).check(INPUT, signal())).rejects.toBeInstanceOf(ProviderError);
   });
@@ -259,6 +262,7 @@ describe("the local models (measuring only)", () => {
     expect(await localWelfare(LOCAL).check(INPUT, signal())).toEqual({ concern: "no" });
     expect(sent(fetchMock).body.messages[0].content).toBe(WELFARE_INSTRUCTIONS);
     expect(sent(fetchMock).body.response_format.json_schema.schema).toEqual(WELFARE_SCHEMA);
+    expect(sent(fetchMock).body.reasoning_effort).toBe("none");
     fetchMock = fakeFetch(200, answer('{"concern":"yes"}'));
     await localWelfare(LOCAL).check(INPUT, signal(), "danger");
     expect(sent(fetchMock).body.messages[0].content).toBe(DANGER_INSTRUCTIONS);
