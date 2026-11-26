@@ -37,6 +37,11 @@ export const TIPS = {
   // welfare check has read the sentence and seen nothing worrying
   kindWords: "Use words that are kind and OK for school.",
 
+  // For sentences the rule checks find personal details in, or that are
+  // mostly not in English (tasks/scribbles-worker-spec.md, step 3)
+  privateDetails: "Leave out private things like full names, addresses and phone numbers.",
+  inEnglish: "Write your sentence in English so everyone in class can read it.",
+
   // For a sentence that's ready
   great: "Great picture! Keep painting with words.",
 } as const;
