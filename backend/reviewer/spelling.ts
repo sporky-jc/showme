@@ -84,8 +84,23 @@ const inEitherDictionary = (word: string) =>
 // A sound word, a dictionary word, or one of those stretched ("sooooo" is
 // "so", "nooooo" is "no"). A made-up word that only looks stretched
 // ("blorrrp") is still a mistake: neither "blorrp" nor "blorp" is a word.
+// Words an allusion names that the dictionaries lack ("kryptonite",
+// "Hogwarts"), in lower case: right with or without a capital. Only for the
+// writing checks, like soundWords.ts: the safety rules never read it.
+// Extend freely.
+export const STORY_WORDS = new Set([
+  "kryptonite", "hogwarts", "muggle", "muggles", "quidditch", "narnia", "excalibur", "gotham",
+  "batmobile", "jedi", "jedis", "lightsaber", "lightsabers", "wookiee", "pokemon", "pokeball",
+  "minecraft", "fortnite", "hercules", "achilles", "rapunzel", "cinderella", "pinocchio",
+  "superman", "batman", "spiderman", "wakanda", "asgard", "mjolnir", "hulk", "elsa", "moana",
+  "simba", "hakuna", "matata", "oompa", "loompa", "loompas", "wonka", "hobbit", "hobbits",
+]);
+
 const isSpelledRight = (word: string) =>
-  isWrittenSound(word) || inEitherDictionary(word) || unstretched(word).some(inEitherDictionary);
+  isWrittenSound(word) ||
+  STORY_WORDS.has(word.toLowerCase().replace(/'s$/, "")) ||
+  inEitherDictionary(word) ||
+  unstretched(word).some(inEitherDictionary);
 
 // Two halves of a sound that echo each other, with a hyphen:
 // "pitter-patter", "tick-tock", "splish-splash" (the same letters with
