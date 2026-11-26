@@ -271,7 +271,8 @@ const suggest = async (
     };
   }
 
-  // A copy of the Tell: sent back, but only once the safety check has said
+  // A copy of the Tell, or a sentence that talks to the reviewer: sent
+  // back, but only once the safety check has said
   // it's safe and the welfare check has seen nothing worrying (steps 2 and 3
   // above)
   if (rules.outcome === "redo") {
