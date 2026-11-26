@@ -66,11 +66,26 @@ const ask = async <T>(question: (signal: AbortSignal) => Promise<T>, timeoutMs: 
 export const collectAnswers = async (
   set: DecideRow[],
   asker: Asker,
-  { timeoutMs = 120_000, onProgress }: { timeoutMs?: number; onProgress?: (done: number, total: number) => void } = {}
+  {
+    timeoutMs = 120_000,
+    part = { index: 1, of: 1 },
+    onProgress,
+    onPassDone,
+  }: {
+    timeoutMs?: number;
+    // Every "of"-th sentence read, starting at "index" (1 is the first), so
+    // a slow model's work can be split between jobs
+    part?: { index: number; of: number };
+    onProgress?: (done: number, total: number) => void;
+    // After each question, with every answer so far, so they can be saved
+    // before a job runs out of time
+    onPassDone?: (collected: Collected[]) => void;
+  } = {}
 ): Promise<Collected[]> => {
   const rows = set
     .map((row, index) => ({ index, input: { tell: row.tell, show: row.show }, rules: checkRules(row.tell, row.show) }))
-    .filter(({ rules }) => readByModels(rules));
+    .filter(({ rules }) => readByModels(rules))
+    .filter((_, position) => position % part.of === part.index - 1);
   const collected = new Map<number, Collected>(rows.map(({ index }) => [index, { row: index, ms: {} }]));
   const passes = (["safety", "welfare", "verdict"] as const).filter((pass) => asker[pass]);
   const total = rows.length * passes.length;
@@ -100,6 +115,7 @@ export const collectAnswers = async (
       }
       onProgress?.(++done, total);
     }
+    onPassDone?.([...collected.values()]);
   }
   return [...collected.values()];
 };

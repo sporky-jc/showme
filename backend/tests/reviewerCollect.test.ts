@@ -55,6 +55,32 @@ describe("collectAnswers", () => {
     expect(collected[0].safety).toBeUndefined();
   });
 
+  it("splits the sentences the models read into parts that cover each one once", async () => {
+    const asker: Asker = { safety: async () => "safe" };
+    const first = await collectAnswers(SET, asker, { part: { index: 1, of: 2 } });
+    const second = await collectAnswers(SET, asker, { part: { index: 2, of: 2 } });
+
+    expect(first.map((c) => c.row)).toEqual([0, 3]);
+    expect(second.map((c) => c.row)).toEqual([2]);
+  });
+
+  it("hands over every answer so far after each question, so a job out of time keeps them", async () => {
+    const saved: string[][] = [];
+    const asker: Asker = {
+      welfare: async () => ({ concern: "no" }),
+      verdict: async () => ({ verdict: "approve", tip: "great" }),
+    };
+
+    await collectAnswers(SET, asker, {
+      onPassDone: (collected) => saved.push(collected.map((c) => `${c.welfare ?? "-"}/${typeof c.verdict}`)),
+    });
+
+    expect(saved).toEqual([
+      ["no/undefined", "no/undefined", "no/undefined"],
+      ["no/object", "no/object", "no/object"],
+    ]);
+  });
+
   it("reads answers strictly: anything but the fixed form is invalid", async () => {
     const answers = [{ concern: "maybe" }, { concern: "no", why: "fine" }, { concern: "yes" }];
     const verdicts = [{ verdict: "approve", tip: "more" }, "approve", { verdict: "redo", tip: "see" }];
