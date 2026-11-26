@@ -43,19 +43,31 @@ concurrency:
 
 jobs:
   collect:
-    name: Answers from ${{ matrix.reader }} (${{ matrix.model }})
+    name: Answers from ${{ matrix.reader }} (${{ matrix.model }}), part ${{ matrix.part }} of ${{ matrix.parts }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 330
     strategy:
       fail-fast: false
+      # The second voter (Qwen 3.5 9B) takes about 23 s an answer, five hours
+      # or more for the set, so its sentences are split between two jobs
       matrix:
         include:
           - reader: safety
             model: ${{ inputs.safety_model || 'llama-guard3:8b' }}
+            part: 1
+            parts: 1
           - reader: first
             model: ${{ inputs.first_model || 'gemma4:e4b' }}
+            part: 1
+            parts: 1
           - reader: second
             model: ${{ inputs.second_model || 'qwen3.5:9b' }}
+            part: 1
+            parts: 2
+          - reader: second
+            model: ${{ inputs.second_model || 'qwen3.5:9b' }}
+            part: 2
+            parts: 2
     defaults:
       run:
         working-directory: backend
@@ -100,17 +112,24 @@ jobs:
           LOCAL_AI_URL: http://localhost:11434
           LOCAL_MODEL: ${{ matrix.model }}
           READER: ${{ matrix.reader }}
-          ANSWERS_FILE: answers-${{ matrix.reader }}.json
+          PART: ${{ matrix.part }}/${{ matrix.parts }}
+          ANSWERS_FILE: answers-${{ matrix.reader }}-${{ matrix.part }}.json
+        # Stops before the job's own limit, so the answers saved so far are
+        # still kept
+        timeout-minutes: 320
         run: node lib/scripts/collect-answers.js
 
+      # Even when collecting stopped early: the questions it finished count
       - name: Keep the answers
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: answers-${{ matrix.reader }}
-          path: backend/answers-${{ matrix.reader }}.json
+          name: answers-${{ matrix.reader }}-${{ matrix.part }}
+          path: backend/answers-${{ matrix.reader }}-${{ matrix.part }}.json
+          if-no-files-found: warn
           retention-days: 30
 
-  # Scores the decider on the three files (backend/reviewer/eval/
+  # Scores the decider on the readers' files (backend/reviewer/eval/
   # decideScore.ts). Runs even when a reader's job failed: its answers count
   # as missing, and the report says so.
   score:
