@@ -215,6 +215,25 @@ describe("the rule checks: what the second review found", () => {
     expect(checkRules(COLD, show).outcome).toBe("hold");
   });
 
+  // Bullying said without the word: being ignored, treated as invisible,
+  // names on their things. A worry, for a teacher (the first scores: #203)
+  it.each([
+    "I hate school. Everyone ignores me and pretends I'm invisible, and someone wrote loser on my locker again",
+    "At lunch nobody sits with me and everyone laughs at me.",
+    "They all ignore me like I'm invisible.",
+    "The big kids call me loser on the bus.",
+  ])("holds being bullied as worrying: %s", (show) => {
+    expect(checkRules(COLD, show)).toMatchObject({ outcome: "hold", reasons: expect.arrayContaining(["worrying"]) });
+  });
+
+  it.each([
+    "The snow made the whole street look invisible.",
+    "My locker was so cold the metal stung my fingers.",
+    "We laughed at the snowman's crooked carrot nose.",
+  ])("leaves ordinary sentences that share a word: %s", (show) => {
+    expect(checkRules(COLD, show)).not.toMatchObject({ reasons: expect.arrayContaining(["worrying"]) });
+  });
+
   it.each([
     "The cold f*ck wind froze my nose.",
     "This sh*t snow is so cold and wet.",
