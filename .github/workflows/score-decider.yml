@@ -31,6 +31,8 @@ on:
       - backend/scripts/collect-answers.ts
       - backend/reviewer/eval/collect.ts
       - backend/reviewer/providers/local.ts
+      - backend/scripts/score-decider.ts
+      - backend/reviewer/eval/decideScore.ts
 
 permissions:
   contents: read
@@ -107,3 +109,44 @@ jobs:
           name: answers-${{ matrix.reader }}
           path: backend/answers-${{ matrix.reader }}.json
           retention-days: 30
+
+  # Scores the decider on the three files (backend/reviewer/eval/
+  # decideScore.ts). Runs even when a reader's job failed: its answers count
+  # as missing, and the report says so.
+  score:
+    name: Score the decider
+    needs: collect
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24' # keep in sync with "engines" in backend/package.json
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Get the answers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: answers-*
+          merge-multiple: true
+          path: backend/answers
+
+      - name: Score
+        env:
+          ANSWERS_DIR: answers
+        run: node lib/scripts/score-decider.js

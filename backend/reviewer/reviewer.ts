@@ -214,6 +214,14 @@ const writingTip = (misspelled: string[], kinds: Mechanic[]): TipId => {
   return tips.size === 1 ? [...tips][0] : "checkWriting";
 };
 
+// The writing checks' tip for a sentence, or null when they find nothing:
+// what the decider takes as `writingTip` (decide.ts)
+export const writingTipFor = (show: string): TipId | null => {
+  const misspelled = misspelledWords(show);
+  const kinds = MECHANICS.filter((kind) => mechanicsIssues(show).some((issue) => issue.kind === kind));
+  return misspelled.length === 0 && kinds.length === 0 ? null : writingTip(misspelled, kinds);
+};
+
 const suggest = async (
   input: ReviewInput,
   providers: ReviewProvider[],
