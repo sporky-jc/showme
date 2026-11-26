@@ -91,19 +91,40 @@ describe("the test admin only reviews test accounts' sentences", () => {
 });
 
 describe("the test login's rate limit", () => {
-  it(`refuses test logins beyond ${TEST_LOGINS_PER_MINUTE} a minute (429), counting wrong passes too`, async () => {
+  const validPass = () =>
+    mintTestPass("k".repeat(64), Math.floor(Date.now() / 1000) + 3600);
+
+  it("doesn't count wrong passes, so they can't lock QA Wolf's logins out", async () => {
+    vi.stubEnv("TEST_LOGIN_KEY", "k".repeat(64));
+    vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
+
+    for (let i = 0; i <= TEST_LOGINS_PER_MINUTE; i++) {
+      const res = await request(app)
+        .post("/auth/test")
+        .send({ secret: "wrong-guess", role: "admin" });
+      expect(res.status).toBe(401);
+    }
+    const login = await request(app)
+      .post("/auth/test")
+      .send({ secret: validPass(), role: "admin" });
+
+    expect(login.status).toBe(200);
+    vi.unstubAllEnvs();
+  });
+
+  it(`refuses logins with a valid pass beyond ${TEST_LOGINS_PER_MINUTE} a minute (429)`, async () => {
     vi.stubEnv("TEST_LOGIN_KEY", "k".repeat(64));
     vi.stubEnv("GCLOUD_PROJECT", "showme-staging");
 
     for (let i = 0; i < TEST_LOGINS_PER_MINUTE; i++) {
       const res = await request(app)
         .post("/auth/test")
-        .send({ secret: "wrong-guess", role: "admin" });
-      expect(res.status).toBe(401);
+        .send({ secret: validPass(), role: "student" });
+      expect(res.status).toBe(200);
     }
     const over = await request(app)
       .post("/auth/test")
-      .send({ secret: mintTestPass("k".repeat(64), Math.floor(Date.now() / 1000) + 3600), role: "admin" });
+      .send({ secret: validPass(), role: "student" });
 
     expect(over.status).toBe(429);
     vi.unstubAllEnvs();

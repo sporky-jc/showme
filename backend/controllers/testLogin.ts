@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { TECHNIQUES, TestLoginBody } from "../contract/api.js";
 import Profile from "../models/profile.js";
 import { Sentence } from "../models/sentences.js";
@@ -127,7 +127,10 @@ const opensTheDoor = (given: string) => {
   return key !== undefined && isValidTestPass(given, key);
 };
 
-export const testLogin = async (req: Request, res: Response) => {
+// The door and the pass, checked before the test login's rate limit (see
+// routes.ts), so only requests with a valid pass count against it: wrong
+// passes from anyone can't use up QA Wolf's logins.
+export const testLoginDoor = (req: Request, res: Response, next: NextFunction) => {
   if (!doorIsOpen()) {
     return res.status(404).json({ message: "Not found" });
   }
@@ -139,8 +142,12 @@ export const testLogin = async (req: Request, res: Response) => {
   if (!secret.success || !opensTheDoor(secret.data)) {
     return res.status(401).json({ message: "Invalid test login secret" });
   }
+  next();
+};
 
-  // Then the rest, which must name one of the test accounts. Object.hasOwn,
+// After testLoginDoor
+export const testLogin = async (req: Request, res: Response) => {
+  // The rest, which must name one of the test accounts. Object.hasOwn,
   // so built-in names like "toString" don't count as roles.
   const body = TestLoginBody.safeParse(req.body);
   if (!body.success || !Object.hasOwn(TEST_ACCOUNTS, body.data.role)) {

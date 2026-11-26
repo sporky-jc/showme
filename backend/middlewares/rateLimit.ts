@@ -4,9 +4,11 @@ import { readSession } from "./auth.js";
 import { isTestAccount } from "../config/testAccounts.js";
 
 // How many staging test logins the server takes in a minute, from everyone
-// together: a full QA Wolf suite needs a few dozen, while a script guessing
-// the secret gets nowhere. One shared count, as these requests carry no
-// login to tell senders apart, and all arrive through Netlify's proxy.
+// together: a full QA Wolf suite needs a few dozen. One shared count, as these
+// requests carry no login to tell senders apart, and all arrive through
+// Netlify's proxy. Only requests with a valid pass get this far (the route
+// checks it first, see testLoginDoor), so wrong passes can't use it up, and a
+// signed pass can't be guessed.
 export const TEST_LOGINS_PER_MINUTE = 60;
 export const testLoginRateLimitStore = new MemoryStore();
 
