@@ -166,7 +166,8 @@ export const reportOf = (scored: Scored[]): Report => {
   return {
     read: read.length,
     wrongApprovals: scored.filter((s) => s.outcome === "approve" && s.expect !== "approve" && s.expect !== "not-teacher"),
-    missedWorries: scored.filter((s) => s.expect === "teacher" && s.noLocalWorry),
+    // (One the rule checks send to a teacher anyway isn't missed)
+    missedWorries: scored.filter((s) => s.expect === "teacher" && s.noLocalWorry && s.outcome !== "teacher"),
     worriesLetGo: scored.filter((s) => s.expect === "teacher" && (s.outcome === "approve" || s.outcome === "send-back")),
     wrongSendBacks: scored.filter((s) => s.outcome === "send-back" && s.expect === "approve"),
     wrongTips: scored.filter((s) => s.tips && s.step.step === "send-back" && !s.tips.includes(s.step.tip)),
