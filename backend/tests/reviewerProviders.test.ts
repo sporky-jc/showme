@@ -10,6 +10,7 @@ import {
   CLOUDFLARE_WELFARE_MODEL,
 } from "../reviewer/providers/cloudflare.js";
 import { groqReviewer } from "../reviewer/providers/groq.js";
+import { localReviewer, localSafety, localWelfare } from "../reviewer/providers/local.js";
 import { DANGER_INSTRUCTIONS, REVIEW_INSTRUCTIONS, reviewMessage, WELFARE_INSTRUCTIONS, WELFARE_SCHEMA } from "../reviewer/prompt.js";
 import { reviewerMode, reviewerSetup } from "../reviewer/settings.js";
 import { reviewSentence } from "../reviewer/reviewer.js";
@@ -224,6 +225,65 @@ describe("the Groq reviewer", () => {
     expect(url).toBe("https://api.groq.com/openai/v1/chat/completions");
     expect(headers.Authorization).toBe("Bearer gsk_x");
     expect(body.response_format.json_schema.strict).toBe(true);
+  });
+});
+
+describe("the local models (measuring only)", () => {
+  const LOCAL = { url: "http://localhost:11434/", model: "llama3.1:8b" };
+  const answer = (content: unknown) => ({ choices: [{ message: { content } }] });
+
+  it("asks the reviewer's question in the fixed form, at the OpenAI-style path", async () => {
+    const fetchMock = fakeFetch(200, answer('{"verdict":"redo","tip":"smell"}'));
+    expect(await localReviewer(LOCAL).review(INPUT, signal())).toEqual({ verdict: "redo", tip: "smell" });
+    const { url, body } = sent(fetchMock);
+    expect(url).toBe("http://localhost:11434/v1/chat/completions");
+    expect(body.model).toBe("llama3.1:8b");
+    expect(body.temperature).toBe(0);
+    expect(body.messages).toEqual([
+      { role: "system", content: REVIEW_INSTRUCTIONS },
+      { role: "user", content: reviewMessage(INPUT) },
+    ]);
+    expect(body.response_format.json_schema.strict).toBe(true);
+    // No thinking first: it would use up the answer's few tokens
+    expect(body.reasoning_effort).toBe("none");
+  });
+
+  it("reads the safety model's answer strictly, and sends it only the Show sentence", async () => {
+    const fetchMock = fakeFetch(200, answer("unsafe\nS11"));
+    expect(await localSafety(LOCAL).check(INPUT, signal())).toBe("unsafe");
+    expect(sent(fetchMock).body.messages).toEqual([{ role: "user", content: INPUT.show }]);
+    expect(sent(fetchMock).body.reasoning_effort).toBeUndefined();
+    fakeFetch(200, answer("Sure! This looks safe to me."));
+    await expect(localSafety(LOCAL).check(INPUT, signal())).rejects.toBeInstanceOf(ProviderError);
+  });
+
+  it("asks the welfare check's own question, and the stricter one for rude sentences", async () => {
+    let fetchMock = fakeFetch(200, answer('{"concern":"no"}'));
+    expect(await localWelfare(LOCAL).check(INPUT, signal())).toEqual({ concern: "no" });
+    expect(sent(fetchMock).body.messages[0].content).toBe(WELFARE_INSTRUCTIONS);
+    expect(sent(fetchMock).body.response_format.json_schema.schema).toEqual(WELFARE_SCHEMA);
+    expect(sent(fetchMock).body.reasoning_effort).toBe("none");
+    fetchMock = fakeFetch(200, answer('{"concern":"yes"}'));
+    await localWelfare(LOCAL).check(INPUT, signal(), "danger");
+    expect(sent(fetchMock).body.messages[0].content).toBe(DANGER_INSTRUCTIONS);
+  });
+
+  it("fails on an answer with no content", async () => {
+    fakeFetch(200, { choices: [] });
+    await expect(localReviewer(LOCAL).review(INPUT, signal())).rejects.toBeInstanceOf(ProviderError);
+  });
+
+  it("is never part of the live reviewer's setup, whatever is set", () => {
+    const setup = reviewerSetup({
+      REVIEWER_MODE: "suggest",
+      LOCAL_AI_URL: "http://localhost:11434",
+      LOCAL_REVIEW_MODEL: "llama3.1:8b",
+      LOCAL_SAFETY_MODEL: "llama-guard3:8b",
+      CLOUDFLARE_ACCOUNT_ID: CF.accountId,
+      CLOUDFLARE_AI_TOKEN: CF.token,
+    });
+    const names = [setup.safety?.name, setup.welfare?.name, ...setup.providers.map((p) => p.name)];
+    expect(names.some((name) => name?.startsWith("local"))).toBe(false);
   });
 });
 
