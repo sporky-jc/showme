@@ -57,8 +57,8 @@ Every step can stop a sentence. No single model can approve one.
    - All approve: **approved.**
    - All say redo: **sent back,** with the most careful model's tip.
    - They disagree, or one is unsure: the hosted model decides.
-6. **After two send-backs** of one sentence, a teacher decides, as today:
-   a third "Try again" is more likely to make a kid give up.
+6. **Scribbles decides every try** (decided 2026-11-25). The limit of two
+   send-backs before a teacher steps in no longer applies to Scribbles.
 
 Local models, in order: Llama 3.1 8B (fast, cautious), Gemma 4 E4B (most
 accurate), Qwen 3.5 9B (careful, a third maker). An approval always has
@@ -119,7 +119,7 @@ Teachers can still decide any waiting sentence by hand, as today.
 - With the hosted model out of Neurons, sentences that don't need it are
   still decided, and the rest are decided after the reset.
 - A killed worker loses nothing and decides nothing twice.
-- A teacher's queue holds only Check ins, rule holds and third tries.
+- A teacher's queue holds only Check ins and rule holds.
 
 ## Not in this version
 
@@ -133,10 +133,12 @@ Teachers can still decide any waiting sentence by hand, as today.
 
 1. **Sending back by itself** reverses "approve only, never send back
    automatically" in the plan. Confirm that's what you want.
-2. **The 1-in-5 teacher sample:** keep it as a check after the fact (the
-   sentence is already decided; a teacher just agrees or undoes), or drop it?
-3. **The third try** goes to a teacher today. Keep that, or let Scribbles
-   decide every try?
-4. **Three models or four?** This spec uses three.
-5. **Edits:** should a sentence that was ever flagged always go to a
+2. **Edits:** should a sentence that was ever flagged always go to a
    teacher, and should only its first three versions be decided by Scribbles?
+
+## Decided by the owner (2026-11-25)
+
+- **No 1-in-5 teacher sample.** The weekly canary on the made-up set and
+  teachers' undos are the checks.
+- **Scribbles decides every try,** the third and later ones too.
+- **Three local models:** Llama 3.1 8B, Gemma 4 E4B, Qwen 3.5 9B.
