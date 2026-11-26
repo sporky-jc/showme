@@ -545,19 +545,35 @@ describe("the reviewer", () => {
     }
   });
 
-  it("keeps the writing checks' reasons, and puts their tip first, when the AI itself sends a sentence back", async () => {
+  it("keeps the writing checks' reasons, and the AI's tip to revise first, when the AI itself sends a sentence back", async () => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "the wind bit my noze" },
       [provider("ai", { verdict: "redo", tip: "smell" })],
       SAFE
     );
-    // Spelling, a capital and an end mark: one tip for all three
+    // Revise first (add a smell), clean up the spelling, capital and end mark after
     expect(suggestion).toMatchObject({
       verdict: "redo",
-      tip: "checkWriting",
+      tip: "smell",
       reasons: ["ai", "spelling", "punctuation"],
       misspelled: ["noze"],
     });
+  });
+
+  it("puts the writing checks' tip on an approval, and joins it with the AI's own writing tip", async () => {
+    const approved = await reviewSentence(
+      { tell: COLD, show: "the wind bit my noze" },
+      [provider("ai", { verdict: "approve", tip: "great" })],
+      SAFE
+    );
+    // Spelling, a capital and an end mark: one tip for all three
+    expect(approved.suggestion).toMatchObject({ verdict: "redo", tip: "checkWriting" });
+    const grammar = await reviewSentence(
+      { tell: COLD, show: "The wind bit my noze." },
+      [provider("ai", { verdict: "redo", tip: "readAloud" })],
+      SAFE
+    );
+    expect(grammar.suggestion).toMatchObject({ verdict: "redo", tip: "checkWriting", misspelled: ["noze"] });
   });
 
   it("asks the first provider, showing it only the Tell and the sentence", async () => {

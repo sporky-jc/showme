@@ -110,17 +110,17 @@ describe("the reviewer and spelling", () => {
 
   // The spelling is certain and quick to fix; the AI's tip can come on the
   // next try
-  it("puts the spelling tip before the AI's own tip for a redo, and lists the words for the teacher", async () => {
+  it("puts the AI's tip to revise before the spelling tip, and lists the words for the teacher", async () => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "The wind felt realy sharp on my face." },
       [answering({ verdict: "redo", tip: "senses" })],
       { safety, welfare }
     );
-    expect(suggestion).toMatchObject({ verdict: "redo", tip: "spelling", misspelled: ["realy"] });
+    expect(suggestion).toMatchObject({ verdict: "redo", tip: "senses", misspelled: ["realy"] });
   });
 
-  // ... unless the AI asks for a new sentence: the misspelled words are
-  // about to go
+  // ... and the AI's tip that asks for a new sentence: the misspelled words
+  // are about to go
   it.each(["onTopic", "ownWords"] as const)("keeps the AI's %s tip, which asks for a new sentence", async (tip) => {
     const { suggestion } = await reviewSentence(
       { tell: COLD, show: "The wind felt realy sharp on my face." },
