@@ -211,6 +211,12 @@ account. Each returns its sense words, each with a sense.
 
 ### Stage B: Scribbles suggests, teachers still decide (after A)
 
+**Changed 2026-11-25:** how Scribbles reads and decides is now set out in
+`tasks/scribbles-worker-spec.md` (free local models first, the hosted model
+only when needed, sending back as well as approving, no teacher sample).
+Where that spec and the text below differ, the spec is right; B1 (the
+switch), B2, B3 and B7 still stand, as its tasks T9, T7, T5 and T8.
+
 Reworked 2026-11-25, after a review of this part of the plan. Stage A is
 further along and easier: it only reads sentences a teacher has already
 approved. Stages B and C decide what gets approved, so they go slower.
@@ -591,6 +597,10 @@ day's free allowance.
   A); the word list stays for Write and as the fallback.
 - Sentences may one day be approved automatically, only as Stage C sets out,
   never sent back automatically, with a teacher able to undo.
+- Scribbles decides by itself, approving and sending back, with free local
+  models first (decided 2026-11-25, `tasks/scribbles-worker-spec.md`). That
+  replaces "never sent back automatically" above and the 1-in-5 sample
+  below.
 - Auto-approval (decided 2026-11-25): a teacher still reads 1 in 5, to
   start; the rule checks still flag every sentence; no earned trust per
   kid; an auto-approved sentence shows to classmates at once; the switch works from the site and from GitHub, on staging and
