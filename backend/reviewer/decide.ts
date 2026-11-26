@@ -12,12 +12,18 @@
 //   1. The rule checks. An explicit worrying phrase goes to a teacher, and
 //      to no AI.
 //   2. Is the child OK? Three local readers (the safety model, and the two
-//      local models' welfare answers). None worried: go on. All three: a
-//      teacher. Split: the hosted model has the last word (never for a
-//      sentence with personal details: then a teacher).
+//      local models' welfare answers). None worried: go on. Both local
+//      models: a teacher (the safety model looks for harmful words, not
+//      for a child who isn't OK, so it isn't waited for). Any other split:
+//      the hosted model has the last word (never for a sentence with
+//      personal details: then a teacher). This is the only time the
+//      hosted model is asked, so only a small share of sentences go to it.
 //   3. Certain reasons to send it back, no model's opinion needed.
-//   4. The verdict from the two local models. Agree: done. Split: the
-//      hosted model has the last word.
+//   4. The verdict from the two local models. Agree: done. Split: sent
+//      back, with the tip of a model that didn't approve (the first's when
+//      neither did). The worst this does is ask a child to look again at
+//      a good sentence; it never puts one in the gallery that a model
+//      doubted.
 import type { ProviderAnswer } from "./contract.js";
 import type { RuleOutcome } from "./rules.js";
 import { PRAISE, type TipId } from "./tips.js";
@@ -80,7 +86,7 @@ export type Step =
   | { step: "send-back"; tip: TipId }
   | { step: "teacher"; because: TeacherBecause }
   | { step: "ask-local"; question: WelfareQuestion }
-  | { step: "ask-hosted"; question: WelfareQuestion; about: "worry" | "verdict" };
+  | { step: "ask-hosted"; question: WelfareQuestion; about: "worry" };
 
 // Rule holds that are only about the words used: asked the stricter welfare
 // question (serious or immediate danger), as today (reviewer.ts, RUDE_ONLY)
@@ -144,7 +150,7 @@ export const decide = (facts: Facts): Step => {
 
   // 2. Is the child OK?
   const worried = worries.filter((answer) => answer === "unsafe" || answer === "yes").length;
-  if (worried === READERS.length) return { step: "teacher", because: "worry" };
+  if (VOTERS.every((voter) => welfare[voter] === "yes")) return { step: "teacher", because: "worry" };
   const worrySplit = worried > 0;
   if (worrySplit && !hosted) {
     // Personal details never go to the hosted model
@@ -157,10 +163,12 @@ export const decide = (facts: Facts): Step => {
   const tip = certainTip(facts);
   if (tip) return { step: "send-back", tip };
 
-  // 4. The verdict. The hosted model's, once it's been asked, is final.
+  // 4. The verdict. The hosted model's, when it was asked about a worry
+  // (it gives both answers together), is final.
   if (hosted) return fromVerdict(hosted.verdict);
   const first = verdicts.first!;
   const second = verdicts.second!;
   if (first.verdict === second.verdict) return fromVerdict(first);
-  return { step: "ask-hosted", question, about: "verdict" };
+  // Split: never approved. The tip of a model that didn't approve.
+  return fromVerdict(first.verdict === "approve" ? second : first);
 };
