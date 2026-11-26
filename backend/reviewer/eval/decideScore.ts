@@ -32,6 +32,9 @@ export interface Scored {
   // No local reader saw a worry (the safety model said safe, and both
   // voters said no)
   noLocalWorry: boolean;
+  // What each local reader said, short: "safe", "unsafe", "yes", "no",
+  // "approve", "redo", "unsure", or "-" for no answer
+  said: { safety: string; welfare: Record<Voter, string>; verdict: Record<Voter, string> };
 }
 
 const outcomeOf = (step: Step): Outcome =>
@@ -74,6 +77,11 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
       outcome: outcomeOf(step),
       step,
       noLocalWorry: facts.safety === "safe" && VOTERS.every((voter) => facts.welfare?.[voter] === "no"),
+      said: {
+        safety: facts.safety ?? "-",
+        welfare: { first: facts.welfare.first ?? "-", second: facts.welfare.second ?? "-" },
+        verdict: { first: facts.verdicts.first?.verdict ?? "-", second: facts.verdicts.second?.verdict ?? "-" },
+      },
     };
   });
 };
@@ -99,9 +107,33 @@ export interface Report {
   wrongSendBacks: Scored[];
   teacherForNothing: Scored[];
   hosted: number;
+  // Why they'd go to the hosted model: who raised a worry the others
+  // didn't, or which two verdicts didn't match. Most common first.
+  hostedWhy: { why: string; count: number }[];
   noAnswer: number;
   wrong: Scored[];
 }
+
+// Why one sentence would go to the hosted model
+export const whyHosted = ({ step, said }: Scored): string => {
+  if (step.step === "ask-hosted" && step.about === "worry") {
+    const raised = [
+      said.safety === "unsafe" && "safety model",
+      said.welfare.first === "yes" && "first voter",
+      said.welfare.second === "yes" && "second voter",
+    ].filter(Boolean);
+    return `worry raised by the ${raised.join(" and ")} only`;
+  }
+  return `verdicts split: first ${said.verdict.first}, second ${said.verdict.second}`;
+};
+
+const tallied = (whys: string[]) => {
+  const counts = new Map<string, number>();
+  for (const why of whys) counts.set(why, (counts.get(why) ?? 0) + 1);
+  return [...counts]
+    .map(([why, count]) => ({ why, count }))
+    .sort((a, b) => b.count - a.count || a.why.localeCompare(b.why));
+};
 
 export const reportOf = (scored: Scored[]): Report => {
   const read = scored.filter((s) => !(s.step.step === "teacher" && s.step.because === "worrying-words"));
@@ -115,6 +147,7 @@ export const reportOf = (scored: Scored[]): Report => {
       (s) => s.outcome === "teacher" && (s.expect === "approve" || s.expect === "send-back" || s.expect === "not-teacher")
     ),
     hosted: read.filter((s) => s.outcome === "hosted").length,
+    hostedWhy: tallied(read.filter((s) => s.outcome === "hosted").map(whyHosted)),
     noAnswer: read.filter((s) => s.outcome === "no-answer").length,
     wrong: scored.filter((s) => WRONG[s.expect].includes(s.outcome)),
   };
@@ -161,6 +194,7 @@ export const formatDecideReport = (
     `- Good sentences sent back: ${report.wrongSendBacks.length}`,
     `- Sent to a teacher with no need: ${report.teacherForNothing.length}`,
     `- To the hosted model: **${report.hosted}** of ${report.read} (${percent(report.hosted, report.read)})`,
+    ...report.hostedWhy.map(({ why, count }) => `  - ${why}: ${count}`),
     `- Still waiting for a local answer (a model failed): ${report.noAnswer}`,
     `- Anything else wrong: ${report.wrong.length}`,
     "",
@@ -181,3 +215,15 @@ export const formatDecideReport = (
   list("Good sentences sent back", report.wrongSendBacks);
   return lines.join("\n");
 };
+
+// One line per sentence the models read: what each said and what the
+// decider did, by number only, for working out a better rule from a run's
+// log (the made-up words are in decideSet.ts)
+export const answersTable = (scored: Scored[]) =>
+  scored
+    .filter((s) => !(s.step.step === "teacher" && (s.step.because === "worrying-words" || s.step.because === "too-long")))
+    .map(
+      ({ row, expect, outcome, said }) =>
+        `#${row} ${expect}->${outcome} safety:${said.safety} first:${said.welfare.first}/${said.verdict.first} second:${said.welfare.second}/${said.verdict.second}`
+    )
+    .join("\n");

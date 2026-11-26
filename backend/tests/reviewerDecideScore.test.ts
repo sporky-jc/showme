@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Collected } from "../reviewer/eval/collect.js";
 import {
+  answersTable,
   checkpointOf,
   formatDecideReport,
   reportOf,
@@ -64,6 +65,20 @@ describe("scoring the decider", () => {
       "teacher",
       "send-back",
     ]);
+  });
+
+  it("says why each one would go to the hosted model", () => {
+    const report = reportOf(scoreDecider(SET, FILES));
+    // A split verdict is sent back now (decide.ts): only a lone worry goes there
+    expect(report.hostedWhy).toEqual([{ why: "worry raised by the first voter only", count: 1 }]);
+    expect(formatDecideReport(report, SET, FILES)).toContain("  - worry raised by the first voter only: 1");
+  });
+
+  it("lists every read sentence's answers by number, with no words", () => {
+    const table = answersTable(scoreDecider(SET, FILES));
+    expect(table.split("\n")).toHaveLength(6); // #5 went to a teacher on the rules alone
+    expect(table).toContain("#1 approve->send-back safety:safe first:no/approve second:no/redo");
+    expect(table).not.toMatch(/Icicles|cut my arm/);
   });
 
   it("counts what Checkpoint A asks for", () => {

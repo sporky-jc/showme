@@ -12,7 +12,11 @@ name: Score the decider
 # run inside the jobs (Ollama, in a container), on GitHub's free ARM runner,
 # the same kind of machine as the VM they'd run on. A run takes a few hours.
 # Run it from the Actions tab with "Run workflow". It also runs on a pull
-# request that changes this file or the code it runs.
+# request that changes this file or the code that asks the models.
+#
+# To score a change to the decider or the scoring alone, give "Run workflow"
+# an earlier run's number in "answers_from_run": no model is asked, and the
+# run takes a minute.
 on:
   workflow_dispatch:
     inputs:
@@ -25,14 +29,15 @@ on:
       second_model:
         description: The second voter (an Ollama name)
         default: qwen3.5:9b
+      answers_from_run:
+        description: Score an earlier run's saved answers instead of asking the models (that run's number, from its page's address)
+        default: ''
   pull_request:
     paths:
       - .github/workflows/score-decider.yml
       - backend/scripts/collect-answers.ts
       - backend/reviewer/eval/collect.ts
       - backend/reviewer/providers/local.ts
-      - backend/scripts/score-decider.ts
-      - backend/reviewer/eval/decideScore.ts
 
 permissions:
   contents: read
@@ -43,6 +48,7 @@ concurrency:
 
 jobs:
   collect:
+    if: ${{ !inputs.answers_from_run }}
     name: Answers from ${{ matrix.reader }} (${{ matrix.model }}), part ${{ matrix.part }} of ${{ matrix.parts }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 330
@@ -138,6 +144,10 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    # actions: read only to download an earlier run's answer files
+    permissions:
+      contents: read
+      actions: read
     defaults:
       run:
         working-directory: backend
@@ -164,6 +174,8 @@ jobs:
           pattern: answers-*
           merge-multiple: true
           path: backend/answers
+          run-id: ${{ inputs.answers_from_run || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Score
         env:
