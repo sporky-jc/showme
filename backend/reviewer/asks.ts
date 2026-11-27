@@ -71,13 +71,28 @@ const TEMPLATES: Record<Question, (message: string, show: string) => Record<stri
   }),
 };
 
-export const questionVersion = (question: Question) =>
-  versionOf(JSON.stringify(TEMPLATES[question](SENTENCE, SENTENCE)));
+// Each question's template, picked from a fixed list (never looked up by
+// a name sent to us)
+const templateFor = (question: Question) => {
+  switch (question) {
+    case "safety":
+      return TEMPLATES.safety;
+    case "welfare":
+      return TEMPLATES.welfare;
+    case "danger":
+      return TEMPLATES.danger;
+    case "checklist":
+      return TEMPLATES.checklist;
+  }
+  throw new Error("Unknown question");
+};
+
+export const questionVersion = (question: Question) => versionOf(JSON.stringify(templateFor(question)(SENTENCE, SENTENCE)));
 
 export const askFor = (question: Question, tell: string, show: string): Ask => ({
   question,
   version: questionVersion(question),
-  request: { temperature: 0, ...TEMPLATES[question](reviewMessage({ tell, show }), show) },
+  request: { temperature: 0, ...templateFor(question)(reviewMessage({ tell, show }), show) },
 });
 
 // A model's raw reply, read strictly: the answer to save, or undefined when

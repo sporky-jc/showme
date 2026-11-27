@@ -21,7 +21,7 @@ const fake = ({ work = {}, reply = () => '{"concern":"no"}', tags = ["llama-guar
   const queues = Object.fromEntries(Object.entries(work).map(([reader, batches]) => [reader, [...batches]]));
   const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
   const fetch = async (url, init = {}) => {
-    if (url.startsWith("https://backend.test")) {
+    if (new URL(url).origin === "https://backend.test") {
       if (backendDown) throw new TypeError("fetch failed");
       calls.auth.push(init.headers?.authorization);
       const body = JSON.parse(init.body);
@@ -145,7 +145,7 @@ describe("when the backend is away, or the worker is stopped", () => {
     let down = true;
     const f = fake({ work: { first: [[item("L1")]] } });
     const flaky = async (url, init) => {
-      if (url.startsWith("https://backend.test") && down) throw new TypeError("fetch failed");
+      if (new URL(url).origin === "https://backend.test" && down) throw new TypeError("fetch failed");
       return f.fetch(url, init);
     };
     const waits = [];
