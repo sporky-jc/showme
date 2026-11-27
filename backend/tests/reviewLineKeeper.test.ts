@@ -22,7 +22,7 @@ const sentenceSaying = async (show = GOOD, more = {}) => {
 const lineOf = async (sentence: { _id: Types.ObjectId }) => (await ReviewLine.findOne({ sentence: sentence._id, state: { $ne: "replaced" } }).lean())!;
 
 // A local model's answer to one question, as the worker posts it
-const answer = async (sentence: { _id: Types.ObjectId; show: string }, reader: "safety" | "first" | "second", question: "safety" | "welfare" | "checklist", value: unknown, model: string = MODELS[reader]) => {
+const answer = async (sentence: { _id: Types.ObjectId; show: string }, reader: "safety" | "first" | "second", question: "safety" | "welfare" | "checklist" | "realRisk", value: unknown, model: string = MODELS[reader]) => {
   const line = await lineOf(sentence);
   return saveAnswer({ line: line._id, showHash: hashShow(sentence.show), reader, question, model, questionVersion: questionVersion(question), answer: value });
 };
@@ -102,6 +102,25 @@ describe("stepping a version", () => {
     expect(waiting.needs).toEqual([{ reader: "hosted", question: "welfare" }]);
     expect(waiting.worryRaisedAt).toEqual(now);
     expect(await stepLine(_id, { now: new Date(now.getTime() + WORRY_WAIT_MS) })).toEqual({ step: "teacher", because: "worry-not-checked" });
+  });
+
+  it("asks both models the narrower question when both worry and nothing else did, then clears it with a record", async () => {
+    const sentence = await sentenceSaying("The house is so big you could get lost and starve before you found the kitchen.");
+    await fillLine();
+    const { _id } = await lineOf(sentence);
+    await answer(sentence, "safety", "safety", "safe");
+    await answer(sentence, "first", "welfare", "yes");
+    await answer(sentence, "first", "checklist", CHECKLIST_OK);
+    await answer(sentence, "second", "welfare", "yes");
+    expect(await stepLine(_id)).toEqual({ step: "ask-real-risk" });
+    expect((await lineOf(sentence)).needs).toEqual([
+      { reader: "first", question: "realRisk" },
+      { reader: "second", question: "realRisk" },
+    ]);
+    await answer(sentence, "first", "realRisk", "not-real");
+    await answer(sentence, "second", "realRisk", "not-real");
+    await answer(sentence, "second", "checklist", CHECKLIST_OK);
+    expect(await stepLine(_id)).toEqual({ step: "approve", tip: "great", teacher: "review" });
   });
 
   it("takes a version out of line when the student edits it, or a teacher decides it meanwhile", async () => {

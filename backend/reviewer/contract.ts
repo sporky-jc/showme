@@ -104,6 +104,13 @@ export type ProviderAnswer = z.infer<typeof ProviderAnswer>;
 // answer holds the sentence as worrying (reviewer.ts), never lets it through.
 export const WELFARE_CONCERNS = ["yes", "no"] as const;
 export const WelfareAnswer = z.object({ concern: z.enum(WELFARE_CONCERNS) }).strict();
+
+// The narrower "is it real?" question (prompt.ts, REAL_RISK_INSTRUCTIONS),
+// asked only when both local models worried: "not-real" from both, and
+// nothing else found, lets the sentence go on with a record for the
+// teacher (decide.ts). Anything else is invalid, and asked again.
+export const REAL_RISKS = ["real", "not-real"] as const;
+export const RealRiskAnswer = z.object({ risk: z.enum(REAL_RISKS) }).strict();
 export type WelfareAnswer = z.infer<typeof WelfareAnswer>;
 
 // The checklist's answer (prompt.ts, CHECKLIST_INSTRUCTIONS), exactly:

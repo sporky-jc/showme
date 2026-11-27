@@ -10,7 +10,7 @@ import type { ChecklistAnswer } from "../contract.js";
 import { techniqueFound } from "../techniques.js";
 import { decide, VOTERS, type Facts, type Step, type Voter } from "../decide.js";
 import { writingTipFor } from "../reviewer.js";
-import { checkRules, namesAPerson, onlyAboutSomeoneNamed } from "../rules.js";
+import { checkRules, namesAPerson, onlyAboutSomeoneNamed, playfulHit } from "../rules.js";
 import type { Collected } from "./collect.js";
 import type { DecideRow, Expect } from "./decideSet.js";
 
@@ -81,6 +81,7 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
       writingTip: writingTipFor(row.show),
       namesAPerson: namesAPerson(row.show),
       onlyAboutSomeoneNamed: onlyAboutSomeoneNamed(row.show),
+      playPhrase: playfulHit(row.show),
       ...(technique ? { technique, techniqueFound: techniqueFound(technique, row.show) === true } : {}),
     };
     const safety = byReader.get("safety")?.get(index);
@@ -89,6 +90,8 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
     for (const voter of VOTERS) {
       const answers = byReader.get(voter)?.get(index);
       facts.welfare[voter] = answered(answers?.welfare, ["yes", "no"]) as "yes" | "no" | undefined;
+      const realRisk = answered(answers?.realRisk, ["real", "not-real"]) as "real" | "not-real" | undefined;
+      if (realRisk) facts.realRisk = { ...facts.realRisk, [voter]: realRisk };
     }
     // Both voters' checklists. (A made-up set has no history of send-backs,
     // so the second's is only used before an approval here.)

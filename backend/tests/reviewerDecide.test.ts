@@ -44,6 +44,8 @@ const allIn = (more: Partial<Facts> = {}): Facts => ({
   ...more,
 });
 const hosted = (concern: "yes" | "no"): HostedAnswer => ({ concern });
+// Both local models still say "real" to the narrower question
+const REAL = { first: "real", second: "real" } as const;
 
 describe("step 1: the rule checks", () => {
   it("sends an explicit worrying phrase to a teacher, before any model is asked", () => {
@@ -103,6 +105,42 @@ describe("a local model that keeps failing on the words", () => {
   });
 });
 
+describe("step 2: both worried, but nothing else did: play, or not real (idea 3)", () => {
+  const both = { welfare: { first: "yes" as const, second: "yes" as const } };
+  it("asks both models the narrower question first", () => {
+    expect(decide(allIn(both))).toEqual({ step: "ask-real-risk" });
+    expect(decide(allIn({ ...both, realRisk: { first: "not-real" } }))).toEqual({ step: "ask-real-risk" });
+  });
+  it("goes on as if neither worried when both say 'not real', and keeps a record for the teacher", () => {
+    // "The house is so big you could get lost and starve before you found the kitchen."
+    expect(decide(allIn({ ...both, realRisk: { first: "not-real", second: "not-real" } }))).toEqual({ step: "approve", tip: "great", teacher: "review" });
+    expect(decide(allIn({ ...both, realRisk: { first: "not-real", second: "not-real" }, writingTip: "spelling" }))).toEqual({
+      step: "send-back",
+      tip: "spelling",
+      teacher: "review",
+    });
+  });
+  it("is a teacher's when either model says 'real'", () => {
+    expect(decide(allIn({ ...both, realRisk: { first: "real", second: "not-real" } }))).toEqual({ step: "teacher", because: "worry" });
+  });
+  it("treats play as no worry without asking: 'Dad hit me with a snowball'", () => {
+    expect(decide(allIn({ ...both, playPhrase: true }))).toEqual({ step: "approve", tip: "great", teacher: "review" });
+  });
+  it("never clears a worry when the rules held anything, or the safety model worried too", () => {
+    const cleared = { ...both, realRisk: { first: "not-real", second: "not-real" } as const, playPhrase: true };
+    expect(decide(allIn({ ...cleared, rules: hold("worrying", "sensitive-words") }))).toEqual({ step: "teacher", because: "worry" });
+    expect(decide(allIn({ ...cleared, safety: "unsafe" }))).toEqual({ step: "teacher", because: "worry" });
+  });
+  it("still goes through the gallery and writing checks once cleared", () => {
+    expect(decide(allIn({ ...both, playPhrase: true, checklist: saying({ shows: "no", detail: "hear" }) }))).toEqual({
+      step: "send-back",
+      tip: "hear",
+      check: "shows",
+      teacher: "review",
+    });
+  });
+});
+
 describe("step 2: is the child OK?", () => {
   it("goes on when none of the three readers sees a worry", () => {
     expect(decide(allIn())).toEqual({ step: "approve", tip: "great" });
@@ -110,24 +148,24 @@ describe("step 2: is the child OK?", () => {
 
   it("sends it to a teacher when both local models see a worry, whatever the safety model says", () => {
     // The safety model looks for harmful words, not for a child who isn't OK
-    expect(decide(allIn({ welfare: { first: "yes", second: "yes" } }))).toEqual({ step: "teacher", because: "worry" });
-    expect(decide(allIn({ safety: "unsafe", welfare: { first: "yes", second: "yes" } }))).toEqual({
+    expect(decide(allIn({ welfare: { first: "yes", second: "yes" }, realRisk: REAL }))).toEqual({ step: "teacher", because: "worry" });
+    expect(decide(allIn({ safety: "unsafe", welfare: { first: "yes", second: "yes" }, realRisk: REAL }))).toEqual({
       step: "teacher",
       because: "worry",
     });
     // ... even with rude words only, or bad writing
-    expect(decide(allIn({ rules: hold("unkind"), welfare: { first: "yes", second: "yes" } }))).toEqual({
+    expect(decide(allIn({ rules: hold("unkind"), welfare: { first: "yes", second: "yes" }, realRisk: REAL }))).toEqual({
       step: "teacher",
       because: "worry",
     });
     expect(
-      decide(allIn({ checklist: saying({ onTopic: "no" }), writingTip: "spelling", welfare: { first: "yes", second: "yes" } }))
+      decide(allIn({ checklist: saying({ onTopic: "no" }), writingTip: "spelling", welfare: { first: "yes", second: "yes" }, realRisk: REAL }))
     ).toEqual({ step: "teacher", because: "worry" });
   });
 
   describe("both worried and both say it's unkind about someone: sent back to fix it, and a teacher told", () => {
     // "...we didn't invite Lucas, no one wants that weirdo there"
-    const both = { welfare: { first: "yes" as const, second: "yes" as const }, namesAPerson: true };
+    const both = { welfare: { first: "yes" as const, second: "yes" as const }, realRisk: REAL, namesAPerson: true };
     const unkind = saying({ suitable: "unkind" });
     it("both models' checklists say unkind (the second asked only then)", () => {
       const { second: _, ...noSecond } = allIn({ ...both, checklist: unkind });
@@ -160,18 +198,18 @@ describe("step 2: is the child OK?", () => {
     });
     it("only about a classmate named, with no I, me or we: sent back and the teacher told, even with no model saying unkind", () => {
       // "Maya sat alone and smelled like the garbage cans behind the cafeteria."
-      expect(decide(allIn({ welfare: both.welfare, onlyAboutSomeoneNamed: true }))).toEqual({ step: "send-back", tip: "kindWords", teacher: "worry" });
+      expect(decide(allIn({ welfare: both.welfare, realRisk: REAL, onlyAboutSomeoneNamed: true }))).toEqual({ step: "send-back", tip: "kindWords", teacher: "worry" });
       // ... but not with a worrying phrase, adult words, or the safety model worried
-      expect(decide(allIn({ welfare: both.welfare, onlyAboutSomeoneNamed: true, rules: hold("worrying", "sensitive-words") }))).toEqual({ step: "teacher", because: "worry" });
-      expect(decide(allIn({ welfare: both.welfare, onlyAboutSomeoneNamed: true, safety: "unsafe" }))).toEqual({ step: "teacher", because: "worry" });
+      expect(decide(allIn({ welfare: both.welfare, realRisk: REAL, onlyAboutSomeoneNamed: true, rules: hold("worrying", "sensitive-words") }))).toEqual({ step: "teacher", because: "worry" });
+      expect(decide(allIn({ welfare: both.welfare, realRisk: REAL, onlyAboutSomeoneNamed: true, safety: "unsafe" }))).toEqual({ step: "teacher", because: "worry" });
       // "im tired because i look after my baby sister...": about the child, a teacher only
-      expect(decide(allIn({ welfare: both.welfare, onlyAboutSomeoneNamed: false, namesAPerson: true }))).toEqual({ step: "teacher", because: "worry" });
+      expect(decide(allIn({ welfare: both.welfare, realRisk: REAL, onlyAboutSomeoneNamed: false, namesAPerson: true }))).toEqual({ step: "teacher", because: "worry" });
     });
     it("a trick the rules found: the redo goes to the child, and the teacher is told", () => {
       const trick = { outcome: "redo", tip: "onTopic", reasons: ["talks-to-reviewer"] } as RuleOutcome;
-      expect(decide(allIn({ welfare: both.welfare, rules: trick }))).toEqual({ step: "send-back", tip: "onTopic", teacher: "worry" });
+      expect(decide(allIn({ welfare: both.welfare, realRisk: REAL, rules: trick }))).toEqual({ step: "send-back", tip: "onTopic", teacher: "worry" });
       // Even when the safety model worried too ("...or you will be turned off")
-      expect(decide(allIn({ welfare: both.welfare, rules: trick, safety: "unsafe" }))).toEqual({ step: "send-back", tip: "onTopic", teacher: "worry" });
+      expect(decide(allIn({ welfare: both.welfare, realRisk: REAL, rules: trick, safety: "unsafe" }))).toEqual({ step: "send-back", tip: "onTopic", teacher: "worry" });
     });
     it("a teacher only when nobody is named: unkind about themselves is a worry, never a tip", () => {
       // "I'm so ugly and nobody likes me"
@@ -262,7 +300,7 @@ describe("step 2: is the child OK?", () => {
 
   it("asks the hosted model when both local models worry about a sentence with personal details", () => {
     const personal = hold("personal-details");
-    const both = { rules: personal, welfare: { first: "yes" as const, second: "yes" as const } };
+    const both = { rules: personal, welfare: { first: "yes" as const, second: "yes" as const }, realRisk: REAL };
     expect(decide(allIn(both))).toEqual({ step: "ask-hosted", question: "welfare", about: "worry", redact: true });
     // A worry ("home alone, I'm only 7"): a teacher
     expect(decide(allIn({ ...both, hosted: hosted("yes") }))).toEqual({ step: "teacher", because: "worry" });

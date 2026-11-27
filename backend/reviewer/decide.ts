@@ -131,6 +131,12 @@ export interface Facts {
   // ... and is only about them: no "I", "me", "my", "we", "us" or "our"
   // (rules.ts, onlyAboutSomeoneNamed)
   onlyAboutSomeoneNamed?: boolean;
+  // Being hit or splashed with something only used in play ("hit me with
+  // a snowball": rules.ts, playfulHit)
+  playPhrase?: boolean;
+  // The narrower "is it real?" question, asked only when both local models
+  // worried and nothing else was found (prompt.ts, REAL_RISK_INSTRUCTIONS)
+  realRisk?: Partial<Record<Voter, "real" | "not-real">>;
   hosted?: HostedAnswer;
   // The hosted model's checklist, asked only when the two local models
   // disagree on the writing before an approval, and how long it's waited
@@ -152,7 +158,9 @@ export type TeacherBecause =
   | "undone"; // a teacher took Scribbles' decision back
 
 export type Step =
-  | { step: "approve"; tip: TipId }
+  // teacher "review": approved, and kept for the teacher to look over (a
+  // worry both local models raised, then cleared as play or not real)
+  | { step: "approve"; tip: TipId; teacher?: "review" }
   // check: the revise check it was sent back for, for the caller to count
   // teacher: also told to a teacher. "worry": both local models worried
   // and both say it's unkind about someone named, or one worried about a
@@ -165,6 +173,8 @@ export type Step =
   | { step: "ask-local"; question: WelfareQuestion }
   // The second model's checklist, before an approval or to check a "no"
   | { step: "ask-second" }
+  // Both local models' answer to the narrower "is it real?" question
+  | { step: "ask-real-risk" }
   // redact: the sentence has personal details: the worker must hide
   // contact details (phone, email, username, address, school), keeping
   // ages and every other word, before sending it
@@ -299,6 +309,24 @@ export const decide = (given: Facts): Step => {
     // teacher is told, in case a real worry is inside it (the owner's choice)
     if (rules.outcome === "redo" && reasons.includes("talks-to-reviewer")) {
       return { step: "send-back", tip: rules.tip, teacher: "worry" };
+    }
+    // Both worried, but nothing else did (the rules passed it, the safety
+    // model said safe) and it's play ("Dad hit me with a snowball"), or
+    // both models then said "not real" to the narrower question ("so big
+    // you could get lost and starve before you found the kitchen"): it goes
+    // on as if neither worried, and the teacher gets a record to look
+    // over. Never with anything the rules held, so a real worry the word
+    // lists caught always reaches a teacher. (The owner's choice, idea 3.)
+    if (rules.outcome === "pass" && safety === "safe") {
+      const realRisk = facts.realRisk ?? {};
+      if (!facts.playPhrase && VOTERS.some((voter) => realRisk[voter] === undefined)) return { step: "ask-real-risk" };
+      if (facts.playPhrase || VOTERS.every((voter) => realRisk[voter] === "not-real")) {
+        const step = decide({ ...given, welfare: { first: "no", second: "no" }, realRisk: undefined, playPhrase: undefined });
+        if ((step.step === "approve" || step.step === "send-back") && !("teacher" in step && step.teacher)) {
+          return { ...step, teacher: "review" };
+        }
+        return step;
+      }
     }
     return { step: "teacher", because: "worry" };
   }
