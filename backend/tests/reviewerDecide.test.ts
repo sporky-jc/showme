@@ -106,15 +106,16 @@ describe("step 2: is the child OK?", () => {
       });
       expect(decide(allIn({ ...both, second: unkind }))).toEqual({ step: "teacher", because: "worry" });
     });
-    it("a teacher only when the safety model also worried, or with personal details", () => {
+    it("a teacher only when the safety model also worried; the hosted model asked with personal details", () => {
       expect(decide(allIn({ ...both, safety: "unsafe", checklist: unkind, second: unkind }))).toEqual({
         step: "teacher",
         because: "worry",
       });
-      // An address or age with a worry was as often neglect or grooming
+      // With personal details, the hosted model is asked instead
       expect(decide(allIn({ ...both, rules: hold("personal-details"), checklist: unkind, second: unkind }))).toEqual({
-        step: "teacher",
-        because: "worry",
+        step: "ask-hosted",
+        question: "welfare",
+        about: "worry",
       });
     });
     it("but not when it's only not for the gallery, or the rules found a worrying phrase: a teacher only", () => {
@@ -167,11 +168,18 @@ describe("step 2: is the child OK?", () => {
     });
     // The safety model alone: it flags the details themselves, so it doesn't count
     expect(decide(allIn({ rules: personal, safety: "unsafe" }))).toEqual({ step: "send-back", tip: "privateDetails" });
-    // Both local models worried: a teacher
-    expect(decide(allIn({ rules: personal, welfare: { first: "yes", second: "yes" } }))).toEqual({
-      step: "teacher",
-      because: "worry",
-    });
+  });
+
+  it("asks the hosted model when both local models worry about a sentence with personal details", () => {
+    const personal = hold("personal-details");
+    const both = { rules: personal, welfare: { first: "yes" as const, second: "yes" as const } };
+    expect(decide(allIn(both))).toEqual({ step: "ask-hosted", question: "welfare", about: "worry" });
+    // A worry ("home alone, I'm only 7"): a teacher
+    expect(decide(allIn({ ...both, hosted: hosted("yes") }))).toEqual({ step: "teacher", because: "worry" });
+    // None ("my snapchat is ... add me"): sent back to take them out
+    expect(decide(allIn({ ...both, hosted: hosted("no") }))).toEqual({ step: "send-back", tip: "privateDetails" });
+    // The hosted model didn't answer in 6 hours: a teacher
+    expect(decide(allIn({ ...both, worryWaitedMs: WORRY_WAIT_MS }))).toEqual({ step: "teacher", because: "worry-not-checked" });
   });
 
   it("sends a split worry to a teacher if the hosted model hasn't answered in 6 hours", () => {

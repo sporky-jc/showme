@@ -18,12 +18,13 @@
 //      hosted model is asked only this. When both worry and both say it's
 //      unkind about someone (and the safety model and the rules see
 //      nothing more), it's sent back to fix AND a teacher is told. A
-//      sentence with personal details
-//      never goes to it: it's sent back to take them out, and the version
-//      without them is read afresh (the safety model's worry about such a
-//      sentence is the details themselves, so it isn't counted). It's the
-//      only time the hosted model is
-//      asked, so only a small share of sentences go to it.
+//      sentence with personal details is sent back to take them out, and
+//      the version without them is read afresh (the safety model's worry
+//      about such a sentence is the details themselves, so it isn't
+//      counted). Only when both local models worry about one is the
+//      hosted model asked: a worry goes to a teacher, none and it's sent
+//      back. Those are the only times the hosted model is asked, so only a
+//      small share of sentences go to it.
 //   3. Certain reasons to send it back: personal details, rude or unkind
 //      words, not in English, copying the Tell.
 //   4-6. The first model's checklist (Gemma 4 E4B when this was written,
@@ -207,9 +208,20 @@ export const decide = (facts: Facts): Step => {
   // also say it's unkind about someone, the child is sent back to fix it
   // too. Only then: in the scores, one model's "unkind" alone was also
   // threats, self-harm and abuse, and a child who wrote about those must
-  // never get a tip back. Not with personal details either: a worry with
-  // an address or age in it was as often neglect or grooming.
+  // never get a tip back.
+  //
+  // With personal details, both local models worrying isn't enough: a
+  // phone number and "I'm home alone, I'm only 7" look the same to them.
+  // The hosted model is asked: a worry (above) goes to a teacher, no
+  // worry and it's sent back to take the details out. (The owner's
+  // choice. The worker must take the details out of what it sends.)
+  const personal = reasons.includes("personal-details");
   if (VOTERS.every((voter) => welfare[voter] === "yes")) {
+    if (personal) {
+      if (hosted) return { step: "send-back", tip: "privateDetails" };
+      if ((facts.worryWaitedMs ?? 0) >= WORRY_WAIT_MS) return { step: "teacher", because: "worry-not-checked" };
+      return { step: "ask-hosted", question, about: "worry" };
+    }
     if (!reasons.includes("worrying") && !reasons.includes("personal-details") && safety === "safe" && checklist.suitable === "unkind") {
       if (!second) return { step: "ask-second" };
       if (second.suitable === "unkind") return { step: "send-back", tip: "kindWords", teacher: "worry" };
@@ -218,13 +230,12 @@ export const decide = (facts: Facts): Step => {
   }
   // With personal details, the safety model flags the details themselves
   // (its privacy category): only the two local models count
-  const personal = reasons.includes("personal-details");
   const counted = personal ? [welfare.first, welfare.second] : worries;
   const worrySplit = counted.some((answer) => answer === "unsafe" || answer === "yes");
   if (worrySplit && !hosted) {
-    // Personal details never go to the hosted model: they're taken out
-    // first, and the new version is read afresh, by the hosted model too
-    // if the local models still disagree
+    // One local model's worry about a sentence with personal details:
+    // they're taken out first, and the new version is read afresh, by the
+    // hosted model too if the local models still disagree
     if (personal) return { step: "send-back", tip: "privateDetails" };
     if ((facts.worryWaitedMs ?? 0) >= WORRY_WAIT_MS) return { step: "teacher", because: "worry-not-checked" };
     return { step: "ask-hosted", question, about: "worry" };
