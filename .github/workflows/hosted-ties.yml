@@ -1,0 +1,25 @@
+# One-off test on a throwaway branch (never merged): the hosted model's
+# checklist answers for the sentences the two local models disagreed on
+name: Hosted tie-break test
+on:
+  push:
+    branches: [claude/hosted-ties-test]
+permissions:
+  contents: read
+jobs:
+  ask:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: backend
+      - run: node hosted-ties/run.mjs
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}

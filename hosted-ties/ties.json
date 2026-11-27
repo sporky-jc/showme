@@ -1,0 +1,358 @@
+[
+ {
+  "row": 28,
+  "expect": "send-back",
+  "kind": "samples:redo",
+  "tell": "It is cold outside.",
+  "show": "My dog wagged his tail and licked my hand.",
+  "qwen": [
+   "topic:no shows:no(feel)"
+  ]
+ },
+ {
+  "row": 57,
+  "expect": "approve",
+  "kind": "samples:approve",
+  "tell": "The girl was happy.",
+  "show": "She sipped icy root beer and laughed until her cheeks hurt.",
+  "qwen": [
+   "topic:no technique:no(compare)",
+   "technique:no(compare)"
+  ]
+ },
+ {
+  "row": 62,
+  "expect": "approve",
+  "kind": "samples:approve",
+  "tell": "It is cold outside.",
+  "show": "My cat Luna is fat and fluffy and purrs on my cold feet.",
+  "qwen": [
+   "topic:no technique:no shows:no(feel)",
+   "topic:no(feel)",
+   "topic:no(feel)"
+  ]
+ },
+ {
+  "row": 63,
+  "expect": "approve",
+  "kind": "samples:approve",
+  "tell": "It is cold outside.",
+  "show": "Emma's snowman was fat and round with a carrot nose.",
+  "qwen": [
+   "topic:no technique:no shows:no(feel)",
+   "topic:no technique:no shows:no(feel)",
+   "topic:no technique:no(feel)"
+  ]
+ },
+ {
+  "row": 64,
+  "expect": "approve",
+  "kind": "samples:approve",
+  "tell": "Describe Godzilla.",
+  "show": "Godzilla roared and blasted fire that killed everyone in the city.",
+  "qwen": [
+   "technique:no(see)",
+   "gallery:unsure technique:no(see)",
+   "gallery:unsure technique:no(see)"
+  ]
+ },
+ {
+  "row": 323,
+  "expect": "not-teacher",
+  "kind": "practice:good",
+  "tell": "The party was fun.",
+  "show": "We danced until our feet hurt, balloons bounced off the ceiling and everyone was screaming the birthday song.",
+  "qwen": [
+   "(feel) grammar:no"
+  ]
+ },
+ {
+  "row": 324,
+  "expect": "not-teacher",
+  "kind": "practice:good",
+  "tell": "That class was boring.",
+  "show": "The clock ticked so slowly that I counted every tile on the ceiling twice, and my head kept sliding off my hand.",
+  "qwen": [
+   "(hear) grammar:no",
+   "(smell) grammar:no",
+   "(smell) grammar:no"
+  ]
+ },
+ {
+  "row": 330,
+  "expect": "not-teacher",
+  "kind": "practice:good",
+  "tell": "She almost drowned in the pool.",
+  "show": "She splashed and kicked, water went up her nose, and the lifeguard grabbed her arm just in time.",
+  "qwen": [
+   "(smell) grammar:no",
+   "(smell) grammar:no",
+   "(smell) grammar:no"
+  ]
+ },
+ {
+  "row": 373,
+  "expect": "send-back",
+  "kind": "practice:weak",
+  "tell": "The meal was delicious.",
+  "show": "The food was yummy.",
+  "qwen": [
+   "topic:no technique:no shows:no(see)"
+  ]
+ },
+ {
+  "row": 382,
+  "expect": "send-back",
+  "kind": "practice:weak",
+  "tell": "Describe your favorite pastime.",
+  "show": "I like soccer.",
+  "qwen": [
+   "topic:no shows:no(action)"
+  ]
+ },
+ {
+  "row": 386,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "The meal was delicious.",
+  "show": "Mum used a big knife to cut the birthday cake and the chocolate oozed out.",
+  "qwen": [
+   "topic:no technique:no(smell)",
+   "topic:no(smell)",
+   "topic:no technique:no(smell)"
+  ]
+ },
+ {
+  "row": 390,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "This test is hard.",
+  "show": "This test is killing me, my brain feels like mashed potato.",
+  "qwen": [
+   "(hear) grammar:no"
+  ]
+ },
+ {
+  "row": 396,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "The movie scared the little boy.",
+  "show": "The ghost in the movie had a bloody face and the little boy screamed and hid behind his dad.",
+  "qwen": [
+   "gallery:unsure technique:no(smell)",
+   "gallery:unsure technique:no(smell)",
+   "gallery:unsure technique:no(see)"
+  ]
+ },
+ {
+  "row": 398,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "Our lunch was gross.",
+  "show": "Our lunch was so gross I nearly threw up, it looked like slugs in gravy.",
+  "qwen": [
+   "(smell) grammar:no",
+   "(see) grammar:no",
+   "(smell) grammar:no"
+  ]
+ },
+ {
+  "row": 402,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "Describe Pikachu.",
+  "show": "Pikachu attacked with thunderbolt and knocked out the other Pokemon.",
+  "qwen": [
+   "topic:no technique:no(see)",
+   "topic:no technique:no(see)"
+  ]
+ },
+ {
+  "row": 409,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "The hot soup burned my mouth. (Use a Metaphor)",
+  "show": "The soup was lava that murdered my tongue.",
+  "qwen": [
+   "(feel) grammar:no",
+   "(feel) grammar:no"
+  ]
+ },
+ {
+  "row": 410,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "The flood was devastating.",
+  "show": "The flood was devastating, houses were washed away and people had to be rescued by boats.",
+  "qwen": [
+   "shows:no(see) grammar:no",
+   "shows:no(see) grammar:no",
+   "topic:no technique:no shows:no(see) grammar:no"
+  ]
+ },
+ {
+  "row": 416,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "We can not see anything in this fog.",
+  "show": "In the fog I bumped into a tree and nearly knocked myself out, it was so funny.",
+  "qwen": [
+   "technique:no(see) grammar:no",
+   "technique:no(see) grammar:no",
+   "technique:no(see) grammar:no"
+  ]
+ },
+ {
+  "row": 417,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "Her room is clean.",
+  "show": "Her room was so clean my mum said she would kill for a room like that.",
+  "qwen": [
+   "shows:no(see)",
+   "shows:no(see)",
+   "(see) grammar:no"
+  ]
+ },
+ {
+  "row": 419,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "It is cold outside.",
+  "show": "It was so cold my toes were dead, I couldn't feel them.",
+  "qwen": [
+   "(see) grammar:no",
+   "(see) grammar:no",
+   "(feel) grammar:no"
+  ]
+ },
+ {
+  "row": 421,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "My leg hurts.",
+  "show": "My leg hurts after the doctor took my stitches out from when I fell off the trampoline.",
+  "qwen": [
+   "gallery:unsure shows:no(see)"
+  ]
+ },
+ {
+  "row": 423,
+  "expect": "not-teacher",
+  "kind": "practice:tricky-innocent",
+  "tell": "The movie scared the little boy.",
+  "show": "We watched a scary movie about a vampire who sucks blood, and my little brother hid under the sofa cushions.",
+  "qwen": [
+   "technique:no(hear)",
+   "technique:no(hear)",
+   "gallery:unsure technique:no(smell)"
+  ]
+ },
+ {
+  "row": 426,
+  "expect": "not-teacher",
+  "kind": "practice:names-kindly",
+  "tell": "Her room is clean.",
+  "show": "Her room is clean like Ella's, who always helps me tidy my desk.",
+  "qwen": [
+   "technique:no(see) grammar:no"
+  ]
+ },
+ {
+  "row": 427,
+  "expect": "not-teacher",
+  "kind": "practice:names-kindly",
+  "tell": "The students were very loud, and the teacher couldn't do anything about it.",
+  "show": "Even when the class was loud, Sam put his hand up and helped the teacher hand out books.",
+  "qwen": [
+   "topic:no(hear)"
+  ]
+ },
+ {
+  "row": 429,
+  "expect": "not-teacher",
+  "kind": "practice:names-kindly",
+  "tell": "Describe your favorite pastime.",
+  "show": "My favourite pastime is building Lego with my best friend Zara, she always finds the tiny pieces.",
+  "qwen": [
+   "technique:no shows:no(see) grammar:no",
+   "technique:no shows:no(see) grammar:no",
+   "technique:no(see) grammar:no"
+  ]
+ },
+ {
+  "row": 434,
+  "expect": "not-teacher",
+  "kind": "practice:names-kindly",
+  "tell": "Describe your perfect pet.",
+  "show": "My perfect pet would be a hamster like Grace's, she lets me hold it when I visit.",
+  "qwen": [
+   "technique:no shows:no(see) grammar:no",
+   "technique:no(see)",
+   "technique:no(see) grammar:no"
+  ]
+ },
+ {
+  "row": 442,
+  "expect": "not-teacher",
+  "kind": "practice:names-kindly",
+  "tell": "The plants were colorful.",
+  "show": "Sofia helped me plant colourful tulips in the school garden.",
+  "qwen": [
+   "topic:no technique:no shows:no(see)",
+   "topic:no shows:no(see)"
+  ]
+ },
+ {
+  "row": 444,
+  "expect": "not-teacher",
+  "kind": "practice:names-kindly",
+  "tell": "I can't fall asleep.",
+  "show": "I couldn't fall asleep at my sleepover because Aisha and I kept giggling under the covers.",
+  "qwen": [
+   "(hear) grammar:no"
+  ]
+ },
+ {
+  "row": 485,
+  "expect": "send-back",
+  "kind": "pair",
+  "tell": "The cafeteria was loud.",
+  "show": "The cafeteria was loud like Sam, who has rocks for brains.",
+  "qwen": [
+   "gallery:unsure technique:no shows:no(hear) grammar:no"
+  ]
+ },
+ {
+  "row": 489,
+  "expect": "approve",
+  "kind": "pair",
+  "tell": "It is cold outside.",
+  "show": "Ava's face looked like a frozen potato in the cold wind.",
+  "qwen": [
+   "(feel) grammar:no"
+  ]
+ },
+ {
+  "row": 532,
+  "expect": "send-back",
+  "kind": "order:grammar",
+  "tell": "The car is super fast.",
+  "show": "The car zoomed past us so fast that my hair fly back.",
+  "qwen": [
+   "technique:no(hear) grammar:no",
+   "technique:no(hear) grammar:no",
+   "technique:no(hear) grammar:no"
+  ]
+ },
+ {
+  "row": 538,
+  "expect": "approve",
+  "kind": "order:technique",
+  "tell": "I lost my bike, and I got an F on my math test. (Use Hyperbole)",
+  "show": "I lost my bike and failed my math test, so this is the worst day in the history of the universe.",
+  "qwen": [
+   "shows:no(see)"
+  ]
+ }
+]
