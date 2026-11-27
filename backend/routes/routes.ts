@@ -20,7 +20,7 @@ import {
 import { googleAuth } from "../controllers/auth.js";
 import { getReviewerStatus, updateReviewerSwitch } from "../controllers/reviewerSwitch.js";
 import { getOwnerSettings, updateOwnerSettings } from "../controllers/ownerSettings.js";
-import { testLogin } from "../controllers/testLogin.js";
+import { testLogin, testLoginDoor } from "../controllers/testLogin.js";
 import {
   getLikes,
   likeSentence,
@@ -62,7 +62,7 @@ router.get("/features", (req, res) => {
 
 router.post("/auth", googleAuth); // Google authentication route
 // Login for automated browser tests; only works on staging (see controllers/testLogin.ts)
-router.post("/auth/test", testLoginRateLimit, testLogin);
+router.post("/auth/test", testLoginDoor, testLoginRateLimit, testLogin);
 
 // Route for create/update/fetch user sentences
 router.get("/MyPage", auth, getUserSentences);
