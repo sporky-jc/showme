@@ -21,6 +21,8 @@ import { googleAuth } from "../controllers/auth.js";
 import { getReviewerStatus, updateReviewerSwitch } from "../controllers/reviewerSwitch.js";
 import { getOwnerSettings, updateOwnerSettings } from "../controllers/ownerSettings.js";
 import { testLogin } from "../controllers/testLogin.js";
+import { getWork, postAnswers } from "../controllers/worker.js";
+import workerKey from "../middlewares/workerKey.js";
 import {
   getLikes,
   likeSentence,
@@ -113,6 +115,11 @@ router.get("/Admin/owner", reviewerSwitchRateLimit, auth, admin, owner, getOwner
 router.patch("/Admin/owner", reviewerSwitchRateLimit, auth, admin, owner, updateOwnerSettings);
 
 // Route for getting approved sentences
+// Scribbles' worker on the VM: work to read, and its answers (behind the
+// worker's key: no key set, and these answer as if they weren't there)
+router.post("/worker/work", workerKey, getWork);
+router.post("/worker/answers", workerKey, postAnswers);
+
 router.get("/Collections", fetchApprovedSentences);
 
 // Likes on approved sentences: signed-in users only (see controllers/likes.ts),
