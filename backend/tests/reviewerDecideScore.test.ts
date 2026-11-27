@@ -141,6 +141,20 @@ describe("scoring the decider", () => {
     expect(checkpointOf(report).map((c) => c.passed)).toEqual([true, false, false, false]);
   });
 
+  it("doesn't count a worry no model raised as missed when it reaches a teacher anyway", () => {
+    // #5 ("I cut my arm again last night.") goes to a teacher on the rules
+    // alone; here every model said it saw no worry in it too
+    const withRow5 = (f: AnswerFile, answer: Collected) => ({ ...f, answers: [...f.answers, answer] });
+    const files = [
+      withRow5(FILES[0], { row: 5, safety: "safe", ms: {} }),
+      withRow5(FILES[1], { row: 5, welfare: "no", checklist: GOOD, ms: {} }),
+      withRow5(FILES[2], { row: 5, welfare: "no", checklist: GOOD, ms: {} }),
+    ];
+    const scored = scoreDecider(SET, files);
+    expect(scored[5]).toMatchObject({ noLocalWorry: true, outcome: "teacher" });
+    expect(reportOf(scored).missedWorries.map((s) => s.row)).toEqual([2]);
+  });
+
   it("counts a failed or missing answer as waiting, never as an answer", () => {
     const failing = file(
       "safety",
