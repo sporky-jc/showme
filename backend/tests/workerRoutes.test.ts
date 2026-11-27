@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import app from "../app.js";
-import { ReviewLine, enterLine, hashShow, versionOf } from "../models/reviewLine.js";
+import { ReviewLine, enterLine, hashShow } from "../models/reviewLine.js";
+import { questionVersion } from "../reviewer/asks.js";
+import { WELFARE_INSTRUCTIONS } from "../reviewer/prompt.js";
 import { Sentence } from "../models/sentences.js";
 import { WORKER_REQUESTS_PER_MINUTE } from "../middlewares/rateLimit.js";
 import { createSentence, createUser, fieldsOf } from "./helpers.js";
@@ -11,7 +13,7 @@ import { createSentence, createUser, fieldsOf } from "./helpers.js";
 
 const KEY = "k".repeat(40);
 const GEMMA = "gemma4:e4b@abc";
-const WELFARE = versionOf("the welfare question");
+const WELFARE = questionVersion("welfare");
 
 const asWorker = (path: string, body: object, key = KEY) =>
   request(app).post(path).set("Authorization", `Bearer ${key}`).send(body);
@@ -57,13 +59,24 @@ describe("the worker's key", () => {
 });
 
 describe("give me work", () => {
-  it("hands out a sentence as its line id, words' hash, Tell and words only: never who wrote it", async () => {
-    const { line } = await waiting();
+  it("hands out a sentence as its line id, words' hash and the exact request for each question: never who wrote it", async () => {
+    const { line, sentence } = await waiting();
     const res = await asWorker("/worker/work", { reader: "first", worker: "vm", limit: 5 });
     expect(res.status).toBe(200);
     expect(res.body.work).toHaveLength(1);
-    expect(fieldsOf(res.body.work[0])).toEqual(["line", "questions", "show", "showHash", "tell"]);
-    expect(res.body.work[0]).toMatchObject({ line: String(line._id), questions: ["welfare"], show: "Clothes carpeted the floor." });
+    const [item] = res.body.work;
+    expect(fieldsOf(item)).toEqual(["asks", "line", "showHash"]);
+    expect(item.line).toBe(String(line._id));
+    expect(item.asks).toHaveLength(1);
+    const [ask] = item.asks;
+    expect(ask.question).toBe("welfare");
+    expect(ask.version).toBe(WELFARE);
+    expect(ask.request.temperature).toBe(0);
+    expect(ask.request.messages[0]).toEqual({ role: "system", content: WELFARE_INSTRUCTIONS });
+    expect(JSON.parse(ask.request.messages[1].content)).toEqual({ tell: sentence.tell, show: "Clothes carpeted the floor." });
+    // No model name: the worker adds its own
+    expect(ask.request.model).toBeUndefined();
+    expect(JSON.stringify(item)).not.toMatch(/Ada|Lovelace|example\.com|google-/);
   });
 
   it("never hands out an explicit worrying phrase", async () => {
@@ -106,7 +119,7 @@ describe("here are answers", () => {
     question: "welfare",
     model: GEMMA,
     questionVersion: WELFARE,
-    answer: "no",
+    raw: '{"concern":"no"}',
     ...more,
   });
 
@@ -126,13 +139,38 @@ describe("here are answers", () => {
     expect(res.body.results[0].result).toBe("stale");
   });
 
-  it("refuses an answer that isn't in its question's exact form", async () => {
+  it("reads the model's reply strictly: anything not in the exact form is a failed try, never an answer", async () => {
     const { line } = await waiting();
     const res = await asWorker("/worker/answers", {
-      answers: [welfare(line, { answer: "maybe" }), welfare(line, { question: "checklist", answer: { suitable: "yes" } })],
+      answers: [
+        welfare(line, { raw: "maybe" }),
+        welfare(line, { raw: '{"concern":"no","why":"fine"}' }),
+        welfare(line, { question: "checklist", questionVersion: questionVersion("checklist"), raw: '{"suitable":"yes"}' }),
+      ],
     });
-    expect(res.body.results.map((r: { result: string }) => r.result)).toEqual(["invalid", "invalid"]);
-    expect((await ReviewLine.findById(line._id))?.answers).toHaveLength(0);
+    expect(res.body.results.map((r: { result: string }) => r.result)).toEqual(["invalid", "invalid", "invalid"]);
+    const stored = await ReviewLine.findById(line._id);
+    expect(stored?.answers).toHaveLength(0);
+    expect(stored?.failedTries?.first).toBe(3);
+  });
+
+  it("saves the answer itself, not the raw reply", async () => {
+    const { line } = await waiting();
+    await asWorker("/worker/answers", { answers: [welfare(line, { raw: '{"concern":"yes"}' })] });
+    expect((await ReviewLine.findById(line._id))?.answers.map((a) => a.answer)).toEqual(["yes"]);
+  });
+
+  it("reads Llama Guard's reply as safe or unsafe", async () => {
+    const { line } = await waiting();
+    const safety = { reader: "safety", question: "safety", questionVersion: questionVersion("safety"), model: "llama-guard3:8b@x" };
+    await asWorker("/worker/answers", { answers: [welfare(line, { ...safety, raw: "unsafe\nS1" })] });
+    expect((await ReviewLine.findById(line._id))?.answers.map((a) => a.answer)).toEqual(["unsafe"]);
+  });
+
+  it("doesn't count an answer to an older version of the question", async () => {
+    const { line } = await waiting();
+    const res = await asWorker("/worker/answers", { answers: [welfare(line, { questionVersion: "0123456789abcdef" })] });
+    expect(res.body.results[0].result).toBe("stale");
   });
 
   it("counts a failure against that reader", async () => {
