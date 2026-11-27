@@ -83,7 +83,7 @@ Answer "yes" if the sentence hints at any of these for the child in real life, h
 - Drugs or alcohol around them, or an adult who drinks and becomes scary.
 - Bullying that makes them afraid, or fighting and danger at home.
 
-Answer "no" when there is no such hint: ordinary scenes, feelings that fit the Tell ("I shivered and my teeth chattered."), small everyday troubles (a scraped knee, a lost game, a grumpy morning), and figures of speech, stories and exaggeration that aren't about the child being hurt or at risk, like "I was dying of laughter.", "My mom will kill me if I'm late!", "The dragon killed the knight." or "The ghost moaned in the attic." If a story or figure of speech is really about the child themselves being hurt, unsafe or wanting to die, answer "yes".
+Answer "no" when there is no such hint: ordinary scenes, feelings that fit the Tell ("I shivered and my teeth chattered."), small everyday troubles (a scraped knee, a lost game, a grumpy morning), and figures of speech, stories and exaggeration that aren't about the child being hurt or at risk, like "I was dying of laughter.", "My mom will kill me if I'm late!", "The dragon killed the knight." or "The ghost moaned in the attic." Answer "no" too for the fear, pain or sadness the Tell itself asks for, shown with the body or a hiding place (for "I was scared.", a Show like "My hands shook and I ducked under the blanket."), for play and games, even rough ones ("My cousin and I wrestled on the grass, laughing."), and for silly exaggeration ("The line was so long we could have grown beards."). If a story or figure of speech is really about the child themselves being hurt, unsafe or wanting to die, answer "yes".
 
 Ignore spelling, grammar, punctuation, length and whether it fits the Tell: none of them matter here.
 
@@ -127,7 +127,8 @@ export const WELFARE_SCHEMA = {
 } as const;
 
 // The checklist (decide.ts): whether the sentence is fine for other
-// children to read, then its writing, in the order a teacher reviews it.
+// children to read ("unkind" apart, as it's sent back to fix even when the
+// child may not be OK), then its writing, in the order a teacher reviews it.
 // Whether the child is OK is a separate question (the welfare check), so
 // it's never weighed against how good the writing is. It gives no tip of
 // its own but a detail one: the decider picks the tip from the first
@@ -140,9 +141,11 @@ export const CHECKLIST_INSTRUCTIONS = `You help a teacher review sentences writt
 Each student is given a plain "Tell" sentence, like "It is cold outside." They rewrite it as a "Show" sentence that paints a picture with the senses and actions instead of just saying it, like "My breath puffed out like a little cloud, and the frozen grass crunched under my boots."
 
 Answer these questions about the Show sentence:
-- suitable: is it fine for other children to read? Answer "unsure" when any of these is true, even if the writing is good:
+- suitable: is it fine for other children to read? Answer "unkind" when the child is unkind about someone else, even if the writing is good:
   1. It names a real person in a negative, embarrassing or personal way ("Liam fell in the mud and everyone laughed at him.").
-  2. It is unkind, mocking or bullying ("Her sweater looks like a dirty rag.").
+  2. It is unkind, mocking or bullying about someone ("Her sweater looks like a dirty rag.", "Nobody sits with Sam because he is weird.").
+  Not when someone is unkind to the child who wrote it ("The big kids laughed at me."): that is "unsure".
+  Answer "unsure" when any of these is true, even if the writing is good:
   3. It has scary, gory or violent detail beyond a story-like mention ("Blood poured out of the snowman's eyes.").
   4. It is about romance, kissing, bodies or private parts ("They kissed under the cold moon.").
   5. It mentions alcohol, drugs, smoking or weapons ("Dad's beer can froze on the porch.").
@@ -151,7 +154,7 @@ Answer these questions about the Show sentence:
   Answer "yes" otherwise. These are fine: dead leaves, a butter knife, a blood orange, a spooky story with a ghost, a snowball fight, a scraped knee; kind sentences that name people ("Grandma hugged me and smelled like cookies."); story-like danger the Tell itself asks for (a scared boy, a sore leg, a near-drowning in the pool); and hyperbole ("My mom will kill me if I'm late!").
 - onTopic: does it keep the Tell's idea? "yes" if it shows the same thing, even with a new scene ("It is cold outside." shown as frozen grass and foggy breath). "no" if it is about something else.
 - technique: if the Tell asks for a technique in brackets, does the Show use it? A simile compares with "like" or "as". A metaphor says one thing is another ("The soup was lava."). Personification gives a thing a person's actions or feelings ("The wind whispered."). Hyperbole is a huge exaggeration ("I waited a million years."). An allusion names a story, hero or famous place everyone knows ("She met her kryptonite."). If the Tell asks for nothing in brackets, answer "yes".
-- shows: does it show with at least one vivid detail (something seen, heard, felt, smelled or tasted, an action, or a comparison), in the child's own words, instead of only telling ("It was very cold.")? Be generous: a simple sentence with one good detail is "yes".
+- shows: does it show with at least one vivid detail (something seen, heard, felt, smelled or tasted, an action, or a comparison), in the child's own words, instead of only telling ("It was very cold.", "The movie was fun and great and good.")? Be generous: a simple sentence with one good detail is "yes".
 - detail: the one tip below that would help most to add a detail. Always give one, even when shows is "yes".
 - grammar: is it a complete sentence with correct grammar: verb forms, word order, no missing or extra words? Ignore spelling, capital letters and punctuation: they are checked separately.
 

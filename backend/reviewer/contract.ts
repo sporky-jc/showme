@@ -107,13 +107,14 @@ export const WelfareAnswer = z.object({ concern: z.enum(WELFARE_CONCERNS) }).str
 export type WelfareAnswer = z.infer<typeof WelfareAnswer>;
 
 // The checklist's answer (prompt.ts, CHECKLIST_INSTRUCTIONS), exactly:
-// whether it's fine for other children to read ("unsure" for anything that
-// shouldn't go in front of them), four yes-or-no questions about the
+// whether it's fine for other children to read ("unkind" when it's unkind
+// about someone, "unsure" for anything else that shouldn't go in front of
+// them), four yes-or-no questions about the
 // writing, in a teacher's order, and the detail tip that would help most.
 // The decider picks the tip a child sees from these (decide.ts); the model
 // never chooses one freely. Anything else is invalid, and is asked again.
 export const YES_NO = ["yes", "no"] as const;
-export const SUITABLE = ["yes", "unsure"] as const;
+export const SUITABLE = ["yes", "unkind", "unsure"] as const;
 export const ChecklistAnswer = z
   .object({
     suitable: z.enum(SUITABLE),
