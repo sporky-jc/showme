@@ -15,7 +15,11 @@
 //      local models' welfare answers). None worried: go on. Both local
 //      models: a teacher (the safety model looks for harmful words, not for
 //      a child who isn't OK, so it isn't waited for). Any other split: the
-//      hosted model is asked only this. A sentence with personal details
+//      hosted model is asked only this. When both worry and there is
+//      something for the child to fix (personal details, or a model says
+//      it's unkind about someone), it's sent back to fix AND a teacher is
+//      told; a worry with nothing to fix goes to a teacher only. A
+//      sentence with personal details
 //      never goes to it: it's sent back to take them out, and the version
 //      without them is read afresh (the safety model's worry about such a
 //      sentence is the details themselves, so it isn't counted). It's the
@@ -31,7 +35,7 @@
 //      6. Clean up: spelling, capitals and punctuation (the code's) and
 //         grammar, as one tip when both are wrong.
 //   7. Before approving, the second model answers the same checklist. Its
-//      "unsure" about the gallery, or a grammar mistake it finds, sends the
+//      "unkind" or "unsure" about the gallery, or a grammar mistake it finds, sends the
 //      sentence back: an approval needs both models to say it's fine for
 //      other children. Topic, technique and detail stay the first model's
 //      to judge (letting the second veto those too sent 4 good sentences
@@ -123,7 +127,9 @@ export type TeacherBecause =
 export type Step =
   | { step: "approve"; tip: TipId }
   // check: the revise check it was sent back for, for the caller to count
-  | { step: "send-back"; tip: TipId; check?: Check }
+  // teacher: also told to a teacher (both local models worried, and the
+  // child has something to fix: personal details, or unkind words)
+  | { step: "send-back"; tip: TipId; check?: Check; teacher?: "worry" }
   | { step: "teacher"; because: TeacherBecause }
   | { step: "ask-local"; question: WelfareQuestion }
   // The second model's checklist, before an approval or to check a "no"
@@ -198,8 +204,20 @@ export const decide = (facts: Facts): Step => {
   // The hosted model, when it has been asked: a worry is final
   if (hosted?.concern === "yes") return { step: "teacher", because: "worry" };
 
-  // 2. Is the child OK?
-  if (VOTERS.every((voter) => welfare[voter] === "yes")) return { step: "teacher", because: "worry" };
+  // 2. Is the child OK? Both local models worried: a teacher. With
+  // something to fix, the child is sent back to fix it too: personal
+  // details, or unkind words about someone (either model's "unkind",
+  // the second asked only then). Not when the rules found a worrying
+  // phrase, so a child who wrote about being hurt isn't told to be kind.
+  if (VOTERS.every((voter) => welfare[voter] === "yes")) {
+    if (reasons.includes("personal-details")) return { step: "send-back", tip: "privateDetails", teacher: "worry" };
+    if (!reasons.includes("worrying")) {
+      if (checklist.suitable === "unkind") return { step: "send-back", tip: "kindWords", teacher: "worry" };
+      if (!second) return { step: "ask-second" };
+      if (second.suitable === "unkind") return { step: "send-back", tip: "kindWords", teacher: "worry" };
+    }
+    return { step: "teacher", because: "worry" };
+  }
   // With personal details, the safety model flags the details themselves
   // (its privacy category): only the two local models count
   const personal = reasons.includes("personal-details");
@@ -219,7 +237,7 @@ export const decide = (facts: Facts): Step => {
   if (tip) return { step: "send-back", tip };
 
   // 4. Fine for other children to read?
-  if (checklist.suitable === "unsure") return { step: "send-back", tip: "kindWords" };
+  if (checklist.suitable !== "yes") return { step: "send-back", tip: "kindWords" };
 
   // 5-6. The first model's checklist, first problem first. A "no" the
   // child has been sent back for often must be the second model's too.
@@ -235,7 +253,7 @@ export const decide = (facts: Facts): Step => {
 
   // 7. Before approving: the second model's checklist too
   if (!second) return { step: "ask-second" };
-  if (second.suitable === "unsure") return { step: "send-back", tip: "kindWords" };
+  if (second.suitable !== "yes") return { step: "send-back", tip: "kindWords" };
   // (A check the models keep disagreeing on passes: see the top)
   if (!passes("grammar", second, facts) && !sentBackOften("grammar", facts)) {
     return { step: "send-back", tip: tipFor("grammar", second, facts), check: "grammar" };

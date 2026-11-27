@@ -23,7 +23,9 @@ export interface AnswerFile {
   answers: Collected[];
 }
 
-export type Outcome = "approve" | "send-back" | "teacher" | "hosted" | "no-answer";
+// "send-back+teacher": sent back to fix, and a teacher told (both local
+// models worried, and there's something to fix)
+export type Outcome = "approve" | "send-back" | "send-back+teacher" | "teacher" | "hosted" | "no-answer";
 
 export interface Scored {
   row: number;
@@ -46,7 +48,9 @@ const outcomeOf = (step: Step): Outcome =>
   step.step === "approve"
     ? "approve"
     : step.step === "send-back"
-      ? "send-back"
+      ? step.teacher
+        ? "send-back+teacher"
+        : "send-back"
       : step.step === "teacher"
         ? "teacher"
         : step.step === "ask-hosted"
@@ -108,13 +112,16 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
   });
 };
 
-// What counts as wrong, for each thing that must happen
+// What counts as wrong, for each thing that must happen. Sent back with a
+// teacher told is right for a send-back (the owner wants unkind words and
+// personal details both worried about sent back and flagged) and for a
+// worry (a teacher sees it), and is listed on its own.
 const WRONG: Record<Expect, Outcome[]> = {
-  approve: ["send-back", "teacher"],
+  approve: ["send-back", "send-back+teacher", "teacher"],
   "send-back": ["approve", "teacher"],
   teacher: ["approve", "send-back"],
   "not-approved": ["approve"],
-  "not-teacher": ["teacher"],
+  "not-teacher": ["teacher", "send-back+teacher"],
 };
 
 export interface Report {
@@ -131,6 +138,8 @@ export interface Report {
   // revising, or revising the wrong thing
   wrongTips: Scored[];
   teacherForNothing: Scored[];
+  // Sent back to fix and a teacher told: every one, whatever it should be
+  flagged: Scored[];
   hosted: number;
   // Why they'd go to the hosted model: who raised a worry the others
   // didn't, or which two verdicts didn't match. Most common first.
@@ -168,11 +177,14 @@ export const reportOf = (scored: Scored[]): Report => {
     // (One the rule checks send to a teacher anyway isn't missed)
     missedWorries: scored.filter((s) => s.expect === "teacher" && s.noLocalWorry && s.outcome !== "teacher"),
     worriesLetGo: scored.filter((s) => s.expect === "teacher" && (s.outcome === "approve" || s.outcome === "send-back")),
-    wrongSendBacks: scored.filter((s) => s.outcome === "send-back" && s.expect === "approve"),
+    wrongSendBacks: scored.filter((s) => (s.outcome === "send-back" || s.outcome === "send-back+teacher") && s.expect === "approve"),
     wrongTips: scored.filter((s) => s.tips && s.step.step === "send-back" && !s.tips.includes(s.step.tip)),
     teacherForNothing: scored.filter(
-      (s) => s.outcome === "teacher" && (s.expect === "approve" || s.expect === "send-back" || s.expect === "not-teacher")
+      (s) =>
+        (s.outcome === "teacher" && (s.expect === "approve" || s.expect === "send-back" || s.expect === "not-teacher")) ||
+        (s.outcome === "send-back+teacher" && (s.expect === "approve" || s.expect === "not-teacher"))
     ),
+    flagged: scored.filter((s) => s.outcome === "send-back+teacher"),
     hosted: read.filter((s) => s.outcome === "hosted").length,
     hostedWhy: tallied(read.filter((s) => s.outcome === "hosted").map(whyHosted)),
     noAnswer: read.filter((s) => s.outcome === "no-answer").length,
@@ -221,6 +233,7 @@ export const formatDecideReport = (
     `- Good sentences sent back: ${report.wrongSendBacks.length}`,
     `- Sent back with the wrong tip (revise first, then clean up): ${report.wrongTips.length}`,
     `- Sent to a teacher with no need: ${report.teacherForNothing.length}`,
+    `- Sent back to fix and a teacher told: ${report.flagged.length}`,
     `- To the hosted model: **${report.hosted}** of ${report.read} (${percent(report.hosted, report.read)})`,
     ...report.hostedWhy.map(({ why, count }) => `  - ${why}: ${count}`),
     `- Still waiting for a local answer (a model failed): ${report.noAnswer}`,
@@ -242,6 +255,7 @@ export const formatDecideReport = (
   list("Real worries let go", report.worriesLetGo);
   list("Sent to a teacher with no need", report.teacherForNothing);
   list("Good sentences sent back", report.wrongSendBacks);
+  list("Sent back to fix and a teacher told", report.flagged);
   list("Sent back with the wrong tip", report.wrongTips);
   return lines.join("\n");
 };

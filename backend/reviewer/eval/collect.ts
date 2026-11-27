@@ -125,10 +125,12 @@ export const collectAnswers = async (
   return [...collected.values()];
 };
 
-// A checklist answer in a word: "unsure" for the gallery, its first "no",
-// or "all yes"
+// A checklist answer in a word: "unkind" or "unsure" for the gallery, its
+// first "no", or "all yes"
 const checklistKey = (answer: ChecklistAnswer) =>
-  answer.suitable === "unsure"
+  answer.suitable === "unkind"
+    ? "unkind"
+    : answer.suitable === "unsure"
     ? "not for the gallery"
     : ((["onTopic", "technique", "shows", "grammar"] as const).find((check) => answer[check] === "no") ?? "all yes");
 
