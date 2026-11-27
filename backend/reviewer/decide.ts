@@ -48,7 +48,7 @@
 //   sent back RECHECK_AFTER times for it), the check passes, so one model
 //   can't keep a child in a loop; when both say no, it goes back as usual.
 import type { Technique } from "../contract/api.js";
-import type { ChecklistAnswer } from "./contract.js";
+import { ChecklistAnswer, REASONS, YES_NO } from "./contract.js";
 import type { RuleOutcome } from "./rules.js";
 import { firstTip, PRAISE, TECHNIQUE_TIP, type TipId } from "./tips.js";
 import type { WelfareQuestion } from "./reviewer.js";
@@ -83,6 +83,10 @@ export const REVISE_CHECKS = ["onTopic", "technique", "shows"] as const;
 export type ReviseCheck = (typeof REVISE_CHECKS)[number];
 export const CHECKS = [...REVISE_CHECKS, "grammar"] as const;
 export type Check = (typeof CHECKS)[number];
+// Checks counted for "no loop" (RECHECK_AFTER): the writing ones, and the
+// gallery question when only one model says no
+export type Counted = Check | "gallery";
+
 // The writing checks the second model can tie with the first on, before
 // an approval (the technique the Tell asks for is the code's and the
 // first model's)
@@ -116,7 +120,10 @@ export interface Facts {
   second?: ChecklistAnswer;
   // How many times this child has been sent back for each check on this
   // Tell (the send-back step names its check: the caller counts them)
-  sentBackFor?: Partial<Record<Check, number>>;
+  sentBackFor?: Partial<Record<Counted, number>>;
+  // The Show names a person by first name (rules.ts, namesAPerson): the
+  // caller works it out from the words
+  namesAPerson?: boolean;
   hosted?: HostedAnswer;
   // The hosted model's checklist, asked only when the two local models
   // disagree on the writing before an approval, and how long it's waited
@@ -133,20 +140,27 @@ export type TeacherBecause =
   | "too-long" // the rules couldn't read it at all
   | "worry" // both local models, or the hosted model, saw a worry
   | "worry-not-checked" // a split worry the hosted model couldn't be asked about
-  | "model-failed" // a local model failed on these words again and again
+  | "model-failed" // a local model failed on these words again and again, before the child was known to be OK
+  | "unknown-reason" // the rules held it for a reason this decider doesn't know
   | "undone"; // a teacher took Scribbles' decision back
 
 export type Step =
   | { step: "approve"; tip: TipId }
   // check: the revise check it was sent back for, for the caller to count
-  // teacher: also told to a teacher (both local models worried, and the
-  // child has something to fix: personal details, or unkind words)
-  | { step: "send-back"; tip: TipId; check?: Check; teacher?: "worry" }
+  // teacher: also told to a teacher. "worry": both local models worried
+  // and both say it's unkind about someone named. "review": nothing is
+  // wrong with the child, but Scribbles couldn't settle it (the models
+  // keep splitting on the gallery question, or a model keeps failing on
+  // the words): kept for the teacher to look over, while the child goes on
+  | { step: "send-back"; tip: TipId; check?: Counted; teacher?: "worry" | "review" }
   | { step: "teacher"; because: TeacherBecause }
   | { step: "ask-local"; question: WelfareQuestion }
   // The second model's checklist, before an approval or to check a "no"
   | { step: "ask-second" }
-  | { step: "ask-hosted"; question: WelfareQuestion; about: "worry" }
+  // redact: the sentence has personal details: the worker must hide
+  // contact details (phone, email, username, address, school), keeping
+  // ages and every other word, before sending it
+  | { step: "ask-hosted"; question: WelfareQuestion; about: "worry"; redact?: true }
   // The checklist, to break a tie between the local models on the writing
   | { step: "ask-hosted"; about: "writing" };
 
@@ -189,14 +203,33 @@ const tipFor = (check: Check, checklist: ChecklistAnswer, facts: Facts): TipId =
   return firstTip("readAloud", facts.writingTip)!;
 };
 
-const sentBackOften = (check: Check, facts: Facts) => (facts.sentBackFor?.[check] ?? 0) >= RECHECK_AFTER;
+const sentBackOften = (check: Counted, facts: Facts) => (facts.sentBackFor?.[check] ?? 0) >= RECHECK_AFTER;
 
-export const decide = (facts: Facts): Step => {
+// An answer that isn't one of the allowed values (null from a database, a
+// half-saved checklist) is a missing one: asked again, never read as fine
+const oneOf = <T extends string>(value: unknown, allowed: readonly T[]) =>
+  allowed.includes(value as T) ? (value as T) : undefined;
+const validChecklist = (value: unknown) => (ChecklistAnswer.safeParse(value).success ? (value as ChecklistAnswer) : undefined);
+const KNOWN_REASONS = new Set<string>(REASONS);
+
+export const decide = (given: Facts): Step => {
+  const facts: Facts = {
+    ...given,
+    safety: oneOf(given.safety, ["safe", "unsafe"] as const),
+    welfare: { first: oneOf(given.welfare?.first, YES_NO), second: oneOf(given.welfare?.second, YES_NO) },
+    checklist: validChecklist(given.checklist),
+    second: validChecklist(given.second),
+    hostedChecklist: validChecklist(given.hostedChecklist),
+    hosted: oneOf(given.hosted?.concern, YES_NO) ? given.hosted : undefined,
+  };
   const { rules, undone, safety, welfare = {}, checklist, second, hosted, failedTries = {} } = facts;
   const reasons: string[] = reasonsOf(rules);
   const question = welfareQuestion(rules);
 
   if (undone) return { step: "teacher", because: "undone" };
+  // A reason added to the rules later, that this doesn't know what to do
+  // with: a teacher, never a pass
+  if (reasons.some((reason) => !KNOWN_REASONS.has(reason))) return { step: "teacher", because: "unknown-reason" };
 
   // 1. The rule checks. An explicit worrying phrase ("worrying" without
   // "sensitive-words") goes to a teacher and to no AI. Far too long: the
@@ -206,13 +239,17 @@ export const decide = (facts: Facts): Step => {
   }
   if (reasons.includes("too-long")) return { step: "teacher", because: "too-long" };
 
-  // A local model that keeps failing on these words
+  // A local model that keeps failing on these words. Once every reader has
+  // said the child is OK, it's sent back to reword (and kept for the
+  // teacher to look over); before that, a teacher, as a worry might hide
+  // in the words no model could read
+  const worries = [safety, welfare.first, welfare.second];
   if (READERS.some((reader) => (failedTries[reader] ?? 0) >= MAX_FAILED_TRIES)) {
-    return { step: "teacher", because: "model-failed" };
+    const allOk = safety === "safe" && welfare.first === "no" && welfare.second === "no";
+    return allOk ? { step: "send-back", tip: "readAloud", teacher: "review" } : { step: "teacher", because: "model-failed" };
   }
 
   // Every local answer first: none is ever guessed
-  const worries = [safety, welfare.first, welfare.second];
   if (worries.some((answer) => answer === undefined) || !checklist) return { step: "ask-local", question };
 
   // The hosted model, when it has been asked: a worry is final
@@ -234,33 +271,46 @@ export const decide = (facts: Facts): Step => {
     if (personal) {
       if (hosted) return { step: "send-back", tip: "privateDetails" };
       if ((facts.worryWaitedMs ?? 0) >= WORRY_WAIT_MS) return { step: "teacher", because: "worry-not-checked" };
-      return { step: "ask-hosted", question, about: "worry" };
+      return { step: "ask-hosted", question, about: "worry", redact: true };
     }
-    if (!reasons.includes("worrying") && !reasons.includes("personal-details") && safety === "safe" && checklist.suitable === "unkind") {
+    // Unkind about someone named ("Lucas", "Chloe's"), not the child
+    // themselves ("I'm so ugly, nobody likes me" is a worry, never a tip)
+    if (!reasons.includes("worrying") && !reasons.includes("unsafe-words") && facts.namesAPerson && safety === "safe" && checklist.suitable === "unkind") {
       if (!second) return { step: "ask-second" };
       if (second.suitable === "unkind") return { step: "send-back", tip: "kindWords", teacher: "worry" };
     }
     return { step: "teacher", because: "worry" };
   }
-  // With personal details, the safety model flags the details themselves
-  // (its privacy category): only the two local models count
-  const counted = personal ? [welfare.first, welfare.second] : worries;
-  const worrySplit = counted.some((answer) => answer === "unsafe" || answer === "yes");
+  const worrySplit = worries.some((answer) => answer === "unsafe" || answer === "yes");
   if (worrySplit && !hosted) {
     // One local model's worry about a sentence with personal details:
     // they're taken out first, and the new version is read afresh, by the
     // hosted model too if the local models still disagree
-    if (personal) return { step: "send-back", tip: "privateDetails" };
+    if (personal && VOTERS.some((voter) => welfare[voter] === "yes")) return { step: "send-back", tip: "privateDetails" };
     if ((facts.worryWaitedMs ?? 0) >= WORRY_WAIT_MS) return { step: "teacher", because: "worry-not-checked" };
-    return { step: "ask-hosted", question, about: "worry" };
+    // With personal details and only the safety model worried: it may be
+    // the details themselves (its privacy category) or something worse
+    // ("text me and I'll send pics"), so the hosted model is asked, with
+    // the contact details hidden
+    return personal ? { step: "ask-hosted", question, about: "worry", redact: true } : { step: "ask-hosted", question, about: "worry" };
   }
 
   // 3. Certain reasons to send it back
   const tip = certainTip(facts);
   if (tip) return { step: "send-back", tip };
 
-  // 4. Fine for other children to read?
-  if (checklist.suitable !== "yes") return { step: "send-back", tip: "kindWords" };
+  // 4. Fine for other children to read? Never a sentence the safety model
+  // flagged (gory, harmful): the hosted model said the child is OK, not
+  // that it's fine for the gallery. When the models keep splitting on it,
+  // it's still sent back, and kept for the teacher to look over.
+  if (safety === "unsafe") {
+    return { step: "send-back", tip: "kindWords", check: "gallery", ...(sentBackOften("gallery", facts) ? { teacher: "review" as const } : {}) };
+  }
+  if (checklist.suitable !== "yes") {
+    if (!sentBackOften("gallery", facts)) return { step: "send-back", tip: "kindWords", check: "gallery" };
+    if (!second) return { step: "ask-second" };
+    return { step: "send-back", tip: "kindWords", check: "gallery", ...(second.suitable === "yes" ? { teacher: "review" as const } : {}) };
+  }
 
   // 5-6. The first model's checklist, first problem first. A "no" the
   // child has been sent back for often must be the second model's too.
@@ -283,24 +333,23 @@ export const decide = (facts: Facts): Step => {
 
   // 7. Before approving: the second model's checklist too
   if (!second) return { step: "ask-second" };
-  if (second.suitable !== "yes") return { step: "send-back", tip: "kindWords" };
+  if (second.suitable !== "yes") {
+    return { step: "send-back", tip: "kindWords", check: "gallery", ...(sentBackOften("gallery", facts) ? { teacher: "review" as const } : {}) };
+  }
   // A tie on the writing: the hosted model's checklist decides it. (A
   // check the models keep disagreeing on passes: see the top.)
   const tied = TIE_CHECKS.some((check) => !passes(check, second, facts) && !sentBackOften(check, facts));
   if (tied) {
     const { hostedChecklist } = facts;
-    if (hostedChecklist) {
-      for (const check of CHECKS) {
-        if (!passes(check, hostedChecklist, facts) && !sentBackOften(check, facts)) {
-          return { step: "send-back", tip: tipFor(check, hostedChecklist, facts), check };
-        }
+    if (!hostedChecklist && (facts.writingWaitedMs ?? 0) < WORRY_WAIT_MS) return { step: "ask-hosted", about: "writing" };
+    // The hosted model's answer on the tied checks only (topic, shows,
+    // grammar). No answer in 6 hours: the second model's "no" stands, so a
+    // missing answer is never read as fine.
+    const judge = hostedChecklist ?? second;
+    for (const check of TIE_CHECKS) {
+      if (!passes(check, judge, facts) && !sentBackOften(check, facts)) {
+        return { step: "send-back", tip: tipFor(check, judge, facts), check };
       }
-    } else if ((facts.writingWaitedMs ?? 0) < WORRY_WAIT_MS) {
-      return { step: "ask-hosted", about: "writing" };
-    } else if (!passes("grammar", second, facts) && !sentBackOften("grammar", facts)) {
-      // No hosted answer in 6 hours: as before the tie-break, only the
-      // second model's grammar mistake sends it back
-      return { step: "send-back", tip: tipFor("grammar", second, facts), check: "grammar" };
     }
   }
 

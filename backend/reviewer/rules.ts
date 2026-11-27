@@ -1035,6 +1035,11 @@ export const isUnkind = (text: string) => {
 // A classmate named next to something unkind, about their body, or blaming
 // them ("Liam is so fat", "It was Liam's fault", "I blame Emma"), or named
 // anywhere in a sentence that's unkind
+// Does it name a person by first name ("Lucas", "Chloe's")? For the
+// decider: unkind words both models flag are sent back only when they're
+// about someone named, not the child themselves
+export const namesAPerson = (text: string) => namesIn(text).isName.some(Boolean);
+
 export const namesSomeone = (text: string, unkind = isUnkind(text)) => {
   const { words, owned, isName } = namesIn(text);
   if (!isName.some(Boolean)) return false;

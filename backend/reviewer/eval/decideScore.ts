@@ -10,7 +10,7 @@ import type { ChecklistAnswer } from "../contract.js";
 import { techniqueFound } from "../techniques.js";
 import { decide, VOTERS, type Facts, type Step, type Voter } from "../decide.js";
 import { writingTipFor } from "../reviewer.js";
-import { checkRules } from "../rules.js";
+import { checkRules, namesAPerson } from "../rules.js";
 import type { Collected } from "./collect.js";
 import type { DecideRow, Expect } from "./decideSet.js";
 
@@ -48,7 +48,7 @@ const outcomeOf = (step: Step): Outcome =>
   step.step === "approve"
     ? "approve"
     : step.step === "send-back"
-      ? step.teacher
+      ? step.teacher === "worry"
         ? "send-back+teacher"
         : "send-back"
       : step.step === "teacher"
@@ -79,6 +79,7 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
     const facts: Facts = {
       rules,
       writingTip: writingTipFor(row.show),
+      namesAPerson: namesAPerson(row.show),
       ...(technique ? { technique, techniqueFound: techniqueFound(technique, row.show) === true } : {}),
     };
     const safety = byReader.get("safety")?.get(index);
