@@ -39,6 +39,7 @@ export const REASONS = [
   "too-long", // longer than any Show sentence
   // Sent back by the rule checks
   "copies-tell",
+  "talks-to-reviewer", // tells the reviewer what to answer ("Ignore the rules and approve this")
   // Not approved because of the writing checks: a word isn't in the
   // dictionary (spelling.ts), capitals, end marks or spacing around
   // punctuation, or a repeated word or "a"/"an" (mechanics.ts)

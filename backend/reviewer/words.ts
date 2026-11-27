@@ -64,7 +64,11 @@ export const WORRYING_PHRASES = [
   "bully me", "bullies me", "bullied me", "bullying me", "make fun of me", "made fun of me",
   "makes fun of me", "pick on me", "picks on me", "picked on me", "call me fat", "called me fat",
   "call me ugly", "called me ugly", "call me stupid", "called me stupid", "call me names",
-  "called me names",
+  "called me names", "calls me names", "call me loser", "called me loser", "calls me loser",
+  "everyone ignores me", "everybody ignores me", "they all ignore me", "they ignore me",
+  "pretend i'm invisible", "pretends i'm invisible", "pretend im invisible", "pretends im invisible",
+  "like i'm invisible", "like im invisible", "loser on my locker", "on my locker again",
+  "nobody sits with me", "no one sits with me", "everyone laughs at me", "everybody laughs at me",
   // Someone doing something to them. (Someone hitting, kicking or touching
   // the child is checked in rules.ts, only with a person doing it: "the
   // cold wind hits me" is a Show sentence.)

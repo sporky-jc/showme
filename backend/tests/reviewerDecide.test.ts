@@ -112,8 +112,17 @@ describe("step 2: is the child OK?", () => {
     expect(decide(allIn({ ...split, writingTip: "endMark" }))).toEqual({ step: "send-back", tip: "endMark" });
   });
 
-  it("never asks the hosted model about a sentence with personal details: a split worry goes to a teacher", () => {
-    expect(decide(allIn({ rules: hold("personal-details"), safety: "unsafe" }))).toEqual({
+  it("never asks the hosted model about a sentence with personal details: it's sent back to take them out", () => {
+    const personal = hold("personal-details");
+    // One local model worried
+    expect(decide(allIn({ rules: personal, welfare: { first: "yes", second: "no" } }))).toEqual({
+      step: "send-back",
+      tip: "privateDetails",
+    });
+    // The safety model alone: it flags the details themselves, so it doesn't count
+    expect(decide(allIn({ rules: personal, safety: "unsafe" }))).toEqual({ step: "send-back", tip: "privateDetails" });
+    // Both local models worried: still a teacher
+    expect(decide(allIn({ rules: personal, welfare: { first: "yes", second: "yes" } }))).toEqual({
       step: "teacher",
       because: "worry",
     });

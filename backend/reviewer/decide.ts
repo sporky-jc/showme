@@ -15,8 +15,11 @@
 //      local models' welfare answers). None worried: go on. Both local
 //      models: a teacher (the safety model looks for harmful words, not for
 //      a child who isn't OK, so it isn't waited for). Any other split: the
-//      hosted model is asked only this (never for a sentence with personal
-//      details: then a teacher). It's the only time the hosted model is
+//      hosted model is asked only this. A sentence with personal details
+//      never goes to it: it's sent back to take them out, and the version
+//      without them is read afresh (the safety model's worry about such a
+//      sentence is the details themselves, so it isn't counted). It's the
+//      only time the hosted model is
 //      asked, so only a small share of sentences go to it.
 //   3. Certain reasons to send it back: personal details, rude or unkind
 //      words, not in English, copying the Tell.
@@ -194,10 +197,16 @@ export const decide = (facts: Facts): Step => {
 
   // 2. Is the child OK?
   if (VOTERS.every((voter) => welfare[voter] === "yes")) return { step: "teacher", because: "worry" };
-  const worrySplit = worries.some((answer) => answer === "unsafe" || answer === "yes");
+  // With personal details, the safety model flags the details themselves
+  // (its privacy category): only the two local models count
+  const personal = reasons.includes("personal-details");
+  const counted = personal ? [welfare.first, welfare.second] : worries;
+  const worrySplit = counted.some((answer) => answer === "unsafe" || answer === "yes");
   if (worrySplit && !hosted) {
-    // Personal details never go to the hosted model
-    if (reasons.includes("personal-details")) return { step: "teacher", because: "worry" };
+    // Personal details never go to the hosted model: they're taken out
+    // first, and the new version is read afresh, by the hosted model too
+    // if the local models still disagree
+    if (personal) return { step: "send-back", tip: "privateDetails" };
     if ((facts.worryWaitedMs ?? 0) >= WORRY_WAIT_MS) return { step: "teacher", because: "worry-not-checked" };
     return { step: "ask-hosted", question, about: "worry" };
   }
