@@ -289,29 +289,29 @@ describe("step 7: an approval needs the second model's checklist too", () => {
     expect(decide(allIn({ second: saying({ suitable: "unsure" }) }))).toEqual({ step: "send-back", tip: "kindWords" });
   });
 
-  it.each([
-    ["off topic", { onTopic: "no" as const }, "onTopic", "onTopic"],
-    ["no detail", { shows: "no" as const, detail: "smell" as const }, "smell", "shows"],
-    ["a grammar mistake", { grammar: "no" as const }, "readAloud", "grammar"],
-  ])("sends it back when the second model finds a problem (%s), with its tip", (_name, more, tip, check) => {
-    expect(decide(allIn({ second: saying(more) }))).toEqual({ step: "send-back", tip, check });
-  });
-
-  it("uses the Tell's technique tip when the second model says it isn't used", () => {
-    expect(decide(allIn({ technique: "metaphor", second: saying({ technique: "no" }) }))).toEqual({
+  it("sends it back when the second model finds a grammar mistake, with the grammar tip", () => {
+    expect(decide(allIn({ second: saying({ grammar: "no" }) }))).toEqual({
       step: "send-back",
-      tip: "metaphor",
-      check: "technique",
+      tip: "readAloud",
+      check: "grammar",
     });
   });
 
+  it.each([
+    ["off topic", { onTopic: "no" as const }],
+    ["no detail", { shows: "no" as const, detail: "smell" as const }],
+    ["no technique", { technique: "no" as const }],
+  ])("leaves the writing to the first model: the second's '%s' doesn't stop an approval", (_name, more) => {
+    expect(decide(allIn({ technique: "metaphor", second: saying(more) }))).toEqual({ step: "approve", tip: "great" });
+  });
+
   it("lets a check pass after three send-backs for it, when only the second model keeps saying no: no loop", () => {
-    expect(decide(allIn({ second: saying({ onTopic: "no" }), sentBackFor: { onTopic: RECHECK_AFTER } }))).toEqual({
+    expect(decide(allIn({ second: saying({ grammar: "no" }), sentBackFor: { grammar: RECHECK_AFTER } }))).toEqual({
       step: "approve",
       tip: "great",
     });
     // ... but never the gallery question
-    expect(decide(allIn({ second: saying({ suitable: "unsure" }), sentBackFor: { onTopic: RECHECK_AFTER } }))).toEqual({
+    expect(decide(allIn({ second: saying({ suitable: "unsure" }), sentBackFor: { grammar: RECHECK_AFTER } }))).toEqual({
       step: "send-back",
       tip: "kindWords",
     });

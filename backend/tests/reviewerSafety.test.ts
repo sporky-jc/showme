@@ -520,6 +520,21 @@ describe("the review: threats", () => {
     ["My mom is going to kill me!", "sensitive-words"],
     ["Mum will kill me if I lose my gloves.", "sensitive-words"],
     ["Dad said he will kill me.", "worrying"],
+    // A brother, sister, cousin or friend being rough is nearly always play:
+    // read first, not "Check in"
+    ["I couldn't sleep because my little sister kept kicking me all night.", "sensitive-words"],
+    ["My cousin pushed me into the pool at the party.", "pass"],
+    ["My cousin shoves me when we wait for the bus.", "sensitive-words"],
+    ["My friends poke me when I fall asleep in the car.", "sensitive-words"],
+    ["My brothers punch me.", "worrying"],
+    ["My sister's boyfriend kicks me.", "worrying"],
+    ["My dad kicks me when he is mad.", "worrying"],
+    // A thing that could hurt anyone is not a threat
+    ["The thorns were so sharp they could stab you.", "worrying"],
+    ["The icicle was so pointy it could stab you.", "sensitive-words"],
+    ["That storm was so wild it might kill you.", "sensitive-words"],
+    ["I could stab you.", "worrying"],
+    ["He could kill you.", "worrying"],
   ]);
 });
 

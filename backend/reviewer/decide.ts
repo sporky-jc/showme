@@ -30,9 +30,12 @@
 //         metaphor...), then showing with a detail.
 //      6. Clean up: spelling, capitals and punctuation (the code's) and
 //         grammar, as one tip when both are wrong.
-//   7. Before approving, the second model answers the same checklist, and
-//      any problem it finds sends the sentence back with its tip: an
-//      approval needs both models.
+//   7. Before approving, the second model answers the same checklist. Its
+//      "unsure" about the gallery, or a grammar mistake it finds, sends the
+//      sentence back: an approval needs both models to say it's fine for
+//      other children. Topic, technique and detail stay the first model's
+//      to judge (letting the second veto those too sent 4 good sentences
+//      back in the scores, and stopped no wrong approval).
 //   8. Approve.
 //   When the two models keep disagreeing on one check (the child has been
 //   sent back RECHECK_AFTER times for it), the check passes, so one model
@@ -233,10 +236,9 @@ export const decide = (facts: Facts): Step => {
   // 7. Before approving: the second model's checklist too
   if (!second) return { step: "ask-second" };
   if (second.suitable === "unsure") return { step: "send-back", tip: "kindWords" };
-  for (const check of CHECKS) {
-    // (A check the models keep disagreeing on passes: see the top)
-    if (passes(check, second, facts) || sentBackOften(check, facts)) continue;
-    return { step: "send-back", tip: tipFor(check, second, facts), check };
+  // (A check the models keep disagreeing on passes: see the top)
+  if (!passes("grammar", second, facts) && !sentBackOften("grammar", facts)) {
+    return { step: "send-back", tip: tipFor("grammar", second, facts), check: "grammar" };
   }
 
   // 8. Ready for the gallery

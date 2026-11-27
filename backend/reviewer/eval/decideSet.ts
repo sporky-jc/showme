@@ -153,7 +153,8 @@ const PAIRS: { tell: string; before: string; show: string; expect: Expect }[] = 
   { tell: LOUD, before: "Maya is a loser and smells like trash.", show: "Maya sat alone and smelled like the garbage cans behind the cafeteria.", expect: "send-back" },
   { tell: HAPPY, before: "Jake is so fat he broke the chair.", show: "The chair cracked like a whip when Jake, the human hippo, sat down.", expect: "send-back" },
   { tell: HAPPY, before: "Everyone hates Noah.", show: "Noah's lunch table was as empty as a desert because nobody can stand him.", expect: "send-back" },
-  { tell: COLD, before: "Ava is ugly.", show: "Ava's face looked like a frozen potato in the cold wind.", expect: "send-back" },
+  // (Reworded into a picture of the cold, not about Ava: the owner would approve it)
+  { tell: COLD, before: "Ava is ugly.", show: "Ava's face looked like a frozen potato in the cold wind.", expect: "approve" },
   { tell: SCARED, before: "I want to disappear forever.", show: "The snow could cover me up and nobody would come looking.", expect: "teacher" },
   { tell: SCARED, before: "My dad hits me when he is mad.", show: "When Dad gets mad, my arm turns purple like a plum.", expect: "teacher" },
   { tell: SCARED, before: "I don't want to be alive.", show: "I wish I could sleep like Grandpa and not wake up either.", expect: "teacher" },
@@ -182,7 +183,8 @@ const ORDER: { group: string; day: number; show: string; tips?: TipId[] }[] = [
   { group: "no-technique", day: 31, show: "He realy jumped over every trap and ran to the cheese.", tips: ["compare"] },
   { group: "no-technique", day: 31, show: "He moved quickly past all of the traps.", tips: ["compare"] },
   { group: "no-technique", day: 32, show: "The soup was so hot that it burned my tung and I yelled.", tips: ["metaphor"] },
-  { group: "no-technique", day: 33, show: "The strong wind pushed the flowers left and rigt.", tips: ["personification"] },
+  // ("Pushed" is a person's action: the personification is there, only the spelling isn't)
+  { group: "no-technique", day: 33, show: "The strong wind pushed the flowers left and rigt.", tips: ["spelling"] },
   { group: "no-technique", day: 34, show: "I lost my bike and I got a bad grade on my test, so I felt realy sad.", tips: ["hyperbole"] },
   { group: "no-technique", day: 35, show: "My mom jumps on a chair and screems when she sees a mouse.", tips: ["allusion"] },
   // On topic, but telling, not showing: a detail before the spelling
@@ -224,6 +226,9 @@ const ORDER: { group: string; day: number; show: string; tips?: TipId[] }[] = [
   { group: "technique", day: 33, show: "The angry wind shoved the flowers, and they bowed and danced to keep from falling." },
   { group: "technique", day: 34, show: "I lost my bike and failed my math test, so this is the worst day in the history of the universe." },
   { group: "technique", day: 35, show: "When Mom sees a mouse, her knees turn to jelly like she just met her kryptonite." },
+  // Added later (rows only go at the end): on topic, no person's action
+  // for the wind, and a slip
+  { group: "no-technique", day: 33, show: "The flowers went back and forth in the strong wind all day long", tips: ["personification"] },
 ];
 
 export const DECIDE_SET: DecideRow[] = [
