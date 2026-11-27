@@ -87,26 +87,34 @@ describe("step 2: is the child OK?", () => {
     ).toEqual({ step: "teacher", because: "worry" });
   });
 
-  describe("both worried, with something for the child to fix: sent back to fix it, and a teacher told", () => {
+  describe("both worried and both say it's unkind about someone: sent back to fix it, and a teacher told", () => {
     const both = { welfare: { first: "yes" as const, second: "yes" as const } };
-    it("personal details", () => {
-      expect(decide(allIn({ ...both, rules: hold("personal-details") }))).toEqual({
-        step: "send-back",
-        tip: "privateDetails",
-        teacher: "worry",
-      });
-    });
-    it("unkind about someone, in the first model's checklist (the second isn't needed)", () => {
-      const { second: _, ...noSecond } = allIn({ ...both, checklist: saying({ suitable: "unkind" }) });
-      expect(decide(noSecond)).toEqual({ step: "send-back", tip: "kindWords", teacher: "worry" });
-    });
-    it("unkind about someone, in the second's: asked for only then", () => {
-      const { second: _, ...noSecond } = allIn(both);
+    const unkind = saying({ suitable: "unkind" });
+    it("both models' checklists say unkind (the second asked only then)", () => {
+      const { second: _, ...noSecond } = allIn({ ...both, checklist: unkind });
       expect(decide(noSecond)).toEqual({ step: "ask-second" });
-      expect(decide(allIn({ ...both, second: saying({ suitable: "unkind" }) }))).toEqual({
+      expect(decide(allIn({ ...both, checklist: unkind, second: unkind }))).toEqual({
         step: "send-back",
         tip: "kindWords",
         teacher: "worry",
+      });
+    });
+    it("one model's unkind alone is a teacher only: threats and self-harm got it too", () => {
+      expect(decide(allIn({ ...both, checklist: unkind, second: saying({ suitable: "unsure" }) }))).toEqual({
+        step: "teacher",
+        because: "worry",
+      });
+      expect(decide(allIn({ ...both, second: unkind }))).toEqual({ step: "teacher", because: "worry" });
+    });
+    it("a teacher only when the safety model also worried, or with personal details", () => {
+      expect(decide(allIn({ ...both, safety: "unsafe", checklist: unkind, second: unkind }))).toEqual({
+        step: "teacher",
+        because: "worry",
+      });
+      // An address or age with a worry was as often neglect or grooming
+      expect(decide(allIn({ ...both, rules: hold("personal-details"), checklist: unkind, second: unkind }))).toEqual({
+        step: "teacher",
+        because: "worry",
       });
     });
     it("but not when it's only not for the gallery, or the rules found a worrying phrase: a teacher only", () => {
@@ -115,7 +123,7 @@ describe("step 2: is the child OK?", () => {
         because: "worry",
       });
       // "The big kids kick me and call me a weirdo": not told to be kind
-      expect(decide(allIn({ ...both, rules: hold("worrying", "sensitive-words"), checklist: saying({ suitable: "unkind" }) }))).toEqual({
+      expect(decide(allIn({ ...both, rules: hold("worrying", "sensitive-words"), checklist: unkind, second: unkind }))).toEqual({
         step: "teacher",
         because: "worry",
       });
@@ -159,11 +167,10 @@ describe("step 2: is the child OK?", () => {
     });
     // The safety model alone: it flags the details themselves, so it doesn't count
     expect(decide(allIn({ rules: personal, safety: "unsafe" }))).toEqual({ step: "send-back", tip: "privateDetails" });
-    // Both local models worried: sent back, and a teacher told
+    // Both local models worried: a teacher
     expect(decide(allIn({ rules: personal, welfare: { first: "yes", second: "yes" } }))).toEqual({
-      step: "send-back",
-      tip: "privateDetails",
-      teacher: "worry",
+      step: "teacher",
+      because: "worry",
     });
   });
 
@@ -227,11 +234,24 @@ describe("step 4: fine for other children to read?", () => {
 describe("step 5: revise, first problem first", () => {
   it("sends it back for being off topic first, whatever else is wrong", () => {
     const everything = saying({ onTopic: "no", technique: "no", shows: "no", grammar: "no" });
-    expect(decide(allIn({ technique: "simile", checklist: everything, writingTip: "spelling" }))).toEqual({
+    expect(decide(allIn({ technique: "simile", checklist: everything, second: everything, writingTip: "spelling" }))).toEqual({
       step: "send-back",
       tip: "onTopic",
       check: "onTopic",
     });
+  });
+
+  it("asks the second model when off topic comes with 'doesn't show': a sentence that only says the Tell again gets a detail tip", () => {
+    const telling = saying({ onTopic: "no", shows: "no", detail: "showNotTell" });
+    const { second: _, ...noSecond } = allIn({ checklist: telling });
+    expect(decide(noSecond)).toEqual({ step: "ask-second" });
+    // "Our lunch was gross and yucky and bad.": the second says on topic
+    expect(decide(allIn({ checklist: telling }))).toEqual({ step: "send-back", tip: "showNotTell", check: "shows" });
+    // Both say off topic
+    expect(decide(allIn({ checklist: telling, second: telling }))).toEqual({ step: "send-back", tip: "onTopic", check: "onTopic" });
+    // Off topic but it shows: no second model needed
+    const { second: __, ...alone } = allIn({ checklist: saying({ onTopic: "no" }) });
+    expect(decide(alone)).toEqual({ step: "send-back", tip: "onTopic", check: "onTopic" });
   });
 
   it.each([

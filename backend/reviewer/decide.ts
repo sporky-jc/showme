@@ -15,10 +15,9 @@
 //      local models' welfare answers). None worried: go on. Both local
 //      models: a teacher (the safety model looks for harmful words, not for
 //      a child who isn't OK, so it isn't waited for). Any other split: the
-//      hosted model is asked only this. When both worry and there is
-//      something for the child to fix (personal details, or a model says
-//      it's unkind about someone), it's sent back to fix AND a teacher is
-//      told; a worry with nothing to fix goes to a teacher only. A
+//      hosted model is asked only this. When both worry and both say it's
+//      unkind about someone (and the safety model and the rules see
+//      nothing more), it's sent back to fix AND a teacher is told. A
 //      sentence with personal details
 //      never goes to it: it's sent back to take them out, and the version
 //      without them is read afresh (the safety model's worry about such a
@@ -204,15 +203,14 @@ export const decide = (facts: Facts): Step => {
   // The hosted model, when it has been asked: a worry is final
   if (hosted?.concern === "yes") return { step: "teacher", because: "worry" };
 
-  // 2. Is the child OK? Both local models worried: a teacher. With
-  // something to fix, the child is sent back to fix it too: personal
-  // details, or unkind words about someone (either model's "unkind",
-  // the second asked only then). Not when the rules found a worrying
-  // phrase, so a child who wrote about being hurt isn't told to be kind.
+  // 2. Is the child OK? Both local models worried: a teacher. When both
+  // also say it's unkind about someone, the child is sent back to fix it
+  // too. Only then: in the scores, one model's "unkind" alone was also
+  // threats, self-harm and abuse, and a child who wrote about those must
+  // never get a tip back. Not with personal details either: a worry with
+  // an address or age in it was as often neglect or grooming.
   if (VOTERS.every((voter) => welfare[voter] === "yes")) {
-    if (reasons.includes("personal-details")) return { step: "send-back", tip: "privateDetails", teacher: "worry" };
-    if (!reasons.includes("worrying")) {
-      if (checklist.suitable === "unkind") return { step: "send-back", tip: "kindWords", teacher: "worry" };
+    if (!reasons.includes("worrying") && !reasons.includes("personal-details") && safety === "safe" && checklist.suitable === "unkind") {
       if (!second) return { step: "ask-second" };
       if (second.suitable === "unkind") return { step: "send-back", tip: "kindWords", teacher: "worry" };
     }
@@ -241,8 +239,15 @@ export const decide = (facts: Facts): Step => {
 
   // 5-6. The first model's checklist, first problem first. A "no" the
   // child has been sent back for often must be the second model's too.
+  // "Off topic" with "doesn't show" is often a sentence that only says
+  // the Tell again ("Our lunch was gross and yucky."): the second model
+  // must agree it's off topic, or the child gets a detail tip instead.
   for (const check of CHECKS) {
     if (passes(check, checklist, facts)) continue;
+    if (check === "onTopic" && checklist.shows === "no") {
+      if (!second) return { step: "ask-second" };
+      if (passes("onTopic", second, facts)) continue;
+    }
     if (sentBackOften(check, facts)) {
       if (!second) return { step: "ask-second" };
       if (passes(check, second, facts)) continue;
