@@ -245,3 +245,19 @@ export const reviewerSwitchRateLimit = rateLimit({
   message: { message: "Too many requests. Wait a minute, then try again." },
   validate: { xForwardedForHeader: false, forwardedHeader: false },
 });
+
+// Scribbles' worker on the VM (POST /worker/work and /worker/answers): a
+// worker asks for a batch, then posts each sentence's answers, so a busy
+// one makes well under this. Counted per address, before the key is
+// checked, so it also slows anyone guessing the key.
+export const WORKER_REQUESTS_PER_MINUTE = 240;
+export const workerRateLimitStore = new MemoryStore();
+
+export const workerRateLimit = rateLimit({
+  store: workerRateLimitStore,
+  windowMs: 60 * 1000,
+  limit: WORKER_REQUESTS_PER_MINUTE,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many requests. Wait a minute, then try again." },
+});

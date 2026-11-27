@@ -169,6 +169,8 @@ jobs:
           REVIEWER_MODE: ${{ vars.PRODUCTION_REVIEWER_MODE }}
           # Who sees the Owner settings on the Teacher page (the sense tagger switch)
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          # The key Scribbles' worker on the VM sends: this backend's own
+          WORKER_KEY: ${{ secrets.PRODUCTION_WORKER_KEY }}
           REVIEWER_USE_GROQ: ${{ vars.REVIEWER_USE_GROQ }}
           CLOUDFLARE_REVIEW_MODEL: ${{ vars.CLOUDFLARE_REVIEW_MODEL }}
         run: |

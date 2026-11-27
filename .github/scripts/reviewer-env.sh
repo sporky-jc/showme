@@ -26,6 +26,11 @@
 #   REVIEWER_USE_GROQ       variable, optional: "yes" to add Groq (13+ only)
 #   CLOUDFLARE_REVIEW_MODEL variable, optional: another Workers AI model to
 #                           review with (e.g. @cf/meta/llama-3.1-8b-instruct-fast)
+#   WORKER_KEY              secret, optional: the key Scribbles' worker on the
+#                           VM sends (backend/middlewares/workerKey.ts); one per
+#                           backend, so a staging key never works on production.
+#                           At least 32 letters, digits, _ or - (e.g. openssl
+#                           rand -hex 32). Unset: the worker's routes let nobody in
 #
 # Any of them missing just leaves the reviewer off or without that provider;
 # a deploy never fails for it. A value in the wrong shape is left out with a
@@ -99,5 +104,13 @@ if [ "${REVIEWER_USE_GROQ:-}" = "yes" ]; then
     line GROQ_API_KEY "$GROQ_API_KEY"
   else
     echo "::warning::REVIEWER_USE_GROQ is yes but GROQ_API_KEY is missing or not in the expected shape (gsk_...); Groq is left out" >&2
+  fi
+fi
+
+if [ -n "${WORKER_KEY:-}" ]; then
+  if [[ "$WORKER_KEY" =~ ^[A-Za-z0-9_-]{32,200}$ ]]; then
+    line WORKER_KEY "$WORKER_KEY"
+  else
+    echo "::warning::WORKER_KEY must be 32 to 200 letters, digits, _ or - (e.g. openssl rand -hex 32); the worker's routes let nobody in" >&2
   fi
 fi

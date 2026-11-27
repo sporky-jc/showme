@@ -115,6 +115,40 @@ export type ReviewLineDoc = mongoose.HydratedDocument<mongoose.InferSchemaType<t
 
 type Id = mongoose.Types.ObjectId | string;
 
+// The values that come from the worker go into queries only as plain
+// values ($eq) and real ids, and the field names are picked from fixed
+// strings, never built from what was sent: so no request can turn into a
+// query operator or another field (the worker's routes check them all
+// first too)
+const idOf = (id: Id) => new mongoose.Types.ObjectId(String(id));
+const eq = (value: string) => ({ $eq: String(value) });
+const claimField = (reader: LineReader) => {
+  switch (reader) {
+    case "safety":
+      return "claims.safety";
+    case "first":
+      return "claims.first";
+    case "second":
+      return "claims.second";
+    case "hosted":
+      return "claims.hosted";
+  }
+  throw new Error("Unknown reader");
+};
+const failedField = (reader: LineReader) => {
+  switch (reader) {
+    case "safety":
+      return "failedTries.safety";
+    case "first":
+      return "failedTries.first";
+    case "second":
+      return "failedTries.second";
+    case "hosted":
+      return "failedTries.hosted";
+  }
+  throw new Error("Unknown reader");
+};
+
 // Put the sentence's current words in line. An older version still
 // waiting is replaced: its answers no longer count. The same words again
 // (a save that didn't change them) keep their place and answers.
@@ -133,15 +167,16 @@ export const enterLine = async (sentence: Id, show: string) => {
 // so two workers asking at once never get the same version.
 export const claimWork = async (reader: LineReader, worker: string, limit: number, now = new Date()) => {
   const claimed: ReviewLineDoc[] = [];
-  const claim = `claims.${reader}`;
+  const claim = claimField(reader);
   for (let i = 0; i < limit; i++) {
+    const free: Record<string, unknown> = {
+      state: "waiting",
+      "needs.reader": eq(reader),
+      $or: [{ [claim]: { $exists: false } }, { [claim]: null }, { [`${claim}.until`]: { $lte: now } }],
+    };
     const line = await ReviewLine.findOneAndUpdate(
-      {
-        state: "waiting",
-        "needs.reader": reader,
-        $or: [{ [claim]: { $exists: false } }, { [claim]: null }, { [`${claim}.until`]: { $lte: now } }],
-      },
-      { $set: { [claim]: { worker, until: new Date(now.getTime() + CLAIM_MS) } } },
+      free,
+      { $set: { [claim]: { worker: String(worker), until: new Date(now.getTime() + CLAIM_MS) } } },
       { new: true, sort: { createdAt: 1 } }
     );
     if (!line) break;
@@ -169,19 +204,21 @@ export type SaveResult = "saved" | "duplicate" | "stale";
 // refused ("stale"). Saving frees the reader's claim on the version.
 export const saveAnswer = async (given: NewAnswer, now = new Date()): Promise<SaveResult> => {
   const { line, showHash, reader, question, model, questionVersion, answer } = given;
-  const same = { reader, question, model, questionVersion };
+  const same = { reader: String(reader), question: String(question), model: String(model), questionVersion: String(questionVersion) };
+  const matchSame = { reader: eq(reader), question: eq(question), model: eq(model), questionVersion: eq(questionVersion) };
+  const version = { _id: idOf(line), showHash: eq(showHash), state: "waiting" as const };
   const saved = await ReviewLine.findOneAndUpdate(
-    { _id: line, showHash, state: "waiting", answers: { $not: { $elemMatch: same } } },
-    { $push: { answers: { ...same, answer, at: now } }, $unset: { [`claims.${reader}`]: "" } }
+    { ...version, answers: { $not: { $elemMatch: matchSame } } },
+    { $push: { answers: { ...same, answer, at: now } }, $unset: { [claimField(reader)]: "" } }
   );
   if (saved) return "saved";
-  const current = await ReviewLine.findOne({ _id: line, showHash, state: "waiting" });
+  const current = await ReviewLine.findOne(version);
   return current ? "duplicate" : "stale";
 };
 
 // A reader failed on these words: counted, and its claim freed
 export const recordFailure = (line: Id, reader: LineReader) =>
-  ReviewLine.updateOne({ _id: line, state: "waiting" }, { $inc: { [`failedTries.${reader}`]: 1 }, $unset: { [`claims.${reader}`]: "" } });
+  ReviewLine.updateOne({ _id: idOf(line), state: "waiting" }, { $inc: { [failedField(reader)]: 1 }, $unset: { [claimField(reader)]: "" } });
 
 // The models and question versions in use now, per reader. Answers given
 // by any other model or question version don't count: the version is

@@ -13,6 +13,7 @@ import {
   sentenceWritesPerDayStore,
   sentenceWritesPerMinuteStore,
   testLoginRateLimitStore,
+  workerRateLimitStore,
 } from "../middlewares/rateLimit.js";
 
 let mongod: MongoMemoryServer;
@@ -46,6 +47,7 @@ afterEach(async () => {
   await reviewCountRateLimitStore.resetAll();
   await reviewerSwitchRateLimitStore.resetAll();
   await testLoginRateLimitStore.resetAll();
+  await workerRateLimitStore.resetAll();
 });
 
 afterAll(async () => {
