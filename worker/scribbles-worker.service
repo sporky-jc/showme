@@ -1,0 +1,30 @@
+# Scribbles' worker as a systemd service (see README.md). Runs as its own
+# user, at the lowest priority, so the VM's other app always comes first.
+[Unit]
+Description=Scribbles worker (local models for Show ME)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=scribbles
+Group=scribbles
+WorkingDirectory=/opt/showme/worker
+EnvironmentFile=/etc/scribbles-worker/env
+ExecStart=/usr/bin/node main.mjs
+Restart=on-failure
+RestartSec=30
+
+# Lowest priority for the CPU and the disk
+Nice=19
+CPUWeight=10
+IOSchedulingClass=idle
+
+# It needs nothing else on the machine
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadOnlyPaths=/opt/showme/worker /etc/scribbles-worker
+
+[Install]
+WantedBy=multi-user.target

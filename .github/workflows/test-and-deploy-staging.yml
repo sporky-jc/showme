@@ -79,6 +79,12 @@ jobs:
       - name: Run Tests
         run: npm test
 
+      # Scribbles' worker (worker/): its own tests, against a fake backend
+      # and fake models, with nothing to install
+      - name: Worker tests
+        working-directory: worker
+        run: npm test
+
       # The JavaScript Firebase will run (lib/), as the deploy builds it
       - name: Build
         run: npm run build
@@ -195,6 +201,8 @@ jobs:
           REVIEWER_MODE: ${{ vars.STAGING_REVIEWER_MODE }}
           # Who sees the Owner settings on the Teacher page (the sense tagger switch)
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          # The key Scribbles' worker on the VM sends: this backend's own
+          WORKER_KEY: ${{ secrets.STAGING_WORKER_KEY }}
           REVIEWER_USE_GROQ: ${{ vars.REVIEWER_USE_GROQ }}
           CLOUDFLARE_REVIEW_MODEL: ${{ vars.CLOUDFLARE_REVIEW_MODEL }}
         run: |
