@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import app from "./app.js";
 import { connectWithRetry } from "./config/db.js";
 import { RUN_DEADLINE_MS as REVIEW_DEADLINE_MS, reviewWaitingSentences } from "./reviewer/queue.js";
+import { keepLine } from "./reviewer/line.js";
 import { reviewerSetup } from "./reviewer/settings.js";
 import { tagApprovedSentences } from "./tagger/queue.js";
 import { taggerSetup } from "./tagger/settings.js";
@@ -82,6 +83,15 @@ export const reviewer = onSchedule(
 
     const setup = reviewerSetup();
     if (setup.mode === "off") return;
+    // The review line for the worker on the VM (reviewer/line.ts): only once
+    // its key is set (WORKER_KEY), and only in "suggest" mode, so it changes
+    // nothing students, teachers or the gallery see. No AI, no network.
+    if (setup.mode === "suggest" && process.env.WORKER_KEY) {
+      const { entered, stepped, settled } = await keepLine();
+      if (entered > 0 || Object.keys(settled).length > 0) {
+        logger.info(`Review line: ${entered} put in line, ${stepped} stepped, settled ${JSON.stringify(settled)}`);
+      }
+    }
     // No new review starts after 240 seconds (RUN_DEADLINE_MS), well inside
     // the 300 above
     const { reviewed, stopped } = await reviewWaitingSentences(setup, {
