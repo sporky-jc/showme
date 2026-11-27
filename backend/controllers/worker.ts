@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
-import { ChecklistAnswer, WELFARE_CONCERNS } from "../reviewer/contract.js";
+import { askFor, questionVersion, readAnswer } from "../reviewer/asks.js";
 import { READERS } from "../reviewer/decide.js";
 import { checkRules } from "../reviewer/rules.js";
 import { Sentence } from "../models/sentences.js";
@@ -12,7 +12,6 @@ import {
   hashShow,
   recordFailure,
   saveAnswer,
-  type Question,
 } from "../models/reviewLine.js";
 import { messageOf } from "../utils/errors.js";
 
@@ -21,9 +20,13 @@ import { messageOf } from "../utils/errors.js";
 // "here are answers". The worker only reads the local models: it never
 // gets work for the hosted model, which the backend asks itself.
 //
-// A sentence is handed out as its line id, a hash of its words, its Tell
-// and its words: never who wrote it. An explicit worrying phrase is never
-// handed out (it goes to a teacher and to no AI).
+// A sentence is handed out as its line id, a hash of its words, and the
+// exact request for each question this reader still has to answer
+// (reviewer/asks.ts), which hold its Tell and its words: never who wrote
+// it. An explicit worrying phrase is never handed out (it goes to a
+// teacher and to no AI). The worker posts each model's raw reply back, and
+// it's read strictly here: anything not in the question's exact form is a
+// failed try, never an answer.
 
 export const MAX_WORK = 20;
 
@@ -37,17 +40,6 @@ const WorkRequest = z
   })
   .strict();
 
-// Each question's answer, exactly
-const SafetyAnswer = z.union([
-  z.enum(["safe", "unsafe"]),
-  z.object({ verdict: z.enum(["safe", "unsafe"]), category: z.string().regex(/^S\d{1,2}$/).optional() }).strict(),
-]);
-const ANSWER_FORMS: Record<Question, z.ZodTypeAny> = {
-  safety: SafetyAnswer,
-  welfare: z.enum(WELFARE_CONCERNS),
-  danger: z.enum(WELFARE_CONCERNS),
-  checklist: ChecklistAnswer,
-};
 const Version = z.string().regex(/^[A-Za-z0-9.:@_/-]{1,120}$/);
 const AnswerItem = z
   .object({
@@ -57,7 +49,8 @@ const AnswerItem = z
     question: z.enum(QUESTIONS),
     model: Version,
     questionVersion: Version,
-    answer: z.unknown(),
+    // The model's reply, as it came
+    raw: z.string().max(2000),
   })
   .strict();
 const FailureItem = z.object({ line: Id, reader: z.enum(READERS) }).strict();
@@ -91,8 +84,10 @@ export const getWork = async (req: Request, res: Response) => {
         await ReviewLine.updateOne({ _id: line._id }, { $set: { needs: [] }, $unset: { [`claims.${reader}`]: "" } });
         continue;
       }
-      const questions = line.needs.filter((need) => need.reader === reader).map((need) => need.question);
-      work.push({ line: String(line._id), showHash: line.showHash, tell: sentence.tell, show: sentence.show, questions });
+      const asks = line.needs
+        .filter((need) => need.reader === reader)
+        .map((need) => askFor(need.question, sentence.tell, sentence.show));
+      work.push({ line: String(line._id), showHash: line.showHash, asks });
     }
     return res.json({ work });
   } catch (error) {
@@ -106,14 +101,21 @@ export const postAnswers = async (req: Request, res: Response) => {
     const parsed = AnswersRequest.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: "Send answers and failures in their exact form." });
     const results = [];
-    for (const item of parsed.data.answers) {
-      // Not in the question's exact form: refused, as no answer
-      if (!ANSWER_FORMS[item.question].safeParse(item.answer).success) {
-        results.push({ line: item.line, reader: item.reader, question: item.question, result: "invalid" });
+    for (const { raw, ...item } of parsed.data.answers) {
+      const said = { line: item.line, reader: item.reader, question: item.question };
+      // Asked with an older prompt: it doesn't count
+      if (item.questionVersion !== questionVersion(item.question)) {
+        results.push({ ...said, result: "stale" });
         continue;
       }
-      const result = await saveAnswer(item);
-      results.push({ line: item.line, reader: item.reader, question: item.question, result });
+      // Not in the question's exact form: a failed try, never an answer
+      const answer = readAnswer(item.question, raw);
+      if (answer === undefined) {
+        await recordFailure(item.line, item.reader);
+        results.push({ ...said, result: "invalid" });
+        continue;
+      }
+      results.push({ ...said, result: await saveAnswer({ ...item, answer }) });
     }
     for (const failure of parsed.data.failures) await recordFailure(failure.line, failure.reader);
     return res.json({ results });
