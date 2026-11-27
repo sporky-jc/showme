@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Collected } from "../reviewer/eval/collect.js";
 import type { ChecklistAnswer } from "../reviewer/contract.js";
 import {
+  whyHosted,
   answersTable,
   checkpointOf,
   formatDecideReport,
@@ -125,7 +126,7 @@ describe("scoring the decider", () => {
     expect(reportOf(scored).wrongTips).toEqual([]);
   });
 
-  it("needs the second voter's checklist for an approval: its problem sends it back", () => {
+  it("needs the second voter's checklist for an approval: a tie on the writing goes to the hosted model", () => {
     const rows = [row("The car zoomed past us so fast that my hair fly back.", "send-back", "order:grammar")];
     const read = { row: 0, welfare: "no" as const, ms: {} };
     const files = [
@@ -133,7 +134,10 @@ describe("scoring the decider", () => {
       { ...file("first", [{ ...read, checklist: GOOD }]), set: 1 },
       { ...file("second", [{ ...read, checklist: { ...GOOD, grammar: "no" as const } }]), set: 1 },
     ];
-    expect(scoreDecider(rows, files)[0].step).toEqual({ step: "send-back", tip: "readAloud", check: "grammar" });
+    const [scored] = scoreDecider(rows, files);
+    expect(scored.step).toEqual({ step: "ask-hosted", about: "writing" });
+    expect(scored.outcome).toBe("hosted");
+    expect(whyHosted(scored)).toBe("a writing tie between the local models");
     // ... and with no second checklist, it waits rather than approving
     expect(scoreDecider(rows, files.slice(0, 2))[0].outcome).toBe("no-answer");
   });

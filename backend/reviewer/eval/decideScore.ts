@@ -158,6 +158,7 @@ export const whyHosted = ({ step, said }: Scored): string => {
     ].filter(Boolean);
     return `worry raised by the ${raised.join(" and ")} only`;
   }
+  if (step.step === "ask-hosted" && step.about === "writing") return "a writing tie between the local models";
   return "not a worry";
 };
 

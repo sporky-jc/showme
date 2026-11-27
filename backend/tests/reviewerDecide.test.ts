@@ -356,20 +356,51 @@ describe("step 7: an approval needs the second model's checklist too", () => {
     expect(decide(allIn({ second: saying({ suitable: "unsure" }) }))).toEqual({ step: "send-back", tip: "kindWords" });
   });
 
-  it("sends it back when the second model finds a grammar mistake, with the grammar tip", () => {
-    expect(decide(allIn({ second: saying({ grammar: "no" }) }))).toEqual({
-      step: "send-back",
-      tip: "readAloud",
-      check: "grammar",
+  describe("a tie on the writing: the hosted model's checklist decides", () => {
+    it.each([
+      ["off topic", { onTopic: "no" as const }],
+      ["doesn't show", { shows: "no" as const, detail: "smell" as const }],
+      ["a grammar mistake", { grammar: "no" as const }],
+    ])("asks the hosted model when the second says '%s'", (_name, more) => {
+      expect(decide(allIn({ second: saying(more) }))).toEqual({ step: "ask-hosted", about: "writing" });
     });
-  });
 
-  it.each([
-    ["off topic", { onTopic: "no" as const }],
-    ["no detail", { shows: "no" as const, detail: "smell" as const }],
-    ["no technique", { technique: "no" as const }],
-  ])("leaves the writing to the first model: the second's '%s' doesn't stop an approval", (_name, more) => {
-    expect(decide(allIn({ technique: "metaphor", second: saying(more) }))).toEqual({ step: "approve", tip: "great" });
+    it("sends it back with the hosted model's first problem, and its tip", () => {
+      // "The food was yummy."
+      const tie = { second: saying({ onTopic: "no", shows: "no" }) };
+      expect(decide(allIn({ ...tie, hostedChecklist: saying({ shows: "no", detail: "smell" }) }))).toEqual({
+        step: "send-back",
+        tip: "smell",
+        check: "shows",
+      });
+      // "...my hair fly back."
+      expect(decide(allIn({ second: saying({ grammar: "no" }), hostedChecklist: saying({ grammar: "no" }) }))).toEqual({
+        step: "send-back",
+        tip: "readAloud",
+        check: "grammar",
+      });
+    });
+
+    it("approves when the hosted model finds the writing fine; its gallery answer isn't used (that stays the local models')", () => {
+      // "My cat Luna is fat and fluffy and purrs on my cold feet."
+      const tie = { second: saying({ onTopic: "no" }) };
+      expect(decide(allIn({ ...tie, hostedChecklist: GOOD }))).toEqual({ step: "approve", tip: "great" });
+      expect(decide(allIn({ ...tie, hostedChecklist: saying({ suitable: "unkind" }) }))).toEqual({ step: "approve", tip: "great" });
+    });
+
+    it("doesn't ask about the technique alone: that's the code's and the first model's", () => {
+      expect(decide(allIn({ technique: "metaphor", second: saying({ technique: "no" }) }))).toEqual({ step: "approve", tip: "great" });
+    });
+
+    it("after 6 hours with no hosted answer, goes on as before: only the second's grammar mistake sends it back", () => {
+      const waited = { writingWaitedMs: WORRY_WAIT_MS };
+      expect(decide(allIn({ ...waited, second: saying({ onTopic: "no" }) }))).toEqual({ step: "approve", tip: "great" });
+      expect(decide(allIn({ ...waited, second: saying({ grammar: "no" }) }))).toEqual({
+        step: "send-back",
+        tip: "readAloud",
+        check: "grammar",
+      });
+    });
   });
 
   it("lets a check pass after three send-backs for it, when only the second model keeps saying no: no loop", () => {

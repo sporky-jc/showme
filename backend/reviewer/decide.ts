@@ -35,11 +35,14 @@
 //      6. Clean up: spelling, capitals and punctuation (the code's) and
 //         grammar, as one tip when both are wrong.
 //   7. Before approving, the second model answers the same checklist. Its
-//      "unkind" or "unsure" about the gallery, or a grammar mistake it finds, sends the
-//      sentence back: an approval needs both models to say it's fine for
-//      other children. Topic, technique and detail stay the first model's
-//      to judge (letting the second veto those too sent 4 good sentences
-//      back in the scores, and stopped no wrong approval).
+//      "unkind" or "unsure" about the gallery sends the sentence back. When
+//      it disagrees with the first on the writing (off topic, doesn't show,
+//      a grammar mistake), the hosted model breaks the tie: its checklist
+//      decides the writing (in a test of the ties it was right 9 times in
+//      11, and both misses were the gallery question, which stays the local
+//      models'). About 4 sentences in 100. Letting the second model veto
+//      the writing by itself sent good sentences back in the scores; never
+//      letting it let "The food was yummy." through.
 //   8. Approve.
 //   When the two models keep disagreeing on one check (the child has been
 //   sent back RECHECK_AFTER times for it), the check passes, so one model
@@ -66,7 +69,8 @@ export type Reader = (typeof READERS)[number];
 export const MAX_FAILED_TRIES = 3;
 
 // How long a worry the local readers disagreed about may wait for the hosted
-// model before a teacher reads it instead
+// model before a teacher reads it instead (and a writing tie before the
+// second model's grammar answer decides it, as before the tie-break)
 export const WORRY_WAIT_MS = 6 * 60 * 60 * 1000;
 
 // After this many send-backs for the same check, the two models must agree
@@ -79,6 +83,10 @@ export const REVISE_CHECKS = ["onTopic", "technique", "shows"] as const;
 export type ReviseCheck = (typeof REVISE_CHECKS)[number];
 export const CHECKS = [...REVISE_CHECKS, "grammar"] as const;
 export type Check = (typeof CHECKS)[number];
+// The writing checks the second model can tie with the first on, before
+// an approval (the technique the Tell asks for is the code's and the
+// first model's)
+const TIE_CHECKS = ["onTopic", "shows", "grammar"] as const;
 
 // The hosted model's answer: only whether the child is OK
 export interface HostedAnswer {
@@ -110,6 +118,10 @@ export interface Facts {
   // Tell (the send-back step names its check: the caller counts them)
   sentBackFor?: Partial<Record<Check, number>>;
   hosted?: HostedAnswer;
+  // The hosted model's checklist, asked only when the two local models
+  // disagree on the writing before an approval, and how long it's waited
+  hostedChecklist?: ChecklistAnswer;
+  writingWaitedMs?: number;
   // Failed tries per local reader on these words
   failedTries?: Partial<Record<Reader, number>>;
   // How long ago the local readers were found to disagree about a worry
@@ -134,7 +146,9 @@ export type Step =
   | { step: "ask-local"; question: WelfareQuestion }
   // The second model's checklist, before an approval or to check a "no"
   | { step: "ask-second" }
-  | { step: "ask-hosted"; question: WelfareQuestion; about: "worry" };
+  | { step: "ask-hosted"; question: WelfareQuestion; about: "worry" }
+  // The checklist, to break a tie between the local models on the writing
+  | { step: "ask-hosted"; about: "writing" };
 
 // Rule holds that are only about the words used: asked the stricter welfare
 // question (serious or immediate danger), as today (reviewer.ts, RUDE_ONLY)
@@ -270,9 +284,24 @@ export const decide = (facts: Facts): Step => {
   // 7. Before approving: the second model's checklist too
   if (!second) return { step: "ask-second" };
   if (second.suitable !== "yes") return { step: "send-back", tip: "kindWords" };
-  // (A check the models keep disagreeing on passes: see the top)
-  if (!passes("grammar", second, facts) && !sentBackOften("grammar", facts)) {
-    return { step: "send-back", tip: tipFor("grammar", second, facts), check: "grammar" };
+  // A tie on the writing: the hosted model's checklist decides it. (A
+  // check the models keep disagreeing on passes: see the top.)
+  const tied = TIE_CHECKS.some((check) => !passes(check, second, facts) && !sentBackOften(check, facts));
+  if (tied) {
+    const { hostedChecklist } = facts;
+    if (hostedChecklist) {
+      for (const check of CHECKS) {
+        if (!passes(check, hostedChecklist, facts) && !sentBackOften(check, facts)) {
+          return { step: "send-back", tip: tipFor(check, hostedChecklist, facts), check };
+        }
+      }
+    } else if ((facts.writingWaitedMs ?? 0) < WORRY_WAIT_MS) {
+      return { step: "ask-hosted", about: "writing" };
+    } else if (!passes("grammar", second, facts) && !sentBackOften("grammar", facts)) {
+      // No hosted answer in 6 hours: as before the tie-break, only the
+      // second model's grammar mistake sends it back
+      return { step: "send-back", tip: tipFor("grammar", second, facts), check: "grammar" };
+    }
   }
 
   // 8. Ready for the gallery
