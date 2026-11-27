@@ -39,7 +39,7 @@ export interface Scored {
   // What each local reader said, short: the safety model's answer, the
   // welfare and gallery answers per voter, and the first voter's checklist,
   // or "-" for no answer
-  said: { safety: string; welfare: Record<Voter, string>; suitable: Record<Voter, string>; checklist: string };
+  said: { safety: string; welfare: Record<Voter, string>; checklist: Record<Voter, string> };
 }
 
 const outcomeOf = (step: Step): Outcome =>
@@ -61,7 +61,7 @@ const checklistOf = (value: Collected["checklist"]) =>
   value && typeof value === "object" ? value : undefined;
 const shortChecklist = (answer: ChecklistAnswer | undefined) =>
   answer
-    ? `topic:${answer.onTopic} technique:${answer.technique} shows:${answer.shows}(${answer.detail}) grammar:${answer.grammar}`
+    ? `gallery:${answer.suitable} topic:${answer.onTopic} technique:${answer.technique} shows:${answer.shows}(${answer.detail}) grammar:${answer.grammar}`
     : "-";
 
 // What each Tell asks for, by its words (public/tellList.ts)
@@ -80,16 +80,16 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
     const safety = byReader.get("safety")?.get(index);
     facts.safety = answered(safety?.safety, ["safe", "unsafe"]) as Facts["safety"];
     facts.welfare = {};
-    facts.suitable = {};
     for (const voter of VOTERS) {
       const answers = byReader.get(voter)?.get(index);
       facts.welfare[voter] = answered(answers?.welfare, ["yes", "no"]) as "yes" | "no" | undefined;
-      facts.suitable[voter] = answered(answers?.suitable, ["yes", "unsure"]) as "yes" | "unsure" | undefined;
     }
-    // Only the first voter answers the checklist (the second checks it only
-    // after send-backs: never in a made-up set, which has no history)
+    // Both voters' checklists. (A made-up set has no history of send-backs,
+    // so the second's is only used before an approval here.)
     const checklist = checklistOf(byReader.get("first")?.get(index)?.checklist);
     if (checklist) facts.checklist = checklist;
+    const second = checklistOf(byReader.get("second")?.get(index)?.checklist);
+    if (second) facts.second = second;
     const step = decide(facts);
     return {
       row: index,
@@ -102,8 +102,7 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
       said: {
         safety: facts.safety ?? "-",
         welfare: { first: facts.welfare.first ?? "-", second: facts.welfare.second ?? "-" },
-        suitable: { first: facts.suitable.first ?? "-", second: facts.suitable.second ?? "-" },
-        checklist: shortChecklist(facts.checklist),
+        checklist: { first: shortChecklist(facts.checklist), second: shortChecklist(facts.second) },
       },
     };
   });
@@ -255,6 +254,6 @@ export const answersTable = (scored: Scored[]) =>
     .filter((s) => !(s.step.step === "teacher" && (s.step.because === "worrying-words" || s.step.because === "too-long")))
     .map(
       ({ row, expect, outcome, said }) =>
-        `#${row} ${expect}->${outcome} safety:${said.safety} welfare:${said.welfare.first}/${said.welfare.second} gallery:${said.suitable.first}/${said.suitable.second} ${said.checklist}`
+        `#${row} ${expect}->${outcome} safety:${said.safety} welfare:${said.welfare.first}/${said.welfare.second} first[${said.checklist.first}] second[${said.checklist.second}]`
     )
     .join("\n");

@@ -15,8 +15,6 @@ import {
   DANGER_INSTRUCTIONS,
   REVIEW_INSTRUCTIONS,
   reviewMessage,
-  SUITABLE_INSTRUCTIONS,
-  SUITABLE_SCHEMA,
   WELFARE_INSTRUCTIONS,
   WELFARE_SCHEMA,
 } from "../prompt.js";
@@ -98,9 +96,9 @@ export const localWelfare = (settings: LocalSettings): WelfareCheck => ({
     ),
 });
 
-// The writing checklist and the gallery question (prompt.ts), for the
-// decider (decide.ts). Each returns the raw answer; the caller checks it
-// against its fixed form (contract.ts: ChecklistAnswer, SuitableAnswer).
+// The checklist (prompt.ts), for the decider (decide.ts). It returns the
+// raw answer; the caller checks it against its fixed form (contract.ts:
+// ChecklistAnswer).
 const ask =
   (settings: LocalSettings, name: string, instructions: string, schema: unknown, maxTokens: number) =>
   (input: ReviewInput, signal: AbortSignal) =>
@@ -120,10 +118,5 @@ const ask =
 
 export const localChecklist = (settings: LocalSettings) => ({
   name: `local-checklist:${settings.model}`,
-  check: ask(settings, "checklist", CHECKLIST_INSTRUCTIONS, CHECKLIST_SCHEMA, 60),
-});
-
-export const localSuitable = (settings: LocalSettings) => ({
-  name: `local-suitable:${settings.model}`,
-  check: ask(settings, "suitable", SUITABLE_INSTRUCTIONS, SUITABLE_SCHEMA, 20),
+  check: ask(settings, "checklist", CHECKLIST_INSTRUCTIONS, CHECKLIST_SCHEMA, 70),
 });

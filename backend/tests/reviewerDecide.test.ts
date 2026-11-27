@@ -21,17 +21,25 @@ const PASS: RuleOutcome = { outcome: "pass" };
 const hold = (...reasons: string[]): RuleOutcome => ({ outcome: "hold", reasons } as RuleOutcome);
 
 // The writing checklist: all fine, or with one or more questions "no"
-const GOOD: ChecklistAnswer = { onTopic: "yes", technique: "yes", shows: "yes", detail: "see", grammar: "yes" };
+const GOOD: ChecklistAnswer = {
+  suitable: "yes",
+  onTopic: "yes",
+  technique: "yes",
+  shows: "yes",
+  detail: "see",
+  grammar: "yes",
+};
 const saying = (more: Partial<ChecklistAnswer>): ChecklistAnswer => ({ ...GOOD, ...more });
 
-// Every local reader answered: no worry, fine for the gallery, good writing
+// Every local reader answered: no worry, and both checklists say it's fine
+// for the gallery and well written
 const allIn = (more: Partial<Facts> = {}): Facts => ({
   rules: PASS,
   writingTip: null,
   safety: "safe",
   welfare: { first: "no", second: "no" },
-  suitable: { first: "yes", second: "yes" },
   checklist: GOOD,
+  second: GOOD,
   ...more,
 });
 const hosted = (concern: "yes" | "no"): HostedAnswer => ({ concern });
@@ -171,16 +179,9 @@ describe("step 3: certain reasons to send it back", () => {
 });
 
 describe("step 4: fine for other children to read?", () => {
-  it.each([
-    ["the first model", { first: "unsure" as const, second: "yes" as const }],
-    ["the second model", { first: "yes" as const, second: "unsure" as const }],
-    ["both", { first: "unsure" as const, second: "unsure" as const }],
-  ])("sends it back with the kind-words tip when %s is unsure, before anything about the writing", (_name, suitable) => {
-    expect(decide(allIn({ suitable }))).toEqual({ step: "send-back", tip: "kindWords" });
-    expect(decide(allIn({ suitable, checklist: saying({ onTopic: "no" }), writingTip: "spelling" }))).toEqual({
-      step: "send-back",
-      tip: "kindWords",
-    });
+  it("sends it back with the kind-words tip when the first model is unsure, before anything about the writing", () => {
+    const unsure = saying({ suitable: "unsure", onTopic: "no", grammar: "no" });
+    expect(decide(allIn({ checklist: unsure, writingTip: "spelling" }))).toEqual({ step: "send-back", tip: "kindWords" });
   });
 });
 
@@ -228,7 +229,7 @@ describe("step 5: revise, first problem first", () => {
   });
 });
 
-describe("step 5: the second model checks after three send-backs for the same thing", () => {
+describe("the second model, when the first says no after three send-backs for the same thing", () => {
   const offTopic = saying({ onTopic: "no" });
 
   it("sends it back as usual until then", () => {
@@ -246,21 +247,74 @@ describe("step 5: the second model checks after three send-backs for the same th
   });
 
   it("then asks the second model before sending it back for that again", () => {
-    expect(decide(allIn({ checklist: offTopic, sentBackFor: { onTopic: RECHECK_AFTER } }))).toEqual({
-      step: "ask-recheck",
+    expect(decide(allIn({ checklist: offTopic, second: undefined, sentBackFor: { onTopic: RECHECK_AFTER } }))).toEqual({
+      step: "ask-second",
     });
   });
 
   it("skips the check when the second model says it passes, and goes on", () => {
-    const facts = { checklist: offTopic, sentBackFor: { onTopic: RECHECK_AFTER }, recheck: GOOD };
+    const facts = { checklist: offTopic, sentBackFor: { onTopic: RECHECK_AFTER }, second: GOOD };
     expect(decide(allIn(facts))).toEqual({ step: "approve", tip: "great" });
     expect(decide(allIn({ ...facts, writingTip: "spelling" }))).toEqual({ step: "send-back", tip: "spelling" });
   });
 
   it("sends it back again when the second model agrees: two models say the child missed it", () => {
     expect(
-      decide(allIn({ checklist: offTopic, sentBackFor: { onTopic: RECHECK_AFTER + 2 }, recheck: saying({ onTopic: "no" }) }))
+      decide(allIn({ checklist: offTopic, sentBackFor: { onTopic: RECHECK_AFTER + 2 }, second: saying({ onTopic: "no" }) }))
     ).toEqual({ step: "send-back", tip: "onTopic", check: "onTopic" });
+  });
+
+  it("does the same for grammar", () => {
+    const grammar = saying({ grammar: "no" });
+    expect(decide(allIn({ checklist: grammar, sentBackFor: { grammar: RECHECK_AFTER }, second: GOOD }))).toEqual({
+      step: "approve",
+      tip: "great",
+    });
+  });
+});
+
+describe("step 7: an approval needs the second model's checklist too", () => {
+  it("asks for it only once the first model's checklist and the writing checks have nothing to send back", () => {
+    expect(decide(allIn({ second: undefined }))).toEqual({ step: "ask-second" });
+    // Not for a sentence going back anyway
+    expect(decide(allIn({ second: undefined, checklist: saying({ shows: "no", detail: "hear" }) }))).toEqual({
+      step: "send-back",
+      tip: "hear",
+      check: "shows",
+    });
+    expect(decide(allIn({ second: undefined, writingTip: "spelling" }))).toEqual({ step: "send-back", tip: "spelling" });
+  });
+
+  it("sends it back with the kind-words tip when the second model is unsure about the gallery", () => {
+    expect(decide(allIn({ second: saying({ suitable: "unsure" }) }))).toEqual({ step: "send-back", tip: "kindWords" });
+  });
+
+  it.each([
+    ["off topic", { onTopic: "no" as const }, "onTopic", "onTopic"],
+    ["no detail", { shows: "no" as const, detail: "smell" as const }, "smell", "shows"],
+    ["a grammar mistake", { grammar: "no" as const }, "readAloud", "grammar"],
+  ])("sends it back when the second model finds a problem (%s), with its tip", (_name, more, tip, check) => {
+    expect(decide(allIn({ second: saying(more) }))).toEqual({ step: "send-back", tip, check });
+  });
+
+  it("uses the Tell's technique tip when the second model says it isn't used", () => {
+    expect(decide(allIn({ technique: "metaphor", second: saying({ technique: "no" }) }))).toEqual({
+      step: "send-back",
+      tip: "metaphor",
+      check: "technique",
+    });
+  });
+
+  it("lets a check pass after three send-backs for it, when only the second model keeps saying no: no loop", () => {
+    expect(decide(allIn({ second: saying({ onTopic: "no" }), sentBackFor: { onTopic: RECHECK_AFTER } }))).toEqual({
+      step: "approve",
+      tip: "great",
+    });
+    // ... but never the gallery question
+    expect(decide(allIn({ second: saying({ suitable: "unsure" }), sentBackFor: { onTopic: RECHECK_AFTER } }))).toEqual({
+      step: "send-back",
+      tip: "kindWords",
+    });
   });
 });
 
@@ -271,10 +325,15 @@ describe("step 6: clean up, once the idea is right", () => {
   });
 
   it("sends it back for grammar, and joins grammar and spelling into one tip", () => {
-    expect(decide(allIn({ checklist: saying({ grammar: "no" }) }))).toEqual({ step: "send-back", tip: "readAloud" });
+    expect(decide(allIn({ checklist: saying({ grammar: "no" }) }))).toEqual({
+      step: "send-back",
+      tip: "readAloud",
+      check: "grammar",
+    });
     expect(decide(allIn({ checklist: saying({ grammar: "no" }), writingTip: "spelling" }))).toEqual({
       step: "send-back",
       tip: "checkWriting",
+      check: "grammar",
     });
   });
 });
@@ -287,7 +346,6 @@ describe("when something is down", () => {
   it("asks the local models again for any answer that hasn't come in", () => {
     expect(decide(allIn({ safety: undefined }))).toEqual({ step: "ask-local", question: "welfare" });
     expect(decide(allIn({ welfare: { first: "no" } }))).toEqual({ step: "ask-local", question: "welfare" });
-    expect(decide(allIn({ suitable: { second: "yes" } }))).toEqual({ step: "ask-local", question: "welfare" });
     expect(decide(allIn({ checklist: undefined }))).toEqual({ step: "ask-local", question: "welfare" });
   });
 
@@ -300,14 +358,12 @@ describe("when something is down", () => {
   });
 
   it("never approves or sends back while any local answer is missing", () => {
-    // Every way each of the six local answers can be missing, with every
-    // other answer the most favorable it can be
+    // Every way each of the four answers asked of every sentence can be
+    // missing, with every other answer the most favorable it can be
     const parts = [
       (f: Facts) => ({ ...f, safety: undefined }),
       (f: Facts) => ({ ...f, welfare: { ...f.welfare, first: undefined } }),
       (f: Facts) => ({ ...f, welfare: { ...f.welfare, second: undefined } }),
-      (f: Facts) => ({ ...f, suitable: { ...f.suitable, first: undefined } }),
-      (f: Facts) => ({ ...f, suitable: { ...f.suitable, second: undefined } }),
       (f: Facts) => ({ ...f, checklist: undefined }),
     ];
     for (let mask = 1; mask < 1 << parts.length; mask++) {
@@ -320,6 +376,12 @@ describe("when something is down", () => {
           expect(decide(facts)).toEqual({ step: "ask-local", question: welfareQuestion(rules) });
         }
       }
+    }
+  });
+
+  it("never approves without the second model's checklist", () => {
+    for (const rules of [PASS, hold("worrying", "sensitive-words")]) {
+      expect(decide(allIn({ rules, second: undefined, hosted: hosted("no") }))).toEqual({ step: "ask-second" });
     }
   });
 

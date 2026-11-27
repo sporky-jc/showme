@@ -8,7 +8,7 @@ import { ProviderError } from "../reviewer/providers/http.js";
 // (reviewer/eval/collect.ts, T4), with fake models: no request is sent.
 
 const COLD = "It is cold outside.";
-const GOOD = { onTopic: "yes", technique: "yes", shows: "yes", detail: "see", grammar: "yes" } as const;
+const GOOD = { suitable: "yes", onTopic: "yes", technique: "yes", shows: "yes", detail: "see", grammar: "yes" } as const;
 const row = (show: string, expect: DecideRow["expect"] = "approve"): DecideRow => ({ tell: COLD, show, expect, kind: "test" });
 const SET: DecideRow[] = [
   row("My breath puffed out like a little cloud."),
@@ -35,10 +35,6 @@ describe("collectAnswers", () => {
         asked.push(`welfare:${question}:${show}`);
         return { concern: "no" };
       },
-      suitable: async ({ show }) => {
-        asked.push(`suitable:${show}`);
-        return { suitable: "yes" };
-      },
       checklist: async ({ show }) => {
         asked.push(`checklist:${show}`);
         return GOOD;
@@ -51,15 +47,12 @@ describe("collectAnswers", () => {
       "welfare:welfare:My breath puffed out like a little cloud.",
       "welfare:danger:Liam is so fat and stupid.",
       "welfare:welfare:Icicles hung from the roof like teeth.",
-      "suitable:My breath puffed out like a little cloud.",
-      "suitable:Liam is so fat and stupid.",
-      "suitable:Icicles hung from the roof like teeth.",
       "checklist:My breath puffed out like a little cloud.",
       "checklist:Liam is so fat and stupid.",
       "checklist:Icicles hung from the roof like teeth.",
     ]);
     expect(collected.map((c) => c.row)).toEqual([0, 2, 3]);
-    expect(collected[0]).toMatchObject({ row: 0, welfare: "no", suitable: "yes", checklist: GOOD });
+    expect(collected[0]).toMatchObject({ row: 0, welfare: "no", checklist: GOOD });
     expect(collected[0].safety).toBeUndefined();
   });
 
@@ -91,19 +84,15 @@ describe("collectAnswers", () => {
 
   it("reads answers strictly: anything but the fixed form is invalid", async () => {
     const answers = [{ concern: "maybe" }, { concern: "no", why: "fine" }, { concern: "yes" }];
-    const suitable = [{ suitable: "no" }, { suitable: "yes", note: "ok" }, { suitable: "unsure" }];
-    const checklists = [{ ...GOOD, detail: "spelling" }, { ...GOOD, why: "nice" }, GOOD];
+    const checklists = [{ ...GOOD, suitable: "no" }, { ...GOOD, why: "nice" }, { ...GOOD, suitable: "unsure" }];
     let i = 0;
-    let j = 0;
     let k = 0;
     const collected = await collectAnswers(SET, {
       welfare: async () => answers[i++],
-      suitable: async () => suitable[j++],
       checklist: async () => checklists[k++],
     });
     expect(collected.map((c) => c.welfare)).toEqual(["invalid", "invalid", "yes"]);
-    expect(collected.map((c) => c.suitable)).toEqual(["invalid", "invalid", "unsure"]);
-    expect(collected.map((c) => c.checklist)).toEqual(["invalid", "invalid", GOOD]);
+    expect(collected.map((c) => c.checklist)).toEqual(["invalid", "invalid", { ...GOOD, suitable: "unsure" }]);
   });
 
   it("records the safety model's answer, and an answer it can't read as invalid", async () => {

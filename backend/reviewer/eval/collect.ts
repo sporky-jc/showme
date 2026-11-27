@@ -2,9 +2,10 @@
 // (tasks/scribbles-worker-spec.md, T4), kept so the decider can be scored on
 // them afterwards (T5) without asking the models again.
 //
-// One model per run: the safety model answers "safe or unsafe", each voter
-// answers the welfare and gallery questions, and the first voter the
-// writing checklist (decide.ts). A voter is asked
+// One model per run: the safety model answers "safe or unsafe", and each
+// voter the welfare question and the checklist (decide.ts: the second's is
+// asked live only before an approval, but here of every sentence, so the
+// decider can be scored either way). A voter is asked
 // one question about every sentence before the next question: the model
 // server only skips re-reading the long instructions when the same ones come
 // back to back, which is most of the time a question takes.
@@ -12,7 +13,7 @@
 // Answers are read as strictly as the live reviewer reads them: anything
 // but the fixed form is "invalid". Rows are named by their place in
 // DECIDE_SET, never by their words.
-import { ChecklistAnswer, SuitableAnswer, WelfareAnswer } from "../contract.js";
+import { ChecklistAnswer, WelfareAnswer } from "../contract.js";
 import { decide, welfareQuestion } from "../decide.js";
 import type { ReviewInput, WelfareQuestion } from "../reviewer.js";
 import { checkRules, type RuleOutcome } from "../rules.js";
@@ -24,20 +25,18 @@ export interface Collected {
   row: number;
   safety?: "safe" | "unsafe" | Failure;
   welfare?: "yes" | "no" | Failure;
-  suitable?: "yes" | "unsure" | Failure;
   checklist?: ChecklistAnswer | Failure;
   // How long each answer took, in milliseconds
   ms: Partial<Record<Pass, number>>;
 }
 
-export const PASSES = ["safety", "welfare", "suitable", "checklist"] as const;
+export const PASSES = ["safety", "welfare", "checklist"] as const;
 export type Pass = (typeof PASSES)[number];
 
 // What a model is asked, raw: these throw on a failure, like the providers
 export interface Asker {
   safety?: (input: ReviewInput, signal: AbortSignal) => Promise<"safe" | "unsafe">;
   welfare?: (input: ReviewInput, signal: AbortSignal, question: WelfareQuestion) => Promise<unknown>;
-  suitable?: (input: ReviewInput, signal: AbortSignal) => Promise<unknown>;
   checklist?: (input: ReviewInput, signal: AbortSignal) => Promise<unknown>;
 }
 
@@ -111,13 +110,6 @@ export const collectAnswers = async (
           entry.welfare = parsed.success ? parsed.data.concern : "invalid";
         } else entry.welfare = result.failure;
         entry.ms.welfare = result.ms;
-      } else if (pass === "suitable") {
-        const result = await ask((signal) => asker.suitable!(input, signal), timeoutMs);
-        if ("answer" in result) {
-          const parsed = SuitableAnswer.safeParse(result.answer);
-          entry.suitable = parsed.success ? parsed.data.suitable : "invalid";
-        } else entry.suitable = result.failure;
-        entry.ms.suitable = result.ms;
       } else {
         const result = await ask((signal) => asker.checklist!(input, signal), timeoutMs);
         if ("answer" in result) {
@@ -133,9 +125,12 @@ export const collectAnswers = async (
   return [...collected.values()];
 };
 
-// A checklist answer in a word: its first "no", or "all yes"
+// A checklist answer in a word: "unsure" for the gallery, its first "no",
+// or "all yes"
 const checklistKey = (answer: ChecklistAnswer) =>
-  (["onTopic", "technique", "shows", "grammar"] as const).find((check) => answer[check] === "no") ?? "all yes";
+  answer.suitable === "unsure"
+    ? "not for the gallery"
+    : ((["onTopic", "technique", "shows", "grammar"] as const).find((check) => answer[check] === "no") ?? "all yes");
 
 // A short summary for the run's page: counts only, never a sentence
 export const summaryOf = (model: string, collected: Collected[]) => {
@@ -160,7 +155,6 @@ export const summaryOf = (model: string, collected: Collected[]) => {
     "",
     `- Safety: ${tally((c) => c.safety)}; average ${average((c) => c.ms.safety)}`,
     `- Welfare: ${tally((c) => c.welfare)}; average ${average((c) => c.ms.welfare)}`,
-    `- Gallery: ${tally((c) => c.suitable)}; average ${average((c) => c.ms.suitable)}`,
-    `- Writing checklist (its first "no"): ${tally((c) => c.checklist)}; average ${average((c) => c.ms.checklist)}`,
+    `- Checklist (its first problem): ${tally((c) => c.checklist)}; average ${average((c) => c.ms.checklist)}`,
   ].join("\n");
 };

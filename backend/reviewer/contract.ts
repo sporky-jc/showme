@@ -106,13 +106,17 @@ export const WELFARE_CONCERNS = ["yes", "no"] as const;
 export const WelfareAnswer = z.object({ concern: z.enum(WELFARE_CONCERNS) }).strict();
 export type WelfareAnswer = z.infer<typeof WelfareAnswer>;
 
-// The writing checklist's answer (prompt.ts, CHECKLIST_INSTRUCTIONS),
-// exactly: four yes-or-no questions about the writing, in a teacher's
-// order, and the detail tip that would help most. The decider picks the tip
-// a child sees from these (decide.ts); the model never chooses one freely.
+// The checklist's answer (prompt.ts, CHECKLIST_INSTRUCTIONS), exactly:
+// whether it's fine for other children to read ("unsure" for anything that
+// shouldn't go in front of them), four yes-or-no questions about the
+// writing, in a teacher's order, and the detail tip that would help most.
+// The decider picks the tip a child sees from these (decide.ts); the model
+// never chooses one freely. Anything else is invalid, and is asked again.
 export const YES_NO = ["yes", "no"] as const;
+export const SUITABLE = ["yes", "unsure"] as const;
 export const ChecklistAnswer = z
   .object({
+    suitable: z.enum(SUITABLE),
     onTopic: z.enum(YES_NO),
     technique: z.enum(YES_NO),
     shows: z.enum(YES_NO),
@@ -121,13 +125,6 @@ export const ChecklistAnswer = z
   })
   .strict();
 export type ChecklistAnswer = z.infer<typeof ChecklistAnswer>;
-
-// The gallery question's answer (prompt.ts, SUITABLE_INSTRUCTIONS), exactly:
-// "yes", or "unsure" for anything that shouldn't go in front of other
-// children. Anything else is invalid, and is asked again.
-export const SUITABLE = ["yes", "unsure"] as const;
-export const SuitableAnswer = z.object({ suitable: z.enum(SUITABLE) }).strict();
-export type SuitableAnswer = z.infer<typeof SuitableAnswer>;
 
 // What the reviewer decided about one sentence
 export interface Suggestion {
