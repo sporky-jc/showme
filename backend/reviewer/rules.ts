@@ -735,7 +735,35 @@ const killMeAsAFigure = (words: string[], i: number) => {
   }
   return false;
 };
-const withoutFigures = (words: string[]) => words.map((word, i) => (killMeAsAFigure(words, i) ? "kill(figure)" : word));
+// "My sister kept kicking me in our bunk bed", "my cousin pushed me in the
+// pool": a brother, sister, cousin or friend being rough, which is
+// nearly always play. A sensitive hold, so the models read it, not a
+// worrying one. Only these words, and only when that's the nearest person:
+// "my sister's boyfriend kicks me", "my brothers punch me" and "my brother
+// beats me" stay worrying.
+const ROUGH = new Set([
+  "kick", "kicks", "kicking", "kicked", "push", "pushes", "pushing", "pushed", "shove", "shoves",
+  "shoved", "poke", "pokes", "poked", "pinch", "pinches", "pinched",
+]);
+const KIDS_CLOSE = new Set(["sister", "sisters", "brother", "brothers", "cousin", "cousins", "friend", "friends"]);
+const roughAsPlay = (words: string[], i: number) => {
+  if (!ROUGH.has(words[i]) || (words[i + 1] !== "me" && words[i + 1] !== "us")) return false;
+  const back = before(words, i);
+  const nearest = [...back].reverse().find((w) => isPerson(w));
+  return nearest !== undefined && KIDS_CLOSE.has(nearest) && !isPlay(words, i);
+};
+// "The cactus was so spiky it could stab you", "that cold could kill you":
+// a thing that could hurt anyone, not a threat. Only "could", "might" or
+// "can" with "you" just after, and nobody (not "I", not a person) before
+// it: "I could stab you" and "he could kill you" stay worrying.
+const COULD = new Set(["could", "might", "can"]);
+const couldHurtYou = (words: string[], i: number) =>
+  (STAB.has(words[i]) || KILL.has(words[i])) &&
+  words[i + 1] === "you" &&
+  COULD.has(words[i - 1]) &&
+  !before(words, i).some((w) => FIRST_PERSON.has(w) || isPerson(w) || SOMEONE.has(w));
+const asAFigure = (words: string[], i: number) => killMeAsAFigure(words, i) || roughAsPlay(words, i) || couldHurtYou(words, i);
+const withoutFigures = (words: string[]) => words.map((word, i) => (asAFigure(words, i) ? `${word}(figure)` : word));
 
 // No food at home, in any wording: "there is never any food in our house",
 // "we have no food at home"
@@ -875,7 +903,7 @@ export const isSensitive = (text: string) => {
     [...written, ...swapped, ...words].some((word) => SENSITIVE.has(word)) ||
     SENSITIVE_PLAIN.some((parts) => hasParts(words, parts)) ||
     sensitiveNearAPerson(words) ||
-    words.some((_, i) => killMeAsAFigure(words, i))
+    words.some((_, i) => asAFigure(words, i))
   );
 };
 
