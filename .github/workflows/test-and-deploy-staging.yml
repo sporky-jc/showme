@@ -79,6 +79,12 @@ jobs:
       - name: Run Tests
         run: npm test
 
+      # Scribbles' worker (worker/): its own tests, against a fake backend
+      # and fake models, with nothing to install
+      - name: Worker tests
+        working-directory: worker
+        run: npm test
+
       # The JavaScript Firebase will run (lib/), as the deploy builds it
       - name: Build
         run: npm run build

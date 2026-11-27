@@ -1,0 +1,11 @@
+{
+  "name": "scribbles-worker",
+  "private": true,
+  "description": "Scribbles' worker: runs the local models on the owner's VM and posts their answers to the backend",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node main.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}
