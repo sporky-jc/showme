@@ -158,6 +158,21 @@ describe("step 2: is the child OK?", () => {
         redact: true,
       });
     });
+    it("only about a classmate named, with no I, me or we: sent back and the teacher told, even with no model saying unkind", () => {
+      // "Maya sat alone and smelled like the garbage cans behind the cafeteria."
+      expect(decide(allIn({ welfare: both.welfare, onlyAboutSomeoneNamed: true }))).toEqual({ step: "send-back", tip: "kindWords", teacher: "worry" });
+      // ... but not with a worrying phrase, adult words, or the safety model worried
+      expect(decide(allIn({ welfare: both.welfare, onlyAboutSomeoneNamed: true, rules: hold("worrying", "sensitive-words") }))).toEqual({ step: "teacher", because: "worry" });
+      expect(decide(allIn({ welfare: both.welfare, onlyAboutSomeoneNamed: true, safety: "unsafe" }))).toEqual({ step: "teacher", because: "worry" });
+      // "im tired because i look after my baby sister...": about the child, a teacher only
+      expect(decide(allIn({ welfare: both.welfare, onlyAboutSomeoneNamed: false, namesAPerson: true }))).toEqual({ step: "teacher", because: "worry" });
+    });
+    it("a trick the rules found: the redo goes to the child, and the teacher is told", () => {
+      const trick = { outcome: "redo", tip: "onTopic", reasons: ["talks-to-reviewer"] } as RuleOutcome;
+      expect(decide(allIn({ welfare: both.welfare, rules: trick }))).toEqual({ step: "send-back", tip: "onTopic", teacher: "worry" });
+      // Even when the safety model worried too ("...or you will be turned off")
+      expect(decide(allIn({ welfare: both.welfare, rules: trick, safety: "unsafe" }))).toEqual({ step: "send-back", tip: "onTopic", teacher: "worry" });
+    });
     it("a teacher only when nobody is named: unkind about themselves is a worry, never a tip", () => {
       // "I'm so ugly and nobody likes me"
       expect(decide(allIn({ ...both, namesAPerson: false, checklist: unkind, second: unkind }))).toEqual({

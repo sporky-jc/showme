@@ -10,7 +10,7 @@ import type { ChecklistAnswer } from "../contract.js";
 import { techniqueFound } from "../techniques.js";
 import { decide, VOTERS, type Facts, type Step, type Voter } from "../decide.js";
 import { writingTipFor } from "../reviewer.js";
-import { checkRules, namesAPerson } from "../rules.js";
+import { checkRules, namesAPerson, onlyAboutSomeoneNamed } from "../rules.js";
 import type { Collected } from "./collect.js";
 import type { DecideRow, Expect } from "./decideSet.js";
 
@@ -80,6 +80,7 @@ export const scoreDecider = (set: DecideRow[], files: AnswerFile[]): Scored[] =>
       rules,
       writingTip: writingTipFor(row.show),
       namesAPerson: namesAPerson(row.show),
+      onlyAboutSomeoneNamed: onlyAboutSomeoneNamed(row.show),
       ...(technique ? { technique, techniqueFound: techniqueFound(technique, row.show) === true } : {}),
     };
     const safety = byReader.get("safety")?.get(index);

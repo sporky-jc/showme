@@ -1040,6 +1040,24 @@ export const isUnkind = (text: string) => {
 // about someone named, not the child themselves
 export const namesAPerson = (text: string) => namesIn(text).isName.some(Boolean);
 
+// About a classmate named with a capital letter ("Maya sat alone...",
+// "Noah's lunch table..."), and not about the child at all: no "I", "me",
+// "my", "we", "us" or "our" anywhere. For the decider: a sentence both
+// models worry about that's only about someone else is sent back to be
+// kinder, and the teacher told (the owner's choice). "im tired because i
+// look after my baby sister" is about the child, so it stays a worry.
+const FIRST_PERSON_WORDS = new Set(["i", "im", "i'm", "ive", "i've", "id", "i'd", "ill", "i'll", "me", "my", "mine", "myself", "we", "us", "our", "ours", "ourselves", "were", "we're"]);
+export const onlyAboutSomeoneNamed = (text: string) => {
+  const tokens = text.match(/[A-Za-z']+/g) ?? [];
+  const named = tokens.some((token) => {
+    const bare = token.replace(/'s$/, "");
+    return /^[A-Z][a-z]+$/.test(bare) && FIRST.has(bare.toLowerCase());
+  });
+  // "were" only counts as "we're" when it's spelled with the apostrophe
+  const aboutMe = tokens.some((token) => token !== "were" && FIRST_PERSON_WORDS.has(token.toLowerCase()));
+  return named && !aboutMe;
+};
+
 export const namesSomeone = (text: string, unkind = isUnkind(text)) => {
   const { words, owned, isName } = namesIn(text);
   if (!isName.some(Boolean)) return false;
