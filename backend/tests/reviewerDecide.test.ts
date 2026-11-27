@@ -6,6 +6,7 @@ import {
   RECHECK_AFTER,
   VOTERS,
   WORRY_WAIT_MS,
+  WRITING_WAIT_MS,
   welfareQuestion,
   type Facts,
   type HostedAnswer,
@@ -225,10 +226,12 @@ describe("step 2: is the child OK?", () => {
 
   it("never asks the hosted model about a sentence with personal details: it's sent back to take them out", () => {
     const personal = hold("personal-details");
-    // One local model worried
+    // One local model worried ("I'm home alone again, I live at 12 Elm
+    // St."): sent back, and the worry kept for the teacher
     expect(decide(allIn({ rules: personal, welfare: { first: "yes", second: "no" } }))).toEqual({
       step: "send-back",
       tip: "privateDetails",
+      teacher: "worry",
     });
     // The safety model alone: the details themselves, or worse ("text me
     // and I'll send pics"): the hosted model is asked, with them hidden
@@ -250,11 +253,12 @@ describe("step 2: is the child OK?", () => {
     expect(decide(allIn({ ...both, hosted: hosted("yes") }))).toEqual({ step: "teacher", because: "worry" });
     // None ("my snapchat is ... add me"): sent back to take them out
     expect(decide(allIn({ ...both, hosted: hosted("no") }))).toEqual({ step: "send-back", tip: "privateDetails" });
-    // The hosted model didn't answer in 6 hours: a teacher
+    // The hosted model didn't answer in an hour: a teacher
     expect(decide(allIn({ ...both, worryWaitedMs: WORRY_WAIT_MS }))).toEqual({ step: "teacher", because: "worry-not-checked" });
   });
 
-  it("sends a split worry to a teacher if the hosted model hasn't answered in 6 hours", () => {
+  it("sends a split worry to a teacher if the hosted model hasn't answered in an hour: seen the same school day", () => {
+    expect(WORRY_WAIT_MS).toBe(60 * 60 * 1000);
     const split = { safety: "unsafe" as const };
     expect(decide(allIn({ ...split, worryWaitedMs: WORRY_WAIT_MS - 1 }))).toMatchObject({ step: "ask-hosted" });
     expect(decide(allIn({ ...split, worryWaitedMs: WORRY_WAIT_MS }))).toEqual({
@@ -485,7 +489,8 @@ describe("step 7: an approval needs the second model's checklist too", () => {
     });
 
     it("after 6 hours with no hosted answer, the second model's 'no' stands: a missing answer is never read as fine", () => {
-      const waited = { writingWaitedMs: WORRY_WAIT_MS };
+      expect(decide(allIn({ writingWaitedMs: WRITING_WAIT_MS - 1, second: saying({ onTopic: "no" }) }))).toEqual({ step: "ask-hosted", about: "writing" });
+      const waited = { writingWaitedMs: WRITING_WAIT_MS };
       expect(decide(allIn({ ...waited, second: saying({ onTopic: "no" }) }))).toEqual({ step: "send-back", tip: "onTopic", check: "onTopic" });
       expect(decide(allIn({ ...waited, second: saying({ grammar: "no" }) }))).toEqual({
         step: "send-back",

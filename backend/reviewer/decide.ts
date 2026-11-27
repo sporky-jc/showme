@@ -69,9 +69,13 @@ export type Reader = (typeof READERS)[number];
 export const MAX_FAILED_TRIES = 3;
 
 // How long a worry the local readers disagreed about may wait for the hosted
-// model before a teacher reads it instead (and a writing tie before the
-// second model's grammar answer decides it, as before the tie-break)
-export const WORRY_WAIT_MS = 6 * 60 * 60 * 1000;
+// model (down, or out of its free daily allowance) before a teacher reads
+// it instead: an hour, so a worry written in the morning is seen the same
+// school day (the owner's choice)
+export const WORRY_WAIT_MS = 60 * 60 * 1000;
+// How long a writing tie may wait for it before the second model's "no"
+// stands: nothing is urgent about the writing
+export const WRITING_WAIT_MS = 6 * 60 * 60 * 1000;
 
 // After this many send-backs for the same check, the two models must agree
 // that it fails before the child is sent back for it again
@@ -148,7 +152,8 @@ export type Step =
   | { step: "approve"; tip: TipId }
   // check: the revise check it was sent back for, for the caller to count
   // teacher: also told to a teacher. "worry": both local models worried
-  // and both say it's unkind about someone named. "review": nothing is
+  // and both say it's unkind about someone named, or one worried about a
+  // sentence with personal details. "review": nothing is
   // wrong with the child, but Scribbles couldn't settle it (the models
   // keep splitting on the gallery question, or a model keeps failing on
   // the words): kept for the teacher to look over, while the child goes on
@@ -285,8 +290,12 @@ export const decide = (given: Facts): Step => {
   if (worrySplit && !hosted) {
     // One local model's worry about a sentence with personal details:
     // they're taken out first, and the new version is read afresh, by the
-    // hosted model too if the local models still disagree
-    if (personal && VOTERS.some((voter) => welfare[voter] === "yes")) return { step: "send-back", tip: "privateDetails" };
+    // hosted model too if the local models still disagree. The worry is
+    // kept for the teacher to look over, in case the new version leaves it
+    // out (the owner's choice)
+    if (personal && VOTERS.some((voter) => welfare[voter] === "yes")) {
+      return { step: "send-back", tip: "privateDetails", teacher: "worry" };
+    }
     if ((facts.worryWaitedMs ?? 0) >= WORRY_WAIT_MS) return { step: "teacher", because: "worry-not-checked" };
     // With personal details and only the safety model worried: it may be
     // the details themselves (its privacy category) or something worse
@@ -341,7 +350,7 @@ export const decide = (given: Facts): Step => {
   const tied = TIE_CHECKS.some((check) => !passes(check, second, facts) && !sentBackOften(check, facts));
   if (tied) {
     const { hostedChecklist } = facts;
-    if (!hostedChecklist && (facts.writingWaitedMs ?? 0) < WORRY_WAIT_MS) return { step: "ask-hosted", about: "writing" };
+    if (!hostedChecklist && (facts.writingWaitedMs ?? 0) < WRITING_WAIT_MS) return { step: "ask-hosted", about: "writing" };
     // The hosted model's answer on the tied checks only (topic, shows,
     // grammar). No answer in 6 hours: the second model's "no" stands, so a
     // missing answer is never read as fine.
