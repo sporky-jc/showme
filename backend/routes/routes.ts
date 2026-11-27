@@ -43,6 +43,7 @@ import {
   reviewTipsRateLimit,
   sentenceWritesRateLimit,
   testLoginRateLimit,
+  workerRateLimit,
 } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
@@ -117,8 +118,8 @@ router.patch("/Admin/owner", reviewerSwitchRateLimit, auth, admin, owner, update
 // Route for getting approved sentences
 // Scribbles' worker on the VM: work to read, and its answers (behind the
 // worker's key: no key set, and these answer as if they weren't there)
-router.post("/worker/work", workerKey, getWork);
-router.post("/worker/answers", workerKey, postAnswers);
+router.post("/worker/work", workerRateLimit, workerKey, getWork);
+router.post("/worker/answers", workerRateLimit, workerKey, postAnswers);
 
 router.get("/Collections", fetchApprovedSentences);
 
