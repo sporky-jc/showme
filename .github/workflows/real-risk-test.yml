@@ -1,0 +1,42 @@
+# One-off test on a throwaway branch (never merged): the narrower "is it
+# real?" question for the sentences both local models worried about
+name: Real-risk question test
+on:
+  push:
+    branches: [claude/real-risk-test]
+permissions:
+  contents: read
+jobs:
+  ask:
+    name: Real-risk answers from ${{ matrix.model }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [gemma4:e4b, qwen3.5:9b]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Start Ollama
+        run: |
+          docker run -d --name ollama -p 11434:11434 ollama/ollama:0.40.14
+          for try in $(seq 1 30); do
+            curl -fsS http://localhost:11434/api/version && exit 0
+            sleep 2
+          done
+          echo "Ollama didn't start" && exit 1
+      - name: Download the model
+        env:
+          MODEL: ${{ matrix.model }}
+        run: |
+          jq -n --arg model "$MODEL" '{model: $model, stream: false}' |
+            curl -fsS --retry 3 --max-time 1800 http://localhost:11434/api/pull -d @-
+      - name: Ask
+        env:
+          LOCAL_AI_URL: http://localhost:11434
+          LOCAL_MODEL: ${{ matrix.model }}
+        timeout-minutes: 140
+        run: node real-risk/run.mjs
