@@ -5,6 +5,7 @@ import { ReviewLine, enterLine, hashShow } from "../models/reviewLine.js";
 import { questionVersion } from "../reviewer/asks.js";
 import { WELFARE_INSTRUCTIONS } from "../reviewer/prompt.js";
 import { Sentence } from "../models/sentences.js";
+import { WORKER_REQUESTS_PER_MINUTE } from "../middlewares/rateLimit.js";
 import { createSentence, createUser, fieldsOf } from "./helpers.js";
 
 // The worker's routes (tasks/scribbles-worker-spec.md, T9). Made-up
@@ -41,6 +42,11 @@ describe("the worker's key", () => {
     const res = await send();
     expect(res.status).toBe(404);
     expect(JSON.stringify(res.body)).not.toContain("Clothes");
+  });
+
+  it("limits how often anyone can call, with or without the key, so guessing it is slow", async () => {
+    for (let i = 0; i < WORKER_REQUESTS_PER_MINUTE; i++) await asWorker("/worker/work", { reader: "first", worker: "vm", limit: 1 }, "x".repeat(40));
+    expect((await asWorker("/worker/work", { reader: "first", worker: "vm", limit: 1 })).status).toBe(429);
   });
 
   it("lets nobody in when no key, or a short one, is set", async () => {
