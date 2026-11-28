@@ -201,18 +201,22 @@ export type SaveResult = "saved" | "duplicate" | "stale";
 
 // Save one answer. The same answer posted twice counts once; an answer
 // for a version that's been replaced or decided, or for other words, is
-// refused ("stale"). Saving frees the reader's claim on the version.
+// refused ("stale"). Saving frees the reader's claim on the version, and
+// takes the question off what the version needs from that reader.
 export const saveAnswer = async (given: NewAnswer, now = new Date()): Promise<SaveResult> => {
   const { line, showHash, reader, question, model, questionVersion, answer } = given;
   const same = { reader: String(reader), question: String(question), model: String(model), questionVersion: String(questionVersion) };
   const matchSame = { reader: eq(reader), question: eq(question), model: eq(model), questionVersion: eq(questionVersion) };
   const version = { _id: idOf(line), showHash: eq(showHash), state: "waiting" as const };
+  // The question no longer needs this reader: so the worker isn't handed
+  // the same question again before the line keeper next runs
+  const answered = { needs: { reader: eq(reader), question: eq(question) } };
   const saved = await ReviewLine.findOneAndUpdate(
     { ...version, answers: { $not: { $elemMatch: matchSame } } },
-    { $push: { answers: { ...same, answer, at: now } }, $unset: { [claimField(reader)]: "" } }
+    { $push: { answers: { ...same, answer, at: now } }, $pull: answered, $unset: { [claimField(reader)]: "" } }
   );
   if (saved) return "saved";
-  const current = await ReviewLine.findOne(version);
+  const current = await ReviewLine.findOneAndUpdate(version, { $pull: answered });
   return current ? "duplicate" : "stale";
 };
 
