@@ -72,13 +72,13 @@ const currentVersions = (models: ReturnType<typeof localModels>, hostedModel: st
   };
 };
 
-// The model's name without its exact version ("gemma4:e4b@1a2b" →
-// "gemma4:e4b"). A name that starts with "@" ("@cf/meta/...", the hosted
-// model's) keeps it.
+// Each answer's model name, and its exact version (after "@") apart
+// ("gemma4:e4b@1a2b" → "gemma4:e4b", "1a2b"). A name that starts with "@"
+// ("@cf/meta/...", the hosted model's) keeps it, and has no version.
 const named = <T extends { model: string }>(answers: T[]) =>
   answers.map((a) => {
     const at = a.model.lastIndexOf("@");
-    return { ...a, model: at > 0 ? a.model.slice(0, at) : a.model };
+    return { ...a, model: at > 0 ? a.model.slice(0, at) : a.model, version: at > 0 ? a.model.slice(at + 1) : undefined };
   });
 
 const TECHNIQUE_OF = new Map(tellList.map(({ tell, technique }) => [tell, technique]));
@@ -234,4 +234,17 @@ export const keepLine = async (options: Parameters<typeof factsFor>[2] = {}) => 
     }
   }
   return { entered, stepped: waiting.length, settled };
+};
+
+// The models the line uses now, each with the version it last answered
+// with, for the Teacher page (none yet: no version)
+export const modelsInUse = async (models = localModels()) => {
+  const using = { safety: models.safety, first: models.first, second: models.second, hosted: CLOUDFLARE_WELFARE_MODEL } as const;
+  return Promise.all(
+    (Object.entries(using) as [LineReader, string][]).map(async ([reader, model]) => {
+      const line = await ReviewLine.findOne({ "answers.reader": reader }, { answers: 1 }).sort({ createdAt: -1 }).lean();
+      const answer = line ? named([...line.answers]).filter((a) => a.reader === reader && a.model === model).at(-1) : undefined;
+      return { reader, model, ...(answer?.version ? { version: answer.version.slice(0, 8) } : {}) };
+    })
+  );
 };

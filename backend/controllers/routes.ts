@@ -22,6 +22,8 @@ import {
   User,
 } from "../contract/api.js";
 import { ReviewSuggestion } from "../models/reviewSuggestions.js";
+import { readSuggestionSource } from "../models/reviewerSwitch.js";
+import { lineSuggestionsFor } from "../reviewer/lineSuggestions.js";
 import { ReviewDecision } from "../models/reviewDecisions.js";
 import { logger } from "firebase-functions/logger";
 import { aiHighlightsShown } from "../models/ownerSettings.js";
@@ -349,6 +351,12 @@ const reviewQueue = (adminId: string | undefined) => ({
 // isn't shown: it's about the old words.
 const reviewQueueFor = async (adminId: string | undefined) => {
   const queue = await sentencesWithAuthorNames(reviewQueue(adminId));
+  // The review line's suggestions instead, when the Teacher page's switch
+  // or the deploy's default says so (models/reviewerSwitch.ts)
+  if ((await readSuggestionSource()).now === "line") {
+    const fromLine = await lineSuggestionsFor(queue);
+    return queue.map((sentence) => ({ ...sentence.toObject(), suggestion: fromLine.get(String(sentence._id)) }));
+  }
   const suggestions = await ReviewSuggestion.find(
     { sentence: { $in: queue.map((sentence) => sentence._id) } },
     // Not who decided, when, or what each provider answered (`attempts`, the
@@ -395,10 +403,14 @@ type SavedSuggestion = { sentence: Types.ObjectId; show: string; verdict: Verdic
 // (models/sentences.ts), and their suggestions through the one on sentence
 // and show (models/reviewSuggestions.ts).
 const reviewCountsFor = async (adminId: string | undefined) => {
-  const queue = await Sentence.find(reviewQueue(adminId), { _id: 1, show: 1 }).lean<
-    { _id: Types.ObjectId; show: string }[]
+  const queue = await Sentence.find(reviewQueue(adminId), { _id: 1, tell: 1, show: 1 }).lean<
+    { _id: Types.ObjectId; tell: string; show: string }[]
   >();
   if (queue.length === 0) return { checkIn: 0, waiting: 0 };
+  if ((await readSuggestionSource()).now === "line") {
+    const fromLine = await lineSuggestionsFor(queue);
+    return { checkIn: [...fromLine.values()].filter((s) => s.reasons.includes("worrying")).length, waiting: queue.length };
+  }
   const worrying = await ReviewSuggestion.find(
     { sentence: { $in: queue.map((s) => s._id) }, reasons: { $eq: "worrying" } },
     { _id: 0, sentence: 1, show: 1 }

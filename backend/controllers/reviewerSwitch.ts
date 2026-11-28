@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { ReviewerStatus, ReviewerSwitchBody } from "../contract/api.js";
-import { readReviewerSwitch, setReviewerPaused } from "../models/reviewerSwitch.js";
+import { readReviewerSwitch, readSuggestionSource, setReviewerPaused, setSuggestionSource } from "../models/reviewerSwitch.js";
+import { modelsInUse } from "../reviewer/line.js";
 import { reviewerMode } from "../reviewer/settings.js";
 import { isTestAccount } from "../config/testAccounts.js";
 import { answer } from "../utils/answer.js";
@@ -9,10 +10,22 @@ import { firstProblem, messageOf } from "../utils/errors.js";
 // The Teacher page's off switch for Scribbles (models/reviewerSwitch.ts).
 // The admin middleware on these routes has already checked isAdmin.
 
-// Scribbles' mode as the deploy set it, and whether he's paused
+// Scribbles' mode as the deploy set it, whether he's paused, which
+// suggestions the cards show, and the models the review line uses now
+const statusNow = async () => {
+  const source = await readSuggestionSource();
+  return {
+    mode: reviewerMode(),
+    ...(await readReviewerSwitch()),
+    suggestionsFrom: source.now,
+    suggestionsDefault: source.default,
+    models: await modelsInUse(),
+  };
+};
+
 export const getReviewerStatus = async (req: Request, res: Response) => {
   try {
-    answer(res, 200, ReviewerStatus, { mode: reviewerMode(), ...(await readReviewerSwitch()) });
+    answer(res, 200, ReviewerStatus, await statusNow());
   } catch (error) {
     // Saved for this request's log line (see middlewares/requestLog.ts)
     res.locals.error = error;
@@ -36,8 +49,9 @@ export const updateReviewerSwitch = async (req: Request, res: Response) => {
     if (!body.success) {
       return res.status(400).json({ message: firstProblem(body.error) });
     }
-    const stored = await setReviewerPaused(body.data.paused);
-    answer(res, 200, ReviewerStatus, { mode: reviewerMode(), ...stored });
+    if (body.data.paused !== undefined) await setReviewerPaused(body.data.paused);
+    if (body.data.suggestionsFrom !== undefined) await setSuggestionSource(body.data.suggestionsFrom);
+    answer(res, 200, ReviewerStatus, await statusNow());
   } catch (error) {
     res.locals.error = error;
     res.status(500).json({ message: messageOf(error) });

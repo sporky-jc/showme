@@ -12,7 +12,7 @@
 // sentences, none of which import anything but zod and types.
 import { z } from "zod";
 import { PRAISE, TIP_IDS, TIPS } from "../reviewer/tips.js";
-import { MAX_CHARACTERS, REASONS, REVIEWER_MODES, VERDICTS } from "../reviewer/contract.js";
+import { MAX_CHARACTERS, REASONS, REVIEWER_MODES, SUGGESTION_SOURCES, TRAIL_CHECKS, TRAIL_QUESTIONS, TRAIL_SAID, VERDICTS } from "../reviewer/contract.js";
 import { MECHANICS } from "../reviewer/mechanics.js";
 import { tellForTitle } from "../public/tellList.js";
 import { SENSE_KEYS } from "../tagger/senseTags.js";
@@ -129,9 +129,14 @@ export const UndoBody = z.object({
 // him back on, from the Teacher page (models/reviewerSwitch.ts). Only ever
 // true or false: the switch can pause him, never switch on a mode the
 // deploy didn't (REVIEWER_MODE).
-export const ReviewerSwitchBody = z.object({
-  paused: z.boolean({ error: "paused must be true or false" }),
-});
+export const ReviewerSwitchBody = z
+  .object({
+    paused: z.boolean({ error: "paused must be true or false" }).optional(),
+    // Which suggestions the cards show: the old reviewer's, the review
+    // line's, or the deploy's default again
+    suggestionsFrom: z.enum([...SUGGESTION_SOURCES, "default"], { error: "suggestionsFrom must be old, line or default" }).optional(),
+  })
+  .refine((body) => body.paused !== undefined || body.suggestionsFrom !== undefined, { error: "Say which setting to change" });
 
 // PATCH /Admin/owner (the site's owner only): turns the sense tagger on or
 // off
@@ -317,6 +322,26 @@ export const ScribblesSuggestion = z.object({
   // Words not in the dictionary, and capitals and punctuation to fix
   misspelled: z.array(z.string()).optional(),
   mechanics: z.array(z.object({ kind: z.enum(MECHANICS), text: z.string() })).optional(),
+  // From the review line only (reviewer/lineSuggestion.ts): it would send
+  // the sentence back or approve it and still tell the teacher ("worry" or
+  // "review"); it's still being read; and what each check said
+  teacher: z.enum(["worry", "review"]).optional(),
+  waiting: z.boolean().optional(),
+  trail: z
+    .array(
+      z.object({
+        check: z.enum(TRAIL_CHECKS),
+        question: z.enum(TRAIL_QUESTIONS),
+        said: z.enum(TRAIL_SAID),
+        // The model's name and short version, from the saved answer
+        model: z.string().optional(),
+        version: z.string().optional(),
+        found: z.array(z.string()).optional(),
+        hidden: z.number().int().optional(),
+        why: z.boolean(),
+      })
+    )
+    .optional(),
 });
 
 // A sentence in the review queue, with Scribbles' suggestion for its
@@ -359,6 +384,14 @@ export const ReviewerStatus = z.object({
   mode: z.enum(REVIEWER_MODES),
   paused: z.boolean(),
   pausedAt: z.iso.datetime().optional(),
+  // Which suggestions the cards show now, and the deploy's default
+  suggestionsFrom: z.enum(SUGGESTION_SOURCES).optional(),
+  suggestionsDefault: z.enum(SUGGESTION_SOURCES).optional(),
+  // The models the review line uses now, with the version each last
+  // answered with (none yet: no version)
+  models: z
+    .array(z.object({ reader: z.enum(["safety", "first", "second", "hosted"]), model: z.string(), version: z.string().optional() }))
+    .optional(),
 });
 
 // GET and PATCH /Admin/owner (the site's owner only): the Owner settings on

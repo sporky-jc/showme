@@ -31,6 +31,10 @@
 #                           backend, so a staging key never works on production.
 #                           At least 32 letters, digits, _ or - (e.g. openssl
 #                           rand -hex 32). Unset: the worker's routes let nobody in
+#   SUGGESTIONS_FROM        variable, optional: which suggestions the Teacher
+#                           page's cards show by default, "old" (the old
+#                           reviewer's, the default) or "line" (the review
+#                           line's); a teacher can switch it on the page
 #
 # Any of them missing just leaves the reviewer off or without that provider;
 # a deploy never fails for it. A value in the wrong shape is left out with a
@@ -112,5 +116,13 @@ if [ -n "${WORKER_KEY:-}" ]; then
     line WORKER_KEY "$WORKER_KEY"
   else
     echo "::warning::WORKER_KEY must be 32 to 200 letters, digits, _ or - (e.g. openssl rand -hex 32); the worker's routes let nobody in" >&2
+  fi
+fi
+
+if [ -n "${SUGGESTIONS_FROM:-}" ]; then
+  if [[ "$SUGGESTIONS_FROM" =~ ^(old|line)$ ]]; then
+    line SUGGESTIONS_FROM "$SUGGESTIONS_FROM"
+  else
+    echo "::warning::SUGGESTIONS_FROM must be old or line; the old reviewer's suggestions are shown" >&2
   fi
 fi
