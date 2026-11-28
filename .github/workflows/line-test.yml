@@ -1,0 +1,80 @@
+name: Line test on staging
+
+# Tests Scribbles' review line end to end on staging
+# (spec/SPEC-line-testing.md): puts a set of made-up sentences on staging
+# under made-up students, so the line, the worker on the VM and the hosted
+# model read them as they would a real class's; then reports how each one
+# was settled.
+#
+#   put + smoke       the 10 rows of Stage 1, one for each path
+#   put + decide-set  the whole made-up set (Stage 2)
+#   report            how each row was settled so far (in the run's summary)
+#   clear             take the made-up sentences away again
+#
+# Staging only: its database login can only reach the practice database
+# (ShowME-dev), and the script refuses the production one. The report gives
+# row numbers, outcomes, models and times, never a sentence's words. It asks
+# no AI itself.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do
+        type: choice
+        options:
+          - report
+          - put
+          - clear
+        default: report
+      set:
+        description: Which set to put (for "put")
+        type: choice
+        options:
+          - smoke
+          - decide-set
+        default: smoke
+
+permissions:
+  contents: read
+
+concurrency:
+  group: line-test
+  cancel-in-progress: false
+
+jobs:
+  line-test:
+    name: Line test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24' # keep in sync with "engines" in backend/package.json
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run
+        env:
+          DATABASE_ACCESS: ${{ secrets.STAGING_DATABASE_ACCESS }}
+          DATABASE_NAME: ShowME-dev
+          ACTION: ${{ inputs.action }}
+          SET: ${{ inputs.set }}
+        run: |
+          if [ "$ACTION" = "put" ]; then
+            node lib/scripts/line-test.js put "$SET" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            node lib/scripts/line-test.js "$ACTION" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi

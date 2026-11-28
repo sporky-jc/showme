@@ -87,7 +87,7 @@ describe("asking the hosted model", () => {
     const { lineId } = await inLine("Clothes carpeted the floor like a soft, lumpy rug.", { firstWelfare: "yes" });
     expect((await ReviewLine.findById(lineId).lean())?.needs).toEqual([{ reader: "hosted", question: "welfare" }]);
     const fetchMock = answering({ success: true, result: { response: { concern: "yes" } } });
-    expect(await askHosted(SETTINGS)).toEqual({ asked: 1, saved: 1, held: 0 });
+    expect(await askHosted(SETTINGS)).toEqual({ asked: 1, saved: 1, held: 0, hidden: 0 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(await stepLine(lineId)).toEqual({ step: "teacher", because: "worry" });
   });
@@ -96,7 +96,7 @@ describe("asking the hosted model", () => {
     const { lineId } = await inLine("Clothes carpeted the floor like a soft, lumpy rug.", { secondChecklist: { ...CHECKLIST_OK, shows: "no" } });
     expect((await ReviewLine.findById(lineId).lean())?.needs).toEqual([{ reader: "hosted", question: "checklist" }]);
     answering({ success: true, result: { response: JSON.stringify(CHECKLIST_OK) } });
-    expect(await askHosted(SETTINGS)).toEqual({ asked: 1, saved: 1, held: 0 });
+    expect(await askHosted(SETTINGS)).toEqual({ asked: 1, saved: 1, held: 0, hidden: 0 });
     expect(await stepLine(lineId)).toMatchObject({ step: "approve" });
   });
 
@@ -113,6 +113,8 @@ describe("asking the hosted model", () => {
     expect(body).not.toContain("4567");
     expect(body).toContain("only 7");
     expect(body).toContain(HIDDEN);
+    const [usage] = await HostedUsage.find({ line: lineId }).lean();
+    expect(usage?.hidden).toBe(1);
   });
 
   it("out of free Neurons: stops, and the sentence keeps waiting for it", async () => {
@@ -127,7 +129,7 @@ describe("asking the hosted model", () => {
   it("a nonsense answer counts as a failed try, and nothing is saved", async () => {
     const { lineId } = await inLine("Clothes carpeted the floor like a soft, lumpy rug.", { firstWelfare: "yes" });
     answering({ success: true, result: { response: "probably fine" } });
-    expect(await askHosted(SETTINGS)).toEqual({ asked: 1, saved: 0, held: 0 });
+    expect(await askHosted(SETTINGS)).toEqual({ asked: 1, saved: 0, held: 0, hidden: 0 });
     expect((await ReviewLine.findById(lineId).lean())?.failedTries?.hosted).toBe(1);
   });
 
@@ -145,9 +147,9 @@ describe("asking the hosted model", () => {
     const now = new Date();
     await HostedUsage.insertMany(Array.from({ length: HOSTED_PER_DAY - KEPT_FOR_WORRIES }, () => ({ at: now, about: "writing", kid: "someone" })));
     const fetchMock = answering({ success: true, result: { response: { concern: "yes" } } });
-    expect(await askHosted(SETTINGS, { now })).toEqual({ asked: 0, saved: 0, held: 0 });
+    expect(await askHosted(SETTINGS, { now })).toEqual({ asked: 0, saved: 0, held: 0, hidden: 0 });
     await inLine("The floor was a sea of socks and shirts.", { firstWelfare: "yes" });
-    expect(await askHosted(SETTINGS, { now })).toEqual({ asked: 1, saved: 1, held: 0 });
+    expect(await askHosted(SETTINGS, { now })).toEqual({ asked: 1, saved: 1, held: 0, hidden: 0 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -156,14 +158,14 @@ describe("asking the hosted model", () => {
     const now = new Date();
     await HostedUsage.insertMany(Array.from({ length: HOSTED_PER_KID }, () => ({ at: now, about: "worry", kid: kidHash(gid) })));
     const fetchMock = answering({ success: true, result: { response: { concern: "yes" } } });
-    expect(await askHosted(SETTINGS, { now })).toEqual({ asked: 0, saved: 0, held: 0 });
+    expect(await askHosted(SETTINGS, { now })).toEqual({ asked: 0, saved: 0, held: 0, hidden: 0 });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("asks nothing when the line needs nothing from it", async () => {
     await inLine("Clothes carpeted the floor like a soft, lumpy rug.", {});
     const fetchMock = answering({ success: true, result: { response: { concern: "yes" } } });
-    expect(await askHosted(SETTINGS)).toEqual({ asked: 0, saved: 0, held: 0 });
+    expect(await askHosted(SETTINGS)).toEqual({ asked: 0, saved: 0, held: 0, hidden: 0 });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
