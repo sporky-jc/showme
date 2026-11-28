@@ -203,6 +203,8 @@ jobs:
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           # The key Scribbles' worker on the VM sends: this backend's own
           WORKER_KEY: ${{ secrets.STAGING_WORKER_KEY }}
+          # Which suggestions the Teacher page's cards show by default: "old" or "line"
+          SUGGESTIONS_FROM: ${{ vars.STAGING_SUGGESTIONS_FROM }}
           REVIEWER_USE_GROQ: ${{ vars.REVIEWER_USE_GROQ }}
           CLOUDFLARE_REVIEW_MODEL: ${{ vars.CLOUDFLARE_REVIEW_MODEL }}
         run: |

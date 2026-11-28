@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+import { ReviewLine } from "../models/reviewLine.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import app from "../app.js";
@@ -36,13 +38,13 @@ describe("GET /Admin/reviewer", () => {
     const res = await statusFor(await createAdmin());
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ mode: "suggest", paused: false });
+    expect(res.body).toMatchObject({ mode: "suggest", paused: false });
   });
 
   it("says off when the deploy didn't turn Scribbles on", async () => {
     vi.stubEnv("REVIEWER_MODE", "");
 
-    expect((await statusFor(await createAdmin())).body).toEqual({ mode: "off", paused: false });
+    expect((await statusFor(await createAdmin())).body).toMatchObject({ mode: "off", paused: false });
   });
 
   it("lets the test admin look", async () => {
@@ -85,7 +87,7 @@ describe("PATCH /Admin/reviewer", () => {
 
     const paused = await switchFor(admin, { paused: true });
     expect(paused.status).toBe(200);
-    expect(fieldsOf(paused.body)).toEqual(["mode", "paused", "pausedAt"]);
+    expect(fieldsOf(paused.body)).toEqual(["mode", "models", "paused", "pausedAt", "suggestionsDefault", "suggestionsFrom"]);
     expect(paused.body).toMatchObject({ mode: "suggest", paused: true });
     expect(Date.now() - new Date(paused.body.pausedAt).getTime()).toBeLessThan(60_000);
     // Every teacher sees it: it's one switch for the site
@@ -96,8 +98,8 @@ describe("PATCH /Admin/reviewer", () => {
 
     const on = await switchFor(admin, { paused: false });
     expect(on.status).toBe(200);
-    expect(on.body).toEqual({ mode: "suggest", paused: false });
-    expect((await statusFor(other)).body).toEqual({ mode: "suggest", paused: false });
+    expect(on.body).toMatchObject({ mode: "suggest", paused: false });
+    expect((await statusFor(other)).body).toMatchObject({ mode: "suggest", paused: false });
     expect(await ReviewerSwitch.countDocuments()).toBe(1);
   });
 
@@ -108,7 +110,7 @@ describe("PATCH /Admin/reviewer", () => {
     const res = await switchFor(admin, { paused: false });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ mode: "off", paused: false });
+    expect(res.body).toMatchObject({ mode: "off", paused: false });
   });
 
   it.each([
@@ -123,12 +125,41 @@ describe("PATCH /Admin/reviewer", () => {
 
     if ("mode" in body) {
       // Anything else is dropped: the mode stays the deploy's
-      expect(res.body).toEqual({ mode: "off", paused: false });
+      expect(res.body).toMatchObject({ mode: "off", paused: false });
     } else {
       expect(res.status).toBe(400);
-      expect(res.body).toEqual({ message: "paused must be true or false" });
+      expect(res.body).toEqual({ message: Object.keys(body).length ? "paused must be true or false" : "Say which setting to change" });
       expect(await ReviewerSwitch.countDocuments()).toBe(0);
     }
+  });
+
+  it("picks which suggestions the cards show, on top of the deploy's default, and back again", async () => {
+    vi.stubEnv("SUGGESTIONS_FROM", "old");
+    const admin = await createAdmin();
+    expect((await statusFor(admin)).body).toMatchObject({ suggestionsFrom: "old", suggestionsDefault: "old" });
+    expect((await switchFor(admin, { suggestionsFrom: "line" })).body).toMatchObject({ suggestionsFrom: "line", suggestionsDefault: "old", paused: false });
+    expect((await statusFor(admin)).body).toMatchObject({ suggestionsFrom: "line" });
+    expect((await switchFor(admin, { suggestionsFrom: "default" })).body).toMatchObject({ suggestionsFrom: "old" });
+    vi.stubEnv("SUGGESTIONS_FROM", "line");
+    expect((await statusFor(admin)).body).toMatchObject({ suggestionsFrom: "line", suggestionsDefault: "line" });
+    expect((await switchFor(admin, { suggestionsFrom: "anything" })).status).toBe(400);
+  });
+
+  it("names the models the line uses now, with the version each last answered with", async () => {
+    const admin = await createAdmin();
+    const { body } = await statusFor(admin);
+    expect(body.models).toEqual([
+      { reader: "safety", model: "llama-guard3:8b" },
+      { reader: "first", model: "gemma4:e4b" },
+      { reader: "second", model: "qwen3.5:9b" },
+      { reader: "hosted", model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
+    ]);
+    await ReviewLine.create({
+      sentence: new mongoose.Types.ObjectId(),
+      showHash: "h",
+      answers: [{ reader: "first", question: "welfare", model: "gemma4:e4b@dc35e8d9c606", questionVersion: "q", answer: "no", at: new Date() }],
+    });
+    expect((await statusFor(admin)).body.models[1]).toEqual({ reader: "first", model: "gemma4:e4b", version: "dc35e8d9" });
   });
 
   it("is limited per user, reading and flipping together", async () => {

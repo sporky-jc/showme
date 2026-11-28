@@ -149,3 +149,30 @@ export interface Suggestion {
   // teacher, the same way
   mechanics?: MechanicsIssue[];
 }
+
+// The review line's trail on the Teacher page (reviewer/lineSuggestion.ts):
+// which check read the sentence, what it was asked, and what it said
+export const TRAIL_CHECKS = ["words", "safety", "helper", "big-helper"] as const;
+export const TRAIL_QUESTIONS = ["rules", "safety", "welfare", "danger", "realRisk", "checklist"] as const;
+export const TRAIL_SAID = [
+  // The word check (our rules)
+  "nothing-found",
+  "held",
+  "sent-back",
+  // The safety check
+  "safe",
+  "unsafe",
+  // A welfare question
+  "worried",
+  "not-worried",
+  // "Is it real?"
+  "real",
+  "not-real",
+  // The writing checklist
+  "all-good",
+  "found-problems",
+] as const;
+
+// Which suggestions the Teacher page's cards show: the old reviewer's or
+// the review line's (models/reviewerSwitch.ts)
+export const SUGGESTION_SOURCES = ["old", "line"] as const;
