@@ -47,9 +47,8 @@ a sample student on staging:
 Checks:
 - every sentence is decided, and each matches the table;
 - no line record holds words or an author;
-- the hosted model's request for #8 had no phone number in it (the
-  backend log line says "held back" or the test reads the saved request
-  size; see Open Questions);
+- the hosted model's request for #8 had the phone number hidden (the
+  backend's log line counts the "[hidden]" marks, never the words);
 - times: from writing to decided, per sentence, and the worker's model
   loads.
 
@@ -91,9 +90,9 @@ and the line carries on by itself once it's fixed.
 | Hosted model refused | a wrong Cloudflare token on staging, briefly | line stops asking; worries reach a teacher after an hour |
 | VM restarted | `sudo reboot` | Ollama and the worker come back by themselves |
 
-### Stage 4: A week of "suggest" with teachers (a week)
+### Stage 4: A week of "suggest" with the owner as teacher (a week)
 
-Staging teachers decide as usual, with Scribbles' suggestion on each card
+The owner decides as usual on staging, with Scribbles' suggestion on each card
 (spec `SPEC-teacher-suggestions.md`). A weekly report compares what the
 line would have done with what the teacher did, using the decisions
 already saved (`models/reviewDecisions.ts`), as the shadow report does for
@@ -186,13 +185,11 @@ Report on it:           the same workflow with report: yes
 - Load beyond one class. Measured in Stage 2's throughput, not tested
   harder.
 
-## Open questions
+## Decided (the owner, Nov 28)
 
-1. Pause the old reviewer during the tests (proposed), or leave both
-   running and accept the line may run out of Neurons?
-2. Is it OK to put the 541 made-up sentences, including the upsetting
-   ones, on staging for a day or two, under sample students?
-3. Stage 4 needs teachers using staging. Is that you alone, or others?
-4. Checking that #8's request had the number hidden: the backend logs no
-   words. Enough to trust the unit test plus "the hosted model was asked",
-   or add a debug count of "[hidden]" marks to the log line?
+- The old reviewer is paused from the Teacher page during the tests.
+- The 541 made-up sentences go on staging for a day or two, under sample
+  students, and are cleared afterwards.
+- Stage 4's teacher is the owner alone.
+- For #8: the hosted log line adds how many "[hidden]" marks the request
+  had (a count, never words).
