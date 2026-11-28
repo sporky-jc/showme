@@ -92,6 +92,58 @@ with the one that put it on the teacher's page marked. For example:
   One place (`reviewQueueFor` in `controllers/routes.ts`) reads the
   result.
 
+## Groups, filters and the big picture
+
+Added Nov 28, at the owner's ask: sort what's waiting by how much it needs
+the teacher, let them filter, and show the whole picture at a glance.
+
+### Groups
+
+Each card belongs to one group, worked out on the page from the
+suggestion's fields (no backend change):
+
+| Group id | What's in it | Look | Order |
+|---|---|---|---|
+| `needs-you` | A worry: clear worrying words, or the models were worried (Check in) | red | first |
+| `your-call` | Scribbles couldn't decide, or the rules held it (Your call, Please read) | yellow | second |
+| `fyi` | Scribbles would approve it or send it back, and wants the teacher to know (a note for the teacher: unkind about a classmate, a trick, play or a story it cleared) | blue, with the short why | third |
+| `routine` | Plain Ready! or Try again | plain | fourth |
+| `reading` | Still being read | gray, folded | last |
+
+Within a group, the longest wait first. With the old reviewer as the
+source, its notes fall into the same groups (no `fyi`, no `reading`).
+
+### At a glance
+
+At the top of the page, above the list:
+
+- one count per group, each a real `<button>` that filters the list to
+  that group (`aria-pressed`), with **All** first and chosen by default;
+- one line on Scribbles: on or paused, which suggestions the cards show,
+  and the models the line uses now with their versions (from
+  `GET /Admin/reviewer`).
+
+The badge on the site's Teacher link counts `needs-you` only, so its red
+number always means "urgent" (the backend's count already does).
+
+### Modular
+
+The groups are one list, like the card's parts:
+
+```ts
+// components/queueGroups.ts
+export const QUEUE_GROUPS: QueueGroup[] = [needsYou, yourCall, fyi, routine, reading];
+```
+
+Each is `{ id, label, look, has(suggestion): boolean }`; a card goes to
+the first group that has it. Removing a group's line moves its cards to
+the next group that has them, or to `routine`.
+
+### Later, in "decide" mode
+
+`fyi` becomes a "Look over" list of sentences Scribbles already approved
+or sent back with a note: same group, same look. Out of scope here.
+
 ## How the line's steps map to the card
 
 | Line's decision | Note | Parts |
@@ -124,6 +176,10 @@ Contrast check:  cd client && npx vitest run src/theme/contrast.test.ts
 - `backend/models/suggestionSource.ts`: the Teacher page's source switch.
 - `client/src/components/suggestionParts.tsx`: the list and the parts.
 - `client/src/components/modelName.ts`: a model id → its friendly name.
+- `client/src/components/queueGroups.ts`: the groups and which card is in
+  which.
+- `client/src/components/AtAGlance.tsx`: the counts, filters and
+  Scribbles line at the top of the page.
 - `client/src/components/ScribblesNote.tsx`: renders the list under the
   note.
 
@@ -173,6 +229,9 @@ const tip: SuggestionPart = {
   from the saved answer; a test with a made-up model id shows that id.
 - The badge on the Teacher link counts the line's "Check in" sentences
   when the line is the source.
+- Each card is in exactly one group; the counts at the top add up to the
+  number waiting; each count filters the list, and All shows everything.
+- Removing a group from `QUEUE_GROUPS` keeps every card on the page.
 
 ## Out of scope (deferred)
 

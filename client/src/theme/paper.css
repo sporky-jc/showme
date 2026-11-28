@@ -61,6 +61,10 @@
   --paper-retry-bg: #ffe0dc;
   --paper-retry-ink: #a1281b;
   --paper-retry-edge: #ff9f94;
+  /* "Just so you know" on the Teacher page (FYI): blue */
+  --paper-fyi-bg: #e2f1ff;
+  --paper-fyi-ink: #1c4f86;
+  --paper-fyi-edge: #7fd3ff;
 
   /* Scenery */
   --paper-hill-1: #9fdcae;
@@ -3405,40 +3409,110 @@ h3,
   gap: 10px;
 }
 
-/* Stickers, slightly tilted */
-.paper-review__sticker {
+/* At a glance: one button per group, each showing only that group
+   (AtAGlance.tsx). The chosen one is filled in. */
+.paper-review__filters,
+.paper-review__source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.paper-review__filter {
+  min-height: 44px;
   border-radius: 12px;
-  padding: 4px 12px;
-  font-weight: 800;
-  font-size: 0.95rem;
-}
-
-.paper-review__sticker--check-in {
-  background: var(--paper-retry-bg);
-  color: var(--paper-retry-ink);
-  box-shadow: 0 3px 0 var(--paper-retry-edge);
-  transform: rotate(-2deg);
-}
-
-.paper-review__sticker--ready {
-  background: var(--paper-done-bg);
-  color: var(--paper-done-ink);
-  box-shadow: 0 3px 0 var(--paper-done-edge);
-  transform: rotate(1.5deg);
-}
-
-.paper-review__sticker--again {
-  background: var(--paper-turn-bg);
-  color: var(--paper-turn-ink);
-  box-shadow: 0 3px 0 var(--paper-turn-edge);
-  transform: rotate(-1deg);
-}
-
-.paper-review__sticker--your-call {
+  padding: 6px 14px;
+  border: 2px solid var(--paper-control-edge);
   background: var(--paper-white);
+  color: var(--paper-ink);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.paper-review__filter[aria-pressed="true"] {
+  background: var(--paper-ink);
+  border-color: var(--paper-ink);
+  color: var(--paper-white);
+}
+
+.paper-review__filter--needs-you[aria-pressed="false"] {
+  background: var(--paper-retry-bg);
+  border-color: var(--paper-retry-edge);
+  color: var(--paper-retry-ink);
+}
+
+.paper-review__filter--your-call[aria-pressed="false"] {
+  background: var(--paper-turn-bg);
+  border-color: var(--paper-turn-edge);
+  color: var(--paper-turn-ink);
+}
+
+.paper-review__filter--fyi[aria-pressed="false"] {
+  background: var(--paper-fyi-bg);
+  border-color: var(--paper-fyi-edge);
+  color: var(--paper-fyi-ink);
+}
+
+.paper-review__filter--reading[aria-pressed="false"] {
   color: var(--paper-muted);
-  box-shadow: 0 3px 0 #cfe3d9;
-  transform: rotate(2deg);
+}
+
+.paper-review__filter:focus-visible,
+.paper-review__link:focus-visible,
+.paper-scribbles-trail__toggle:focus-visible {
+  outline: 3px solid var(--paper-brand);
+  outline-offset: 2px;
+}
+
+.paper-review__filter:disabled,
+.paper-review__link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Under the queue: the sentences still being read, folded */
+.paper-review__show-reading {
+  align-self: center;
+}
+
+/* The Scribbles panel: where the cards' notes come from, and the models */
+.paper-review__source > span {
+  flex-basis: 100%;
+  font-weight: 800;
+}
+
+.paper-review__segmented {
+  display: flex;
+  gap: 8px;
+}
+
+.paper-review__link {
+  min-height: 44px;
+  background: none;
+  border: none;
+  padding: 6px 4px;
+  color: var(--paper-ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.paper-review__models ul {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--paper-ink);
+}
+
+.paper-review__models code,
+.paper-scribbles-trail__model {
+  color: var(--paper-muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
 /* A word Scribbles found misspelled: a wavy red line under it */
@@ -3536,6 +3610,63 @@ h3,
 
 .paper-scribbles-note--again .paper-scribbles-note__title {
   color: var(--paper-turn-ink);
+}
+
+/* The parts under a card's note (suggestionParts.tsx) */
+.paper-scribbles-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paper-scribbles-fyi {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--paper-fyi-bg);
+  color: var(--paper-fyi-ink);
+  box-shadow: 0 3px 0 var(--paper-fyi-edge);
+}
+
+.paper-scribbles-fyi__sticker {
+  font-weight: 800;
+  margin-right: 4px;
+}
+
+.paper-scribbles-waiting {
+  margin: 0;
+  color: var(--paper-muted);
+  font-style: italic;
+}
+
+.paper-scribbles-trail__toggle {
+  min-height: 44px;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  color: var(--paper-ink);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.paper-scribbles-trail__steps {
+  margin: 4px 0 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--paper-ink);
+}
+
+.paper-scribbles-trail__step {
+  display: flex;
+  flex-direction: column;
+}
+
+.paper-scribbles-trail__step--why .paper-scribbles-trail__mark {
+  color: var(--paper-retry-ink);
 }
 
 .paper-scribbles-note__said {

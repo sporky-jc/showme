@@ -38,6 +38,7 @@ describe("theme colors", () => {
     ["done-ink", "done-bg"],
     ["turn-ink", "turn-bg"],
     ["retry-ink", "retry-bg"],
+    ["fyi-ink", "fyi-bg"],
   ])("%s text on %s is easy to read", (text, background) => {
     expect(contrast(token(text), token(background))).toBeGreaterThanOrEqual(4.5);
   });

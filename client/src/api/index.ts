@@ -95,6 +95,10 @@ export const fetchReviewCounts = () => API.get<ReviewCounts>("/Admin/count");
 export const fetchReviewerStatus = () => API.get<ReviewerStatus>("/Admin/reviewer");
 export const setReviewerPaused = (paused: boolean) =>
   API.patch<ReviewerStatus>("/Admin/reviewer", { paused } satisfies ReviewerSwitchBody);
+// Which suggestions the Teacher page's cards show: the old reviewer's, the
+// review line's, or the deploy's default again
+export const setSuggestionsFrom = (suggestionsFrom: NonNullable<ReviewerSwitchBody["suggestionsFrom"]>) =>
+  API.patch<ReviewerStatus>("/Admin/reviewer", { suggestionsFrom } satisfies ReviewerSwitchBody);
 
 // The Owner settings on the Teacher page (components/OwnerSettings.tsx),
 // which only the site's owner gets an answer for: the sense tagger's two

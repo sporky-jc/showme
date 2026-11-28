@@ -430,7 +430,8 @@ describe("Scribbles' notes", () => {
     renderAdmin({ queue: [ready, again, worrying, plain] });
     await screen.findByText("Ava K");
 
-    expect(names()).toEqual(["Ava K", "Leo K", "Maya K", "Sam K"]);
+    // Needs you now, then your call (one Scribbles hasn't read), then routine
+    expect(names()).toEqual(["Ava K", "Sam K", "Leo K", "Maya K"]);
     const notes = screen.getAllByRole("note");
     expect(notes[0]).toHaveTextContent("Ava may need help.");
     expect(notes[0]).toHaveTextContent("No AI saw it.");
@@ -439,7 +440,8 @@ describe("Scribbles' notes", () => {
     expect(notes[2]).toHaveTextContent("Words to fix: cafateria, lound.");
     // No suggestion, no note
     expect(notes).toHaveLength(3);
-    expect(screen.getByRole("list", { name: "Scribbles' notes" })).toHaveTextContent(/1 to check in on.*1 ready.*1 try again/);
+    // At a glance: a count for each group, each one a filter
+    expect(screen.getByRole("group", { name: "Scribbles' notes" })).toHaveTextContent(/All 4.*Needs you now 1.*Your call 1.*Routine 2/);
   });
 
   // The safety or welfare check read it (an AI), so the note says so, and it
