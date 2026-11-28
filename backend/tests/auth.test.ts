@@ -166,6 +166,21 @@ describe("POST /auth (exchange a Google ID token for our JWT)", () => {
     expect(verifyIdToken).not.toHaveBeenCalled();
   });
 
+  // Another site's page can post a form to us, which would sign the visitor in
+  // to that site's own Google account (login CSRF); it can't post JSON
+  it.each([
+    ["a form", "application/x-www-form-urlencoded", "token=attackers-token"],
+    ["plain text", "text/plain", '{"token":"attackers-token"}'],
+  ])("refuses a token sent as %s (415), without asking Google or setting a cookie", async (_kind, type, body) => {
+    verifyIdToken.mockResolvedValue({ getPayload: () => googlePayload });
+
+    const res = await request(app).post("/auth").set("Content-Type", type).send(body);
+
+    expect(res.status).toBe(415);
+    expect(res.headers["set-cookie"]).toBeUndefined();
+    expect(verifyIdToken).not.toHaveBeenCalled();
+  });
+
   // A token is text (see contract/api.ts); anything else isn't sent to Google
   it.each([[{ token: 12345 }], [{ token: { forged: true } }], [{ token: "" }]])(
     "rejects a token that isn't text (%j) with 401, without asking Google",

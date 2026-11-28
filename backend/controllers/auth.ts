@@ -42,6 +42,14 @@ export const startSession = (
 };
 
 export const googleAuth = async (req: Request, res: Response) => {
+  // JSON only. A page on another site can post a form here, but not JSON
+  // (the browser would ask us first, and we don't allow it with cookies), so
+  // it can't sign a visitor in to its own Google account (login CSRF).
+  // A request with no type has no body we'd read; it gets the 401 below.
+  if (req.headers["content-type"] !== undefined && !req.is("application/json")) {
+    return res.status(415).json({ message: "Send the Google token as JSON" });
+  }
+
   // Express 5 leaves req.body undefined when a request has no body.
   const body = LoginBody.safeParse(req.body ?? {});
   if (!body.success) {
