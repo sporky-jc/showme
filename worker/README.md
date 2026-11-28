@@ -83,7 +83,9 @@ systemctl status scribbles-worker
 journalctl -u scribbles-worker -n 50     # ids and outcomes only
 ```
 
-`model-missing` means a model isn't in Ollama (step 2). `backend-error`
+`model-missing` means a model isn't in Ollama (step 2). `model-not-loading`
+means Ollama couldn't load a model within 15 minutes: check memory with
+`free -h` and `sudo docker logs --tail 30 ollama`. `backend-error`
 means the backend couldn't be reached or refused the key; the worker waits
 longer after each one, up to 10 minutes, and carries on by itself.
 
