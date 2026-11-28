@@ -9,6 +9,7 @@ import app from "./app.js";
 import { connectWithRetry } from "./config/db.js";
 import { RUN_DEADLINE_MS as REVIEW_DEADLINE_MS, reviewWaitingSentences } from "./reviewer/queue.js";
 import { keepLine } from "./reviewer/line.js";
+import { askHosted } from "./reviewer/hosted.js";
 import { reviewerSetup } from "./reviewer/settings.js";
 import { tagApprovedSentences } from "./tagger/queue.js";
 import { taggerSetup } from "./tagger/settings.js";
@@ -90,6 +91,15 @@ export const reviewer = onSchedule(
       const { entered, stepped, settled } = await keepLine();
       if (entered > 0 || Object.keys(settled).length > 0) {
         logger.info(`Review line: ${entered} put in line, ${stepped} stepped, settled ${JSON.stringify(settled)}`);
+      }
+      // What the line needs from the hosted model, within its allowance
+      // (reviewer/hosted.ts): contact details hidden, worries first
+      const { CLOUDFLARE_ACCOUNT_ID: accountId, CLOUDFLARE_AI_TOKEN: token } = process.env;
+      if (accountId && token) {
+        const hosted = await askHosted({ accountId, token });
+        if (hosted.asked > 0 || hosted.held > 0 || hosted.stopped) {
+          logger.info(`Review line, hosted model: ${hosted.asked} asked, ${hosted.saved} answered, ${hosted.held} held back${hosted.stopped ? `, stopped: ${hosted.stopped}` : ""}`);
+        }
       }
     }
     // No new review starts after 240 seconds (RUN_DEADLINE_MS), well inside
