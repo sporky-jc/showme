@@ -22,7 +22,7 @@ export type LineReader = (typeof LINE_READERS)[number];
 // What they're asked (reviewer/prompt.ts): the safety model's own
 // question, the welfare question (or its stricter "danger" form), and the
 // writing checklist
-export const QUESTIONS = ["safety", "welfare", "danger", "checklist"] as const;
+export const QUESTIONS = ["safety", "welfare", "danger", "checklist", "realRisk"] as const;
 export type Question = (typeof QUESTIONS)[number];
 
 export const LINE_STATES = ["waiting", "decided", "replaced"] as const;

@@ -1040,6 +1040,22 @@ export const isUnkind = (text: string) => {
 // about someone named, not the child themselves
 export const namesAPerson = (text: string) => namesIn(text).isName.some(Boolean);
 
+// Being hit or splashed with something only used in play: "Dad hit me with
+// a snowball", "my sister threw a water balloon at me", "we had a pillow
+// fight". For the decider: a sentence both local models worried about for
+// this alone is play (the owner's choice), so it goes on with a record for
+// the teacher, if nothing else was found. Only these objects, and only
+// "hit/threw/pelted/got/splashed/sprayed/squirted me (or us) with" or
+// "threw ... at me".
+const PLAY_THINGS = "snow ?balls?|pillows?|water ?balloons?|water ?guns?|squirt ?guns?|nerf (?:darts?|balls?|guns?)|foam (?:balls?|swords?|darts?)|confetti|leaves|bubbles|a hose|the hose|silly string|marshmallows?";
+const PLAYFUL_HIT = new RegExp(
+  `\\b(?:hit|hits|threw|throws|throwing|pelted|pelts|got|gets|splashed|splashes|sprayed|sprays|squirted|squirts|bopped|bonked)\\s+(?:me|us)\\s+with\\s+(?:a|an|the|some|his|her|their|our|my|big|cold|wet)?\\s*(?:big |cold |wet |huge |giant )?(?:${PLAY_THINGS})\\b` +
+    `|\\b(?:threw|throws|throwing|lobbed|tossed)\\s+(?:a|an|the|some|big)?\\s*(?:${PLAY_THINGS})\\s+at\\s+(?:me|us)\\b` +
+    `|\\b(?:snow ?ball|pillow|water ?balloon|water|nerf|food)\\s+fights?\\b`,
+  "i"
+);
+export const playfulHit = (text: string) => PLAYFUL_HIT.test(text);
+
 // About a classmate named with a capital letter ("Maya sat alone...",
 // "Noah's lunch table..."), and not about the child at all: no "I", "me",
 // "my", "we", "us" or "our" anywhere. For the decider: a sentence both

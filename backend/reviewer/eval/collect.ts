@@ -13,7 +13,7 @@
 // Answers are read as strictly as the live reviewer reads them: anything
 // but the fixed form is "invalid". Rows are named by their place in
 // DECIDE_SET, never by their words.
-import { ChecklistAnswer, WelfareAnswer } from "../contract.js";
+import { ChecklistAnswer, RealRiskAnswer, WelfareAnswer } from "../contract.js";
 import { decide, welfareQuestion } from "../decide.js";
 import type { ReviewInput, WelfareQuestion } from "../reviewer.js";
 import { checkRules, type RuleOutcome } from "../rules.js";
@@ -26,11 +26,14 @@ export interface Collected {
   safety?: "safe" | "unsafe" | Failure;
   welfare?: "yes" | "no" | Failure;
   checklist?: ChecklistAnswer | Failure;
+  // The narrower "is it real?" question: asked only of the sentences this
+  // model said "yes" to on the welfare question
+  realRisk?: "real" | "not-real" | Failure;
   // How long each answer took, in milliseconds
   ms: Partial<Record<Pass, number>>;
 }
 
-export const PASSES = ["safety", "welfare", "checklist"] as const;
+export const PASSES = ["safety", "welfare", "realRisk", "checklist"] as const;
 export type Pass = (typeof PASSES)[number];
 
 // What a model is asked, raw: these throw on a failure, like the providers
@@ -38,6 +41,7 @@ export interface Asker {
   safety?: (input: ReviewInput, signal: AbortSignal) => Promise<"safe" | "unsafe">;
   welfare?: (input: ReviewInput, signal: AbortSignal, question: WelfareQuestion) => Promise<unknown>;
   checklist?: (input: ReviewInput, signal: AbortSignal) => Promise<unknown>;
+  realRisk?: (input: ReviewInput, signal: AbortSignal) => Promise<unknown>;
 }
 
 // The sentences a model reads: all but the ones the decider sends straight
@@ -110,6 +114,18 @@ export const collectAnswers = async (
           entry.welfare = parsed.success ? parsed.data.concern : "invalid";
         } else entry.welfare = result.failure;
         entry.ms.welfare = result.ms;
+      } else if (pass === "realRisk") {
+        // Only where this model worried: elsewhere it's never asked
+        if (entry.welfare !== "yes") {
+          onProgress?.(++done, total);
+          continue;
+        }
+        const result = await ask((signal) => asker.realRisk!(input, signal), timeoutMs);
+        if ("answer" in result) {
+          const parsed = RealRiskAnswer.safeParse(result.answer);
+          entry.realRisk = parsed.success ? parsed.data.risk : "invalid";
+        } else entry.realRisk = result.failure;
+        entry.ms.realRisk = result.ms;
       } else {
         const result = await ask((signal) => asker.checklist!(input, signal), timeoutMs);
         if ("answer" in result) {

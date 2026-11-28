@@ -9,11 +9,13 @@
 // Each question has a version: a hash of its request with the sentence left
 // out, so a changed prompt, answer form or token limit makes old answers
 // stop counting (models/reviewLine.ts).
-import { ChecklistAnswer, WelfareAnswer } from "./contract.js";
+import { ChecklistAnswer, RealRiskAnswer, WelfareAnswer } from "./contract.js";
 import {
   CHECKLIST_INSTRUCTIONS,
   CHECKLIST_SCHEMA,
   DANGER_INSTRUCTIONS,
+  REAL_RISK_INSTRUCTIONS,
+  REAL_RISK_SCHEMA,
   reviewMessage,
   WELFARE_INSTRUCTIONS,
   WELFARE_SCHEMA,
@@ -60,6 +62,15 @@ const TEMPLATES: Record<Question, (message: string, show: string) => Record<stri
     max_tokens: 20,
     ...NO_THINKING,
   }),
+  realRisk: (message) => ({
+    messages: [
+      { role: "system", content: REAL_RISK_INSTRUCTIONS },
+      { role: "user", content: message },
+    ],
+    response_format: form("risk", REAL_RISK_SCHEMA),
+    max_tokens: 20,
+    ...NO_THINKING,
+  }),
   checklist: (message) => ({
     messages: [
       { role: "system", content: CHECKLIST_INSTRUCTIONS },
@@ -83,6 +94,8 @@ const templateFor = (question: Question) => {
       return TEMPLATES.danger;
     case "checklist":
       return TEMPLATES.checklist;
+    case "realRisk":
+      return TEMPLATES.realRisk;
   }
   throw new Error("Unknown question");
 };
@@ -108,6 +121,10 @@ export const readAnswer = (question: Question, raw: unknown): unknown => {
   }
   const value = asJson(raw);
   if (question === "checklist") return ChecklistAnswer.safeParse(value).success ? value : undefined;
+  if (question === "realRisk") {
+    const risk = RealRiskAnswer.safeParse(value);
+    return risk.success ? risk.data.risk : undefined;
+  }
   const welfare = WelfareAnswer.safeParse(value);
   return welfare.success ? welfare.data.concern : undefined;
 };

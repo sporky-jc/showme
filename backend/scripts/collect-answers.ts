@@ -17,7 +17,7 @@ import { appendFileSync, writeFileSync } from "node:fs";
 import { READERS, type Reader } from "../reviewer/decide.js";
 import { collectAnswers, summaryOf, type Asker } from "../reviewer/eval/collect.js";
 import { DECIDE_SET } from "../reviewer/eval/decideSet.js";
-import { localChecklist, localSafety, localWelfare } from "../reviewer/providers/local.js";
+import { localChecklist, localRealRisk, localSafety, localWelfare } from "../reviewer/providers/local.js";
 
 const { LOCAL_AI_URL: url, LOCAL_MODEL: model, READER: reader, ANSWERS_FILE: file, PART: partSetting = "1/1" } = process.env;
 if (!url || !model || !file || !(READERS as readonly string[]).includes(reader ?? "")) {
@@ -43,6 +43,7 @@ const asker: Asker =
     : {
         welfare: (input, signal, question) => localWelfare(settings).check(input, signal, question),
         checklist: (input, signal) => localChecklist(settings).check(input, signal),
+        realRisk: (input, signal) => localRealRisk(settings).check(input, signal),
       };
 
 const save = (answers: unknown[]) =>

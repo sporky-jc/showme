@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkRules } from "../reviewer/rules.js";
+import { playfulHit, checkRules } from "../reviewer/rules.js";
 import type { Reason } from "../reviewer/contract.js";
 import { SAMPLES } from "../reviewer/samples.js";
 import { scoreOf } from "../reviewer/measure.js";
@@ -846,4 +846,23 @@ describe("families: bullying, drugs at home, other languages, details", () => {
     ["We drank hot chocolate and fell asleep on the couch.", "pass"],
     ["Add me to the snowball team.", "pass"],
   ]);
+});
+
+// Being hit or splashed with something only used in play (rules.ts,
+// playfulHit): the decider lets a worry about it alone go on, with a
+// record for the teacher. Anything else thrown or hit with is not play.
+describe("play phrases", () => {
+  it.each([
+    "Dad hit me with a snowball and icy crumbs slid down my neck.",
+    "My sister threw a water balloon at me and I screamed.",
+    "We had a pillow fight until midnight.",
+    "My cousin squirted me with the hose.",
+  ])("finds play in: %s", (show) => expect(playfulHit(show)).toBe(true));
+  it.each([
+    "Dad hit me with a belt.",
+    "My dad hits me when he is mad.",
+    "He threw a rock at me.",
+    "Mom hit me with a shoe.",
+    "The snowball melted in my hand.",
+  ])("finds none in: %s", (show) => expect(playfulHit(show)).toBe(false));
 });

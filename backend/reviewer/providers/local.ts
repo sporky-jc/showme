@@ -13,6 +13,8 @@ import {
   CHECKLIST_INSTRUCTIONS,
   CHECKLIST_SCHEMA,
   DANGER_INSTRUCTIONS,
+  REAL_RISK_INSTRUCTIONS,
+  REAL_RISK_SCHEMA,
   REVIEW_INSTRUCTIONS,
   reviewMessage,
   WELFARE_INSTRUCTIONS,
@@ -115,6 +117,13 @@ const ask =
       },
       signal
     );
+
+// The narrower "is it real?" question (prompt.ts), for when both local
+// models worried. Raw answer, checked by the caller (contract.ts: RealRiskAnswer).
+export const localRealRisk = (settings: LocalSettings) => ({
+  name: `local-real-risk:${settings.model}`,
+  check: ask(settings, "risk", REAL_RISK_INSTRUCTIONS, REAL_RISK_SCHEMA, 20),
+});
 
 export const localChecklist = (settings: LocalSettings) => ({
   name: `local-checklist:${settings.model}`,

@@ -30,7 +30,7 @@ import { questionVersion } from "./asks.js";
 import { decide, welfareQuestion, type Facts, type Step } from "./decide.js";
 import { ChecklistAnswer } from "./contract.js";
 import { writingTipFor } from "./reviewer.js";
-import { checkRules, namesAPerson, onlyAboutSomeoneNamed } from "./rules.js";
+import { checkRules, namesAPerson, onlyAboutSomeoneNamed, playfulHit } from "./rules.js";
 import { techniqueFound } from "./techniques.js";
 
 // Sentences waiting longer than this aren't put in line: a teacher has long
@@ -56,6 +56,7 @@ const QUESTIONS_NOW = (): Record<Question, string> => ({
   welfare: questionVersion("welfare"),
   danger: questionVersion("danger"),
   checklist: questionVersion("checklist"),
+  realRisk: questionVersion("realRisk"),
 });
 
 // What counts now: the named model, whatever its exact version, and this
@@ -112,10 +113,15 @@ export const factsFor = async (
     ...(technique ? { technique, techniqueFound: techniqueFound(technique, sentence.show) === true } : {}),
     namesAPerson: namesAPerson(sentence.show),
     onlyAboutSomeoneNamed: onlyAboutSomeoneNamed(sentence.show),
+    playPhrase: playfulHit(sentence.show),
     safety: answerOf(answers, "safety", "safety") as Facts["safety"],
     welfare: {
       first: answerOf(answers, "first", question) as "yes" | "no" | undefined,
       second: answerOf(answers, "second", question) as "yes" | "no" | undefined,
+    },
+    realRisk: {
+      first: answerOf(answers, "first", "realRisk") as "real" | "not-real" | undefined,
+      second: answerOf(answers, "second", "realRisk") as "real" | "not-real" | undefined,
     },
     checklist: checklistOf(answerOf(answers, "first", "checklist")),
     second: checklistOf(answerOf(answers, "second", "checklist")),
@@ -161,6 +167,11 @@ export const stepLine = async (lineId: mongoose.Types.ObjectId, options: Paramet
       break;
     case "ask-second":
       set.needs = [{ reader: "second", question: "checklist" }];
+      break;
+    case "ask-real-risk":
+      set.needs = (["first", "second"] as const)
+        .filter((voter) => facts.realRisk?.[voter] === undefined)
+        .map((reader) => ({ reader, question: "realRisk" as const }));
       break;
     case "ask-hosted":
       set.needs = [{ reader: "hosted", question: step.about === "worry" ? step.question : "checklist" }];
