@@ -22,7 +22,11 @@
 
 export const READERS = ["safety", "first", "second"];
 export const BATCH = 10;
-export const MODEL_TIMEOUT_MS = 120_000;
+// How long one question may take. On the 2-core VM, a model's first
+// question after loading reads the whole prompt with no cache, and Qwen's
+// writing checklist took over 2 minutes (Stage 1, Nov 28); later questions
+// reuse the cached instructions and take about a minute.
+export const MODEL_TIMEOUT_MS = 5 * 60_000;
 // Loading a model from the VM's disk took 135 s when measured: longer than
 // a question may take. So each model is loaded on its own first, with this
 // long to do it, and only then asked anything.
