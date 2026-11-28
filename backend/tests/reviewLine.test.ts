@@ -104,6 +104,22 @@ describe("claims", () => {
 });
 
 describe("answers", () => {
+  it("takes an answered question off what the version needs, so the worker isn't handed it again", async () => {
+    const line = await waitingFor();
+    await ReviewLine.updateOne({ _id: line._id }, { $push: { needs: { reader: "first", question: "checklist" } } });
+    expect(await claimWork("first", "vm", 5)).toHaveLength(1);
+    expect(await saveAnswer(answer(line))).toBe("saved");
+    // Still needed: the checklist. The welfare question is done.
+    expect((await ReviewLine.findById(line._id).lean())?.needs).toEqual([{ reader: "first", question: "checklist" }]);
+    await saveAnswer(answer(line, { question: "checklist", questionVersion: "c", answer: {} }));
+    expect((await ReviewLine.findById(line._id).lean())?.needs).toEqual([]);
+    expect(await claimWork("first", "vm", 5)).toHaveLength(0);
+    // The same answer again (a duplicate) also clears it, if it was set again meanwhile
+    await ReviewLine.updateOne({ _id: line._id }, { $push: { needs: { reader: "first", question: "welfare" } } });
+    expect(await saveAnswer(answer(line))).toBe("duplicate");
+    expect((await ReviewLine.findById(line._id).lean())?.needs).toEqual([]);
+  });
+
   it("counts the same answer posted twice once", async () => {
     const line = await waitingFor();
     expect(await saveAnswer(answer(line))).toBe("saved");
