@@ -16,8 +16,8 @@ const item = (line, questions = ["welfare"]) => ({ line, showHash: HASH, asks: q
 // A fake backend and a fake Ollama in one fetch. `work` is what each reader
 // gets, batch by batch; `reply(model, body)` is what the model says (a
 // string, or "timeout", "error" or a thrown error).
-const fake = ({ work = {}, reply = () => '{"concern":"no"}', tags = ["llama-guard3:8b", "gemma4:e4b", "qwen3.5:9b"], backendDown = false } = {}) => {
-  const calls = { posted: [], asked: [], workAsks: [], auth: [] };
+const fake = ({ work = {}, reply = () => '{"concern":"no"}', tags = ["llama-guard3:8b", "gemma4:e4b", "qwen3.5:9b"], backendDown = false, loads = () => true } = {}) => {
+  const calls = { posted: [], asked: [], workAsks: [], auth: [], loaded: [] };
   const queues = Object.fromEntries(Object.entries(work).map(([reader, batches]) => [reader, [...batches]]));
   const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
   const fetch = async (url, init = {}) => {
@@ -35,6 +35,13 @@ const fake = ({ work = {}, reply = () => '{"concern":"no"}', tags = ["llama-guar
       }
     }
     if (url.endsWith("/api/tags")) return json({ models: tags.map((name) => ({ name, digest: `${name.length}`.padStart(12, "0") + "ffff" })) });
+    if (url.endsWith("/api/generate")) {
+      const body = JSON.parse(init.body);
+      calls.loaded.push(body);
+      const ok = loads(body.model);
+      if (ok === "timeout") throw Object.assign(new Error("timed out"), { name: "TimeoutError" });
+      return json({ done: true }, ok ? 200 : 500);
+    }
     if (url.endsWith("/v1/chat/completions")) {
       const body = JSON.parse(init.body);
       calls.asked.push(body);
@@ -168,5 +175,24 @@ describe("when the backend is away, or the worker is stopped", () => {
     const done = await worker(f).runOnce(() => stop);
     assert.equal(done, 1);
     assert.equal(f.calls.posted.length, 1);
+  });
+});
+
+describe("loading each model first", () => {
+  it("loads a model once, with an empty prompt, before its first question, and only when it has work", async () => {
+    const f = fake({ work: { first: [[item("L1")], [item("L2")]] } });
+    await worker(f).runOnce();
+    assert.deepEqual(f.calls.loaded, [{ model: "gemma4:e4b", prompt: "", keep_alive: "15m" }]);
+    assert.equal(f.calls.asked.length, 2);
+  });
+
+  it("a model that won't load asks nothing, blames no sentence, and is tried again later", async () => {
+    const logs = [];
+    const f = fake({ work: { first: [[item("L1")]], second: [[item("L1")]] }, loads: (model) => (model === "gemma4:e4b" ? "timeout" : true) });
+    const done = await worker(f, logs).runOnce();
+    assert.equal(done, 1);
+    assert.deepEqual(f.calls.asked.map((a) => a.model), ["qwen3.5:9b"]);
+    assert.ok(logs.some((l) => l.event === "model-not-loading" && l.reader === "first"));
+    assert.ok(f.calls.posted.every((p) => p.failures.length === 0));
   });
 });

@@ -15,13 +15,18 @@
 // - a model that times out or errors on a sentence: that's a failed try
 //   for the sentence, but only once the model has answered another
 //   sentence in this run, so an outage is never blamed on a sentence;
-// - a model that isn't there, or hasn't answered anything yet: its work is
-//   left for its claims to run out (15 minutes), and it's tried again later;
+// - a model that isn't there, won't load, or hasn't answered anything yet:
+//   its work is left for its claims to run out (15 minutes), and it's tried
+//   again later;
 // - the backend away: the worker waits longer after each failure.
 
 export const READERS = ["safety", "first", "second"];
 export const BATCH = 10;
 export const MODEL_TIMEOUT_MS = 120_000;
+// Loading a model from the VM's disk took 135 s when measured: longer than
+// a question may take. So each model is loaded on its own first, with this
+// long to do it, and only then asked anything.
+export const LOAD_TIMEOUT_MS = 15 * 60_000;
 export const BACKEND_TIMEOUT_MS = 30_000;
 export const IDLE_MS = 30_000;
 export const MAX_BACKOFF_MS = 10 * 60_000;
@@ -63,6 +68,22 @@ export const createWorker = ({ backend, key, name, ollama, models, fetch = globa
     }
   };
 
+  // Loads the model into memory before its first question (Ollama loads a
+  // model when sent an empty prompt), and keeps it there while it reads
+  const load = async (model) => {
+    try {
+      const res = await fetch(`${ollama.replace(/\/+$/, "")}/api/generate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ model, prompt: "", keep_alive: "15m" }),
+        signal: AbortSignal.timeout(LOAD_TIMEOUT_MS),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
   // One request to the model, as the backend built it, with the model's
   // name added: its reply as text, or null when it failed or timed out
   const ask = async (model, request) => {
@@ -92,10 +113,19 @@ export const createWorker = ({ backend, key, name, ollama, models, fetch = globa
       return 0;
     }
     let answeredThisRun = false;
+    let loaded = false;
     let done = 0;
     while (!shouldStop()) {
       const { work = [] } = await backendCall("/worker/work", { reader, worker: name, limit: BATCH });
       if (work.length === 0) break;
+      // Loaded once there's work for it, before its first question
+      if (!loaded) {
+        loaded = await load(model);
+        if (!loaded) {
+          log({ event: "model-not-loading", reader });
+          return done;
+        }
+      }
       for (const item of work) {
         if (shouldStop()) return done;
         const answers = [];
