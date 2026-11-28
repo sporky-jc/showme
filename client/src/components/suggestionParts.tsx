@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import type { ScribblesSuggestion } from "../api/types";
 import { NoteBody } from "./NoteBody";
 import Trail from "./SuggestionTrail";
@@ -10,7 +11,7 @@ import Trail from "./SuggestionTrail";
 export interface SuggestionPart {
   id: string;
   show: (suggestion: ScribblesSuggestion) => boolean;
-  Part: (props: { suggestion: ScribblesSuggestion; firstName: string }) => JSX.Element;
+  Part: (props: { suggestion: ScribblesSuggestion; firstName: string }) => ReactElement;
 }
 
 // What Scribbles would do: his note, with its sticker and tip
