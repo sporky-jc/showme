@@ -43,6 +43,10 @@ const DAY = 24 * 60 * 60 * 1000;
 // stepped, per run
 export const ENTER_PER_RUN = 50;
 export const STEP_PER_RUN = 200;
+// Waiting sentences are looked through this many at a time, at most this
+// many pages a run
+export const FILL_PAGE = 200;
+export const FILL_PAGES = 10;
 
 // The models the worker should be running, by name. An answer from another
 // model doesn't count; the exact version (after "@") is kept with each answer.
@@ -204,20 +208,29 @@ export const stepLine = async (lineId: mongoose.Types.ObjectId, options: Paramet
 // edited in the last 30 days, not by a staging test account
 export const fillLine = async (now = new Date()) => {
   const since = new Date(now.getTime() - MAX_AGE_DAYS * DAY);
-  const waiting = await Sentence.find(
-    { approved: false, toRedo: false, createdAt: { $gte: since }, GID: { $not: TEST_SENTENCES } },
-    { show: 1 }
-  )
-    .sort({ createdAt: 1 })
-    .limit(ENTER_PER_RUN * 4)
-    .lean();
+  const waitingNow = { approved: false, toRedo: false, createdAt: { $gte: since }, GID: { $not: TEST_SENTENCES } };
   let entered = 0;
-  for (const sentence of waiting) {
-    if (entered >= ENTER_PER_RUN) break;
-    const showHash = hashShow(sentence.show);
-    if (await ReviewLine.exists({ sentence: sentence._id, showHash })) continue;
-    await enterLine(sentence._id, sentence.show);
-    entered++;
+  // Oldest first, a page at a time, past the ones already in line: so a
+  // backlog already in line never hides newer sentences (Stage 2 found
+  // the oldest 200 were the only ones ever looked at)
+  let after: { createdAt: Date; _id: mongoose.Types.ObjectId } | undefined;
+  for (let page = 0; page < FILL_PAGES && entered < ENTER_PER_RUN; page++) {
+    const later = after
+      ? { $or: [{ createdAt: { $gt: after.createdAt } }, { createdAt: after.createdAt, _id: { $gt: after._id } }] }
+      : {};
+    const waiting = await Sentence.find({ ...waitingNow, ...later }, { show: 1, createdAt: 1 })
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(FILL_PAGE)
+      .lean<{ _id: mongoose.Types.ObjectId; show: string; createdAt: Date }[]>();
+    if (waiting.length === 0) break;
+    for (const sentence of waiting) {
+      if (entered >= ENTER_PER_RUN) break;
+      const showHash = hashShow(sentence.show);
+      if (await ReviewLine.exists({ sentence: sentence._id, showHash })) continue;
+      await enterLine(sentence._id, sentence.show);
+      entered++;
+    }
+    after = waiting[waiting.length - 1];
   }
   return entered;
 };
