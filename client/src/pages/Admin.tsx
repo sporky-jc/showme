@@ -8,6 +8,8 @@ import type { NoteKind } from "../components/noteKind";
 import PageLoading from "../components/PageLoading";
 import RecentDecisions from "../components/RecentDecisions";
 import ReviewerSwitch from "../components/ReviewerSwitch";
+import AtAGlance, { type QueueFilter } from "../components/AtAGlance";
+import { groupOf, groupPlace, type GroupId } from "../components/queueGroups";
 import OwnerSettings from "../components/OwnerSettings";
 import * as api from "../api";
 import {
@@ -100,6 +102,10 @@ function Admin() {
   // How many decisions have been saved here, so the recent decisions (when
   // open) are asked for again after each one
   const [decided, setDecided] = useState(0);
+  // Which group the queue shows (AtAGlance.tsx), and whether the sentences
+  // still being read are unfolded
+  const [filter, setFilter] = useState<QueueFilter>("all");
+  const [showReading, setShowReading] = useState(false);
 
   // Retrieve all sentences pending approval (the server checks again), once
   // the user is an admin. Only when that changes (or on Try again), not on
@@ -203,24 +209,27 @@ function Admin() {
   }
   if (loaded === "loading") return <PageLoading />;
 
-  // A sentence that may mean a student needs help first, then the longest
-  // wait, so nobody is left at the bottom of a growing queue
+  // By how much each needs the teacher (queueGroups.ts): a sentence that
+  // may mean a student needs help first; within a group, the longest wait
+  // first, so nobody is left at the bottom of a growing queue
   const kindOf = (sentence: QueueSentence): NoteKind | null =>
     sentence.suggestion ? noteKind(sentence.suggestion) : null;
-  const queue = [...sentencesAwaitingApproval].sort(
+  const groupFor = (sentence: QueueSentence) => groupOf(sentence.suggestion);
+  const all = [...sentencesAwaitingApproval].sort(
     (a, b) =>
-      Number(kindOf(b) === "check-in") - Number(kindOf(a) === "check-in") ||
+      groupPlace(groupFor(a)) - groupPlace(groupFor(b)) ||
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
-  const count = queue.length;
-  // How many of each note, for the stickers under the heading
-  const tally = (kinds: NoteKind[]) => queue.filter((sentence) => kinds.includes(kindOf(sentence) as NoteKind)).length;
-  const stickers = [
-    { label: "to check in on", n: tally(["check-in", "held"]), className: "paper-review__sticker paper-review__sticker--check-in" },
-    { label: "ready", n: tally(["ready"]), className: "paper-review__sticker paper-review__sticker--ready" },
-    { label: "try again", n: tally(["again"]), className: "paper-review__sticker paper-review__sticker--again" },
-    { label: "your call", n: tally(["your-call"]), className: "paper-review__sticker paper-review__sticker--your-call" },
-  ].filter((sticker) => sticker.n > 0);
+  const count = all.length;
+  const counts: Partial<Record<GroupId, number>> = {};
+  for (const sentence of all) counts[groupFor(sentence)] = (counts[groupFor(sentence)] ?? 0) + 1;
+  // A group emptied by the teacher's decisions shows everything again
+  const showing: QueueFilter = filter !== "all" && !counts[filter] ? "all" : filter;
+  // The ones still being read wait, folded, at the bottom of "All"
+  const reading = showing === "all" ? all.filter((sentence) => groupFor(sentence) === "reading") : [];
+  const queue = all.filter((sentence) =>
+    showing === "all" ? groupFor(sentence) !== "reading" || showReading : groupFor(sentence) === showing
+  );
 
   return (
     <div className="paper-review">
@@ -234,24 +243,17 @@ function Admin() {
           <span className="paper-status paper-status--turn">{count} waiting</span>
         )}
       </div>
-      {loaded === "ready" && stickers.length > 0 && (
-        <div className="paper-review__summary">
-          <p>Scribbles read them first. You decide.</p>
-          <ul aria-label="Scribbles' notes">
-            {stickers.map((sticker) => (
-              <li key={sticker.label} className={sticker.className}>
-                {sticker.n} {sticker.label}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
       {/* Whether Scribbles is reading new sentences, and the button that
           pauses him (hidden if the server can't say) */}
-      <ReviewerSwitch onSaid={setSaid} />
+      <ReviewerSwitch onSaid={setSaid} onSourceChanged={() => setAttempt((n) => n + 1)} />
       <p className="visually-hidden" role="status">
         {said}
       </p>
+      {/* Right above the cards they filter */}
+      {loaded === "ready" && count > 0 && (
+        <AtAGlance counts={counts} total={count} filter={showing} onFilter={setFilter} disabled={saving !== null} />
+      )}
+
       {/* Above the queue, and above "All caught up!" too: the sentence that
           didn't count may have been the last one */}
       {failed && loaded !== "failed" && (
@@ -373,6 +375,11 @@ function Admin() {
               );
             })}
           </ol>
+          {reading.length > 0 && !showReading && (
+            <button type="button" className="paper-btn paper-review__show-reading" onClick={() => setShowReading(true)}>
+              Show {reading.length} still being read
+            </button>
+          )}
         </>
       )}
       {/* Under the queue (or "All caught up!"): taking back an approval or
