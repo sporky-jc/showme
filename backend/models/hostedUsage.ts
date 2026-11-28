@@ -10,6 +10,10 @@ const hostedUsageSchema = new mongoose.Schema({
   at: { type: Date, required: true },
   about: { type: String, enum: ["worry", "writing"], required: true },
   kid: { type: String, required: true },
+  // Which version it was about, and how many contact details were hidden
+  // in what was sent (a count, never the words), for the line test's report
+  line: { type: mongoose.Schema.Types.ObjectId },
+  hidden: { type: Number },
 });
 hostedUsageSchema.index({ at: 1 }, { expireAfterSeconds: 2 * 24 * 60 * 60 });
 hostedUsageSchema.index({ kid: 1, at: 1 });
@@ -23,4 +27,5 @@ export const kidHash = (gid: string) => createHash("sha256").update(`hosted-usag
 export const hostedAskedSince = async (now: Date, kid?: string) =>
   HostedUsage.countDocuments({ at: { $gt: new Date(now.getTime() - DAY) }, ...(kid ? { kid: { $eq: kid } } : {}) });
 
-export const noteHostedAsk = (now: Date, about: "worry" | "writing", kid: string) => HostedUsage.create({ at: now, about, kid });
+export const noteHostedAsk = (now: Date, about: "worry" | "writing", kid: string, more: { line?: mongoose.Types.ObjectId; hidden?: number } = {}) =>
+  HostedUsage.create({ at: now, about, kid, ...more });

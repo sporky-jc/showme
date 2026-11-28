@@ -24,7 +24,7 @@ import { factsFor } from "./line.js";
 import { CHECKLIST_SCHEMA, WELFARE_SCHEMA } from "./prompt.js";
 import { CLOUDFLARE_WELFARE_MODEL, errorDetail, isModelGone, runUrl, statusOf } from "./providers/cloudflare.js";
 import { ProviderError, postJson } from "./providers/http.js";
-import { hasContactDetails, hideContactDetails } from "./rules.js";
+import { HIDDEN, hasContactDetails, hideContactDetails } from "./rules.js";
 
 // The hosted model the line asks, and the name its answers are saved under
 export const HOSTED_MODEL = CLOUDFLARE_WELFARE_MODEL;
@@ -70,7 +70,7 @@ const rawOf = (body: unknown): string | undefined => {
 export const askHosted = async (
   settings: HostedSettings,
   { now = new Date(), timeoutMs = HOSTED_TIMEOUT_MS } = {}
-): Promise<{ asked: number; saved: number; held: number; stopped?: HostedStop }> => {
+): Promise<{ asked: number; saved: number; held: number; hidden: number; stopped?: HostedStop }> => {
   const waiting = await ReviewLine.find({ state: "waiting", "needs.reader": "hosted" }, { sentence: 1, showHash: 1, needs: 1, answers: 1, failedTries: 1, worryRaisedAt: 1, writingTieAt: 1, createdAt: 1 })
     .sort({ createdAt: 1 })
     .limit(200)
@@ -82,6 +82,8 @@ export const askHosted = async (
   let asked = 0;
   let saved = 0;
   let held = 0;
+  // How many contact details were hidden in what was sent, in all
+  let hidden = 0;
   let used = await hostedAskedSince(now);
   for (const line of ordered) {
     if (asked >= HOSTED_PER_RUN) break;
@@ -94,7 +96,7 @@ export const askHosted = async (
     const about = step.about;
     const question: Question = about === "worry" ? step.question : "checklist";
 
-    if (used >= HOSTED_PER_DAY) return { asked, saved, held, stopped: "allowance" };
+    if (used >= HOSTED_PER_DAY) return { asked, saved, held, hidden, stopped: "allowance" };
     if (about === "writing" && used >= HOSTED_PER_DAY - KEPT_FOR_WORRIES) continue;
     const kid = kidHash(sentence.GID);
     if ((await hostedAskedSince(now, kid)) >= HOSTED_PER_KID) continue;
@@ -108,13 +110,15 @@ export const askHosted = async (
 
     asked++;
     used++;
-    await noteHostedAsk(now, about, kid);
+    const marks = show.split(HIDDEN).length - 1;
+    hidden += marks;
+    await noteHostedAsk(now, about, kid, { line: line._id, hidden: marks });
     try {
       const body = await postJson(runUrl(settings.accountId, HOSTED_MODEL), settings.token, requestFor(question, sentence.tell, show), AbortSignal.timeout(timeoutMs), {
         statusOf,
         detailOf: errorDetail,
       });
-      if (statusOf(body, 200) === 429) return { asked, saved, held, stopped: "out-of-neurons" };
+      if (statusOf(body, 200) === 429) return { asked, saved, held, hidden, stopped: "out-of-neurons" };
       const answer = readAnswer(question, rawOf(body));
       if (answer === undefined) {
         await recordFailure(line._id, "hosted");
@@ -127,12 +131,12 @@ export const askHosted = async (
       if (result === "saved") saved++;
     } catch (error) {
       const status = error instanceof ProviderError ? error.status : undefined;
-      if (status === 429) return { asked, saved, held, stopped: "out-of-neurons" };
-      if (status === 401 || status === 403) return { asked, saved, held, stopped: "credentials" };
-      if (error instanceof ProviderError && isModelGone(status, error.detail)) return { asked, saved, held, stopped: "model-gone" };
+      if (status === 429) return { asked, saved, held, hidden, stopped: "out-of-neurons" };
+      if (status === 401 || status === 403) return { asked, saved, held, hidden, stopped: "credentials" };
+      if (error instanceof ProviderError && isModelGone(status, error.detail)) return { asked, saved, held, hidden, stopped: "model-gone" };
       // Down, slow or busy: this one waits and is tried again next run
       await recordFailure(line._id, "hosted");
     }
   }
-  return { asked, saved, held };
+  return { asked, saved, held, hidden };
 };

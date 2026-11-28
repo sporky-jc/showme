@@ -98,7 +98,7 @@ export const reviewer = onSchedule(
       if (accountId && token) {
         const hosted = await askHosted({ accountId, token });
         if (hosted.asked > 0 || hosted.held > 0 || hosted.stopped) {
-          logger.info(`Review line, hosted model: ${hosted.asked} asked, ${hosted.saved} answered, ${hosted.held} held back${hosted.stopped ? `, stopped: ${hosted.stopped}` : ""}`);
+          logger.info(`Review line, hosted model: ${hosted.asked} asked, ${hosted.saved} answered, ${hosted.held} held back, ${hosted.hidden} contact details hidden${hosted.stopped ? `, stopped: ${hosted.stopped}` : ""}`);
         }
       }
     }
