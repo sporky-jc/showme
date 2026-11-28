@@ -23,7 +23,7 @@ const TRAIL = [
   step("helper", "welfare", "worried", { model: "gemma4:e4b", version: "dc35e8d9", why: true }),
   step("helper", "welfare", "not-worried", { model: "qwen3.5:9b", version: "56671c2a" }),
   step("big-helper", "welfare", "worried", { model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", hidden: 1, why: true }),
-] as ScribblesSuggestion["trail"];
+] as NonNullable<ScribblesSuggestion["trail"]>;
 
 const suggestion = (more: Partial<ScribblesSuggestion>): ScribblesSuggestion => ({ verdict: "approve", tip: GREAT, reasons: ["ai"], ...more });
 
