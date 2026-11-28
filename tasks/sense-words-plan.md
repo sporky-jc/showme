@@ -119,8 +119,7 @@ account. Each returns its sense words, each with a sense.
       settings can't be read, the highlights stay hidden.
   - **Replaces the variables:** the `STAGING_SENSE_TAGGER` and
     `PRODUCTION_SENSE_TAGGER` variables are gone.
-  - **Later switches in the same panel:** Stage B's "Scribbles suggests" and
-    Stage C's "Let Scribbles approve".
+  - **Later in the same panel:** the Scribbles switch (B1).
 - [ ] **A3: Tag the sentences already approved** (S6), a few each run until
   done: about 3,300 Neurons for production's 113, spread over days.
 - [x] **A4: The measure** (not on every PR): the workflow "Measure the sense
@@ -212,39 +211,126 @@ account. Each returns its sense words, each with a sense.
 
 ### Stage B: Scribbles suggests, teachers still decide (after A)
 
-- Turn Scribbles on in **suggest** mode, in staging and then production.
-  It changes nothing kids see.
-- Add the second model to its review: one call per model returns a verdict
-  and the sense words together, which is cheaper than two.
-- The shadow report keeps score against teachers' real decisions.
+**Changed 2026-11-25:** how Scribbles reads and decides is now set out in
+`tasks/scribbles-worker-spec.md` (free local models first, the hosted model
+only when needed, sending back as well as approving, no teacher sample).
+Where that spec and the text below differ, the spec is right; B1 (the
+switch), B2 (the shadow report), B3 (a version on every answer) and B7
+(the canary) still stand, as its tasks T15, T14, T8 and T13.
 
-Before turning it on, confirm with the owner; it changes "Scribbles stays
-off".
+Reworked 2026-11-25, after a review of this part of the plan. Stage A is
+further along and easier: it only reads sentences a teacher has already
+approved. Stages B and C decide what gets approved, so they go slower.
+
+Turn Scribbles on in **suggest** mode, in staging and then production. It
+changes nothing kids see. Before turning it on, confirm with the owner; it
+changes "Scribbles stays off".
+
+- [ ] **B1: The Scribbles switch** (see "The Scribbles switch" below).
+- [ ] **B2: The shadow report prints no student words:** sentence ids and
+  counts only, as the rules below say. It counts an approval a teacher took
+  back as a miss (today it leaves those out), and shows "N of 100".
+- [ ] **B3: A version on every suggestion:** the models, prompts and rules
+  that made it. Evidence only counts for the version running now.
+- [ ] **B4: The second model, measured only:** Mistral Small 3.1 on
+  Cloudflare, in the measure workflow, on made-up samples.
+  - It answers the writing question and the welfare question, so safety has
+    two model families too (today's three checks are all Meta models).
+  - Its whole answer must be exactly one object in the fixed form. Anything
+    else is "unsure". No lenient reading: a sentence could hold a made-up
+    answer.
+- [ ] **B5: The queue asks both models,** on a path of its own, not the
+  "first answer wins" list.
+  - Both must answer, and the two model names must differ.
+  - The suggestion is "approve" only when both approve. One missing or odd
+    answer means "unsure", so a teacher decides.
+  - Both verdicts are saved.
+- [ ] **B6: A budget.**
+  - The reviewer counts its Neurons each day, like the tagger, and stops at
+    its limit.
+  - At most a few AI reviews per kid per day, so nobody can use up the day
+    for everyone by sending edits.
+  - Measure the real cost before quoting one: a guess is 120 Neurons a
+    sentence, about 80 sentences a day. Production gets a free Cloudflare
+    account of its own if it needs the room.
+- [ ] **B7: A canary.** The measure workflow runs on a schedule, on a
+  made-up set of unsafe, unkind and personal sentences. It opens an issue
+  when a model is gone, a check fails closed all day, or the set finds a
+  wrong approval. Nobody reads a report when it passes.
+- [ ] **B8: The owner turns on suggest** in staging, then production.
+
+Dropped: one call per model for the verdict and the sense words together.
+It would change the prompt in the middle of measuring, and send sentences
+that aren't approved yet to the tagger's question.
 
 ### Stage C: auto-approval, only on evidence (after B)
 
+How others do it: classroom apps have a teacher approve first; big tests
+and moderation systems let the AI clear only the clearly fine work, send
+the rest to a person, and have people check a sample for good. We do the
+same.
+
 A sentence is approved without a teacher only when all of these hold:
-1. The rule checks pass: nothing worrying, sensitive, unsafe or personal.
-   Anything they flag always goes to a person and is never sent to an AI.
-2. The safety model and the welfare check pass.
-3. Both models say approve.
-4. The shadow report shows at least 100 real teacher decisions, and zero
-   where Scribbles would have approved a sentence a teacher sent back for
-   safety.
+1. **The rule checks pass:** nothing worrying, sensitive, unsafe or
+   personal. Anything they flag always goes to a person, whoever wrote it,
+   and is never sent to an AI.
+2. **The safety check passes, and both models' welfare checks pass.**
+3. **Both models say approve,** and the writing checks find no mistakes.
+4. **It's the sentence's first or second version.** Later edits go to a
+   teacher, so nobody can reword until the models say yes.
+5. **The gates are open** for the version running now:
+   - the made-up safety set (B7): zero wrong approvals;
+   - the last 100 real teacher decisions: zero where Scribbles said approve
+     and the teacher sent it back or took an approval back.
 
 Everything else waits for a teacher, as today. Beyond that:
+- **A teacher still reads a sample:** 1 in 5 of the sentences Scribbles
+  would approve, picked at random, with Scribbles' suggestion hidden. The
+  number is a setting; 1 in 5 is the start. This keeps the evidence coming
+  once auto-approval is on.
 - **Approve only, never send back automatically.** A wrong "redo"
   discourages a kid.
-- **Teachers can undo** any auto-approval from Recent decisions.
-- **Switches:** an off switch, and a per-class "Let Scribbles approve"
-  setting, off by default.
-- **Cost:** about 60 to 70 Neurons a sentence; there's room for about 150
-  a day, free.
+- **Teachers can undo** any auto-approval from Recent decisions. An undo
+  turns auto-approval off and opens an issue.
+- **The backend keeps the gates,** behind a job key, like the weekly word
+  job: it works them out, opens or shuts auto-approval itself, and a
+  scheduled workflow opens an issue only when something breaks.
 - **The fail-safe is always "a person decides".** Out of Neurons, a model
   down, or answers that can't be read all mean the sentence waits for a
   teacher.
 - **It takes time.** With today's volume, 100 teacher decisions will take a
-  while. Stage C waits for them.
+  while, and a new version starts the count again.
+- **It shows to classmates at once,** like a teacher's approval. The
+  sample and the undo are the checks after that.
+- **No earned trust.** Every kid's sentences are treated the same way.
+
+### The Scribbles switch (B1)
+
+Easy to turn on and off, on staging and on production, from the site and
+from GitHub.
+
+- **One setting on each backend,** saved in the database
+  (`models/ownerSettings.ts`), so there's no deploy: off, suggest, or
+  (Stage C) approve.
+- **From the site:** the Owner settings panel on the Teacher page, on
+  staging's site and on production's.
+- **From GitHub:** a "Scribbles switch" workflow (Run workflow: staging or
+  production, and the mode). It changes the same setting through the
+  backend, behind a job key. Production asks for the production approval
+  first.
+- **From code:** the `STAGING_REVIEWER_MODE` and `PRODUCTION_REVIEWER_MODE`
+  variables stay as the most each deploy allows. Unset means off.
+- **Off always wins.** Off in any one place is off. If the setting can't be
+  read, it's off. The teachers' pause on the Teacher page stays.
+- **Ready for classes.** The setting is saved with who it's for ("site"
+  today), so a class can have its own later with no change to old data.
+
+### Later: classes
+
+A teacher has their own group of students, reviews only that group, and
+has their own Scribbles switch. There's no class in the data today (one
+review queue, one pause for everyone), so this is a task of its own, after
+Stage C: the class and who's in it first, then the queue, then the switch.
 
 ## Rules that keep it safe
 
@@ -512,6 +598,14 @@ day's free allowance.
   A); the word list stays for Write and as the fallback.
 - Sentences may one day be approved automatically, only as Stage C sets out,
   never sent back automatically, with a teacher able to undo.
+- Scribbles decides by itself, approving and sending back, with free local
+  models first (decided 2026-11-25, `tasks/scribbles-worker-spec.md`). That
+  replaces "never sent back automatically" above and the 1-in-5 sample
+  below.
+- Auto-approval (decided 2026-11-25): a teacher still reads 1 in 5, to
+  start; the rule checks still flag every sentence; no earned trust per
+  kid; an auto-approved sentence shows to classmates at once; the switch works from the site and from GitHub, on staging and
+  production, and will be per class later.
 - AI and the job's own gates decide, not a person, and it must stay free.
 - The weekly job adds words with no person in the loop: its PR merges itself
   into `staging` once CI and QA Wolf pass. Production gets the words with
