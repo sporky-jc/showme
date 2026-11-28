@@ -4,7 +4,7 @@ import { ReviewLine, hashShow, saveAnswer } from "../models/reviewLine.js";
 import { Sentence } from "../models/sentences.js";
 import { questionVersion } from "../reviewer/asks.js";
 import { WORRY_WAIT_MS } from "../reviewer/decide.js";
-import { fillLine, keepLine, stepLine } from "../reviewer/line.js";
+import { FILL_PAGE, fillLine, keepLine, stepLine } from "../reviewer/line.js";
 import { createSentence, createUser } from "./helpers.js";
 
 // The line keeper (tasks/scribbles-worker-spec.md, T11, first part). Made-up
@@ -36,6 +36,19 @@ describe("putting sentences in line", () => {
     expect(await fillLine()).toBe(1);
     expect(await fillLine()).toBe(0);
     expect((await ReviewLine.find().lean()).map((l) => String(l.sentence))).toEqual([String(waiting._id)]);
+  });
+
+  it("gets to newer sentences when the oldest ones are already in line", async () => {
+    const user = await createUser({ id: "google-many", email: "many@example.com" });
+    const start = Date.now() - 60 * 60 * 1000;
+    // More waiting sentences than one page, all written at the same moment
+    await Sentence.insertMany(
+      Array.from({ length: FILL_PAGE + 30 }, (_, i) => ({ title: "day1", tell: "It is cold outside.", show: `Made-up sentence ${i}.`, author: user._id, GID: user.id, createdAt: new Date(start) }))
+    );
+    let total = 0;
+    for (let run = 0; run < 10; run++) total += await fillLine();
+    expect(total).toBe(FILL_PAGE + 30);
+    expect(await ReviewLine.countDocuments()).toBe(FILL_PAGE + 30);
   });
 });
 
