@@ -27,6 +27,7 @@ import {
   type Question,
 } from "../models/reviewLine.js";
 import { questionVersion } from "./asks.js";
+import { CLOUDFLARE_WELFARE_MODEL } from "./providers/cloudflare.js";
 import { decide, welfareQuestion, type Facts, type Step } from "./decide.js";
 import { ChecklistAnswer } from "./contract.js";
 import { writingTipFor } from "./reviewer.js";
@@ -71,8 +72,14 @@ const currentVersions = (models: ReturnType<typeof localModels>, hostedModel: st
   };
 };
 
-// The model's name without its exact version ("gemma4:e4b@1a2b" → "gemma4:e4b")
-const named = <T extends { model: string }>(answers: T[]) => answers.map((a) => ({ ...a, model: a.model.split("@")[0] }));
+// The model's name without its exact version ("gemma4:e4b@1a2b" →
+// "gemma4:e4b"). A name that starts with "@" ("@cf/meta/...", the hosted
+// model's) keeps it.
+const named = <T extends { model: string }>(answers: T[]) =>
+  answers.map((a) => {
+    const at = a.model.lastIndexOf("@");
+    return { ...a, model: at > 0 ? a.model.slice(0, at) : a.model };
+  });
 
 const TECHNIQUE_OF = new Map(tellList.map(({ tell, technique }) => [tell, technique]));
 
@@ -99,7 +106,7 @@ const sentBackFor = async (sentence: mongoose.Types.ObjectId) => {
 export const factsFor = async (
   line: { sentence: mongoose.Types.ObjectId; answers: LineAnswer[]; failedTries?: Partial<Record<LineReader, number | null>> | null; worryRaisedAt?: Date | null; writingTieAt?: Date | null },
   sentence: { tell: string; show: string },
-  { models = localModels(), hostedModel = "hosted", now = new Date() } = {}
+  { models = localModels(), hostedModel = CLOUDFLARE_WELFARE_MODEL, now = new Date() } = {}
 ): Promise<Facts> => {
   const rules = checkRules(sentence.tell, sentence.show);
   const answers = currentAnswers({ answers: named(line.answers) }, currentVersions(models, hostedModel));

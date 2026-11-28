@@ -1302,38 +1302,115 @@ const hasTownAndState = (text: string) => {
 };
 const POSTCODE = /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/;
 
+// Contact details: what would let someone find or reach a child (a phone,
+// an email, a username, where they live or go to school, a full name).
+// Not an age, and not the phrases alone ("my snap is"): those say nothing
+// by themselves once the detail after them is hidden.
+const hasContactIn = (visible: string) =>
+  EMAIL.test(visible) ||
+  hasLink(visible) ||
+  HANDLE.test(visible) ||
+  hasPhone(visible) ||
+  MY_NUMBER.test(visible) ||
+  UK_MOBILE.test(visible) ||
+  GAMER_TAG.test(visible) ||
+  PHONE_IN_WORDS.test(visible) ||
+  hasAddress(visible) ||
+  NUMBERED_STREET.test(visible) ||
+  FLAT.test(visible) ||
+  hasNamedSchool(visible) ||
+  hasSchool(visible) ||
+  hasFullName(visible) ||
+  USERNAME.test(visible) ||
+  LABELLED.test(visible) ||
+  ROOM.test(visible) ||
+  NUMBERED_SCHOOL.test(visible) ||
+  SAINT.test(visible.replace(/[‘’ʼ]/g, "'")) ||
+  TEACHERS_CLASS.test(visible.replace(/[‘’ʼ]/g, "'")) ||
+  hasTownAndState(visible) ||
+  POSTCODE.test(visible) ||
+  libraryFindsFullName(visible);
+
+const visibleOf = (text: string) => text.replace(INVISIBLE, "").replace(PRETEND, " ");
+
+export const hasContactDetails = (text: string) => hasContactIn(visibleOf(text));
+
 export const hasPersonalDetails = (text: string) => {
-  const visible = text.replace(INVISIBLE, "").replace(PRETEND, " ");
+  const visible = visibleOf(text);
   return (
-    EMAIL.test(visible) ||
-    hasLink(visible) ||
-    HANDLE.test(visible) ||
-    hasPhone(visible) ||
-    MY_NUMBER.test(visible) ||
-    UK_MOBILE.test(visible) ||
-    GAMER_TAG.test(visible) ||
-    PHONE_IN_WORDS.test(visible) ||
-    hasAddress(visible) ||
-    NUMBERED_STREET.test(visible) ||
-    FLAT.test(visible) ||
-    hasNamedSchool(visible) ||
+    hasContactIn(visible) ||
     AGE_IN_WORDS.test(visible.replace(/[‘’ʼ]/g, "'")) ||
-    hasSchool(visible) ||
-    hasFullName(visible) ||
-    USERNAME.test(visible) ||
-    LABELLED.test(visible) ||
     AGE.test(visible.replace(/[‘’ʼ]/g, "'")) ||
-    ROOM.test(visible) ||
-    NUMBERED_SCHOOL.test(visible) ||
-    SAINT.test(visible.replace(/[‘’ʼ]/g, "'")) ||
-    TEACHERS_CLASS.test(visible.replace(/[‘’ʼ]/g, "'")) ||
-    hasTownAndState(visible) ||
-    POSTCODE.test(visible) ||
-    libraryFindsFullName(visible) ||
     anyPhrase(read(visible), PERSONAL_PHRASES) ||
     PERSONAL_PLAIN.some((parts) => hasParts(plainWords(visible), parts))
   );
 };
+
+// Contact details hidden, for the hosted model (the owner's choice: hide
+// phone numbers, emails, usernames, addresses, schools and surnames; keep
+// ages, since "I'm only 7 and home alone" is the worry). Each one becomes
+// "[hidden]". The caller must still check hasContactDetails on the result
+// and send nothing if it finds any: hiding is a best effort, the check is
+// the guard.
+export const HIDDEN = "[hidden]";
+const everywhere = (pattern: RegExp) => new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+// The word after a phrase that names a contact detail ("my snap is
+// samcool", "add me on roblox coolkid", "my name is Emma"): one word only,
+// so the rest of the sentence (which may be the worry) still reaches it
+const AFTER_CONTACT_PHRASE =
+  /\b((?:my\s+(?:full\s+|last\s+)?name(?:'s|\s+is)?|i'?m\s+called|my\s+(?:address|phone(?:\s+(?:number|no))?|number|cell(?:\s+number)?|email|e\s?mail|password|school|snapchat|snap|insta(?:gram)?|tiktok|discord|roblox|minecraft|fortnite|youtube|yt|channel|user\s?name|user|gamer\s?tag|tag|ign|handle|account)(?:\s+(?:is|=))?|i\s+live\s+(?:at|on)|my\s+house\s+is\s+on|i\s+go\s+to\s+school\s+at|call\s+me\s+at|text\s+me\s+(?:at|on)|add\s+me(?:\s+(?:on|as|at)(?:\s+[a-z]+)?)?|find\s+me\s+on(?:\s+[a-z]+)?|follow\s+me\s+(?:on|at)(?:\s+[a-z]+)?|(?:snap|snapchat|insta|ig|tiktok|discord|roblox|fortnite|user|username|ign|gamertag|yt|youtube)\s*:)\s*)([^\s.!?,;]{1,40})/gi;
+
+export const hideContactDetails = (text: string) => {
+  let out = text.replace(INVISIBLE, "");
+  const hide = (pattern: RegExp, keep?: (match: RegExpExecArray | string[]) => boolean) => {
+    out = out.replace(everywhere(pattern), (...args) => {
+      const match = args.slice(0, -2) as string[];
+      return keep && keep(match) ? match[0] : HIDDEN;
+    });
+  };
+  hide(EMAIL);
+  hide(LINK, (m) => m[2] !== undefined && /^[A-Z][a-z]/.test(m[2]));
+  out = out.replace(everywhere(HANDLE), (_all, before: string) => `${before}${HIDDEN}`);
+  hide(UK_MOBILE);
+  hide(PHONE, (m) => {
+    const digits = m[0].replace(/\D/g, "");
+    return "0123456789".includes(digits) || "9876543210".includes(digits);
+  });
+  hide(PHONE_IN_WORDS);
+  hide(NUMBERED_STREET);
+  hide(FLAT);
+  hide(POSTCODE);
+  // A street, with its house number ("42 Maple Street", "Oak St.")
+  hide(new RegExp(`(?:\\b\\d{1,5}\\s+)?(?:${STREET.source})`, STREET.flags), (m) => {
+    const name = m[1] ?? m[3];
+    const street = m[2] ?? m[4];
+    if (m[4] !== undefined && !SHORT_STREET.test(street)) return true;
+    if (/^(road|lane|court|circle)$/i.test(street) && !/^[A-Z]/.test(name)) return true;
+    return NOT_A_STREET_NAME.has(name.toLowerCase());
+  });
+  hide(SCHOOL, (m) => {
+    const name = (m[1] ?? m[3]).toLowerCase();
+    if (NOT_A_SCHOOL_NAME.has(name)) return true;
+    return m[4] !== undefined && !/^(Middle|High)/.test(m[4]);
+  });
+  hide(NAMED_SCHOOL, (m) => inDictionaryLowerCase(m[1].toLowerCase()) || CALENDAR.test(m[1].toLowerCase()));
+  hide(NUMBERED_SCHOOL);
+  out = out.replace(everywhere(SAINT), HIDDEN);
+  out = out.replace(everywhere(TEACHERS_CLASS), HIDDEN);
+  out = out.replace(everywhere(ROOM), (all) => all.replace(/\d{1,4}[a-z]?\b/i, HIDDEN));
+  if (HOME.test(out) || /\bfrom\b/i.test(out)) out = out.replace(everywhere(TOWN_AND_STATE), HIDDEN);
+  hide(USERNAME);
+  out = out.replace(everywhere(GAMER_TAG), (all) => all.replace(/@?[A-Za-z0-9_]{3,}$/, HIDDEN));
+  // "Snap: samcool": the label and the name
+  out = out.replace(new RegExp(`${LABELLED.source}\\s*[^\\s.!?,;]{0,40}`, "gi"), HIDDEN);
+  // A full name: the first name stays, the surname goes
+  out = out.replace(/\b([A-Za-z][a-z]{1,20})\s+([A-Z][a-z]{1,30})\b/g, (all, first: string, last: string) =>
+    FIRST.has(first.toLowerCase()) && !FUNCTION_WORDS.has(last.toLowerCase()) && !/(ed|ing)$/.test(last) ? `${first} ${HIDDEN}` : all
+  );
+  out = out.replace(AFTER_CONTACT_PHRASE, (_all, phrase: string, word: string) => (word === HIDDEN ? `${phrase}${word}` : `${phrase}${HIDDEN}`));
+  return out;
+};
+
 const PERSONAL_PLAIN = plainPhrases(PERSONAL_PHRASES);
 
 // ---- The plain cases ---------------------------------------------------------
